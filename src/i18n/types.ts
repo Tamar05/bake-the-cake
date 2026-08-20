@@ -20,5 +20,7 @@ export type Dictionary = {
     neededByPrefix: string;
     dietaryPrefix: string;
     locationPrefix: string;
+    loading: string; // shown while requests are being fetched
+    loadError: string; // shown when the server can't be reached
   };
 };

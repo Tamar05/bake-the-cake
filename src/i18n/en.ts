@@ -20,5 +20,7 @@ export const en: Dictionary = {
     neededByPrefix: 'Needed by:',
     dietaryPrefix: 'Dietary:',
     locationPrefix: 'Location:',
+    loading: 'Loading requests…',
+    loadError: 'Could not reach the server. Make sure the backend is running, then refresh.',
   },
 };

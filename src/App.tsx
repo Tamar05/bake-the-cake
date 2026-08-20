@@ -3,30 +3,46 @@ import RequestForm from './components/RequestForm';
 import RequestList from './components/RequestList';
 import LanguageToggle from './components/LanguageToggle';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
-import { createRequest } from './lib/requests';
+import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
 
+type Status = 'loading' | 'ready' | 'error';
+
 export default function App() {
-  // Start from whatever language was saved last (English the first time).
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [requests, setRequests] = useState<CakeRequest[]>([]);
+  const [status, setStatus] = useState<Status>('loading');
 
   const t = dictionaries[language];
 
-  // Keep the page's reading direction and lang attribute in step with the language.
+  // Keep the page's reading direction and lang in step with the language.
   useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
   }, [language]);
+
+  // Load the saved requests from the server once, on startup.
+  useEffect(() => {
+    loadRequests()
+      .then((list) => {
+        setRequests(list);
+        setStatus('ready');
+      })
+      .catch(() => setStatus('error'));
+  }, []);
 
   function handleLanguageChange(next: Language) {
     setLanguage(next);
     saveLanguage(next);
   }
 
-  function handleAdd(draft: RequestDraft) {
-    const request = createRequest(draft);
-    setRequests((prev) => [request, ...prev]); // newest first
+  async function handleAdd(draft: RequestDraft) {
+    try {
+      const saved = await saveRequest(draft);
+      setRequests((prev) => [saved, ...prev]); // newest first
+    } catch {
+      setStatus('error');
+    }
   }
 
   return (
@@ -37,7 +53,9 @@ export default function App() {
         <p>{t.tagline}</p>
       </header>
       <RequestForm t={t} onAdd={handleAdd} />
-      <RequestList t={t} requests={requests} />
+      {status === 'loading' && <p className="list-status">{t.list.loading}</p>}
+      {status === 'error' && <p className="list-status list-error">{t.list.loadError}</p>}
+      {status === 'ready' && <RequestList t={t} requests={requests} />}
     </main>
   );
 }

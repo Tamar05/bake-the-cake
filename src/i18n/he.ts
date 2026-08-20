@@ -20,5 +20,7 @@ export const he: Dictionary = {
     neededByPrefix: 'נדרש עד:',
     dietaryPrefix: 'תזונה:',
     locationPrefix: 'מיקום:',
+    loading: 'טוען בקשות…',
+    loadError: 'לא ניתן להתחבר לשרת. ודאו שהשרת פועל ורעננו את הדף.',
   },
 };

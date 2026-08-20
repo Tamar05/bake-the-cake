@@ -123,3 +123,14 @@ body {
   color: #ffffff;
   border-color: #ff6f91;
 }
+
+.list-status {
+  text-align: center;
+  color: #8a6d6d;
+  padding: 1rem;
+}
+
+.list-error {
+  color: #c0392b;
+  font-weight: 600;
+}

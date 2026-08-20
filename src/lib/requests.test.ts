@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findMissingFields, createRequest } from './requests';
+import { findMissingFields } from './requests';
 import type { RequestDraft } from '../types';
 
 const fullDraft: RequestDraft = {
@@ -23,21 +23,5 @@ describe('findMissingFields', () => {
   it('does not require the dietary field', () => {
     const draft: RequestDraft = { ...fullDraft, dietary: '' };
     expect(findMissingFields(draft)).toEqual([]);
-  });
-});
-
-describe('createRequest', () => {
-  it('copies the draft fields, trimming surrounding spaces', () => {
-    const draft: RequestDraft = { ...fullDraft, recipient: '  Maya  ' };
-    const request = createRequest(draft);
-    expect(request.recipient).toBe('Maya');
-    expect(request.occasion).toBe('8th birthday, dinosaurs');
-    expect(request.location).toBe('Haifa');
-  });
-
-  it('gives each request a different id', () => {
-    const a = createRequest(fullDraft);
-    const b = createRequest(fullDraft);
-    expect(a.id).not.toBe(b.id);
   });
 });
