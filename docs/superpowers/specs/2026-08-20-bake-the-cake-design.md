@@ -82,6 +82,27 @@ Each slice is a working milestone you can see and use.
 bakers claim them). Slice 4 (accounts) is the "grown-up app" jump. Slice 7 is
 the wish-list — only meaningful once the core works.
 
+### Captured decision — "Translate this request" button (a Slice 7 magic touch)
+
+Decided 2026-08-20. Two different kinds of "translate" exist, and they are not
+the same size:
+
+- **App's own words** (labels, buttons) — hand-written in both languages ahead
+  of time. Free, instant, offline. This is Slice 1.5.
+- **Typed-in content** (recipient name, occasion, dietary notes) — unpredictable
+  text nobody wrote in advance, so it needs a **live online AI/translation
+  engine** at view time.
+
+**What we chose:** an **on-demand "Translate" button** on each request card —
+it calls the translation engine only when someone clicks it (cheaper and simpler
+than auto-translating everything).
+
+**Why it waits:** calling an AI service needs a secret API key, which must live
+on the **server, never in the browser** (a browser-embedded key can be stolen
+and abused). The server arrives in **Slice 2**. So the Translate button is built
+**after Slice 2**, reusing the language state that Slice 1.5 introduces. Claude
+(the Anthropic API) is the intended translation engine.
+
 ---
 
 ## 5. Slice 1 in detail (what we build first)
