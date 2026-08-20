@@ -100,3 +100,26 @@ body {
 .request-card p {
   margin: 0.15rem 0;
 }
+
+.language-toggle {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.language-toggle button {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  border: 1px solid #ffb3c6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ff4d76;
+  cursor: pointer;
+}
+
+.language-toggle button.active {
+  background: #ff6f91;
+  color: #ffffff;
+  border-color: #ff6f91;
+}
