@@ -3,6 +3,7 @@
 export type Dictionary = {
   appTitle: string;
   tagline: string;
+  languageLabel: string; // accessible label for the language switch
   form: {
     heading: string;
     recipientLabel: string;

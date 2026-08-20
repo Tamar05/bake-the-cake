@@ -3,6 +3,7 @@ import type { Dictionary } from './types';
 export const he: Dictionary = {
   appTitle: '🍰 להכין את העוגה',
   tagline: 'בקשו עוגה לחגיגה, שתיאפה באהבה על ידי מתנדב.',
+  languageLabel: 'שפה',
   form: {
     heading: 'בקשת עוגה',
     recipientLabel: 'למי העוגה?',

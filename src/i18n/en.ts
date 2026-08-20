@@ -3,6 +3,7 @@ import type { Dictionary } from './types';
 export const en: Dictionary = {
   appTitle: '🍰 Bake the Cake',
   tagline: 'Ask for a celebration cake, made with care by a volunteer.',
+  languageLabel: 'Language',
   form: {
     heading: 'Request a cake',
     recipientLabel: 'Who is the cake for?',
