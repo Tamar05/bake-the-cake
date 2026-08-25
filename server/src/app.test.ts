@@ -337,6 +337,109 @@ describe('delete API', () => {
   });
 });
 
+// The security contract, gathered in one place: every protected endpoint must
+// reject a missing token (401), an invalid/expired token (401), the wrong role
+// (403), and acting on a request that isn't yours (403). Some of these overlap
+// the feature tests above; keeping the full matrix here documents the guarantee.
+describe('auth negative tests (Phase 5 hardening)', () => {
+  const add = async (app: ReturnType<typeof createApp>) => {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    return res.body.id as string;
+  };
+  const reserveAs = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${token}`).send();
+
+  describe('a missing token is rejected with 401', () => {
+    it('GET /api/me', async () => {
+      expect((await request(makeApp()).get('/api/me')).status).toBe(401);
+    });
+    it('POST /api/requests', async () => {
+      expect((await request(makeApp()).post('/api/requests').send(validDraft)).status).toBe(401);
+    });
+    it('POST /api/requests/:id/reserve', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      expect((await request(app).post(`/api/requests/${id}/reserve`).send()).status).toBe(401);
+    });
+    it('POST /api/requests/:id/release', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      expect((await request(app).post(`/api/requests/${id}/release`).send()).status).toBe(401);
+    });
+    it('DELETE /api/requests/:id', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      expect((await request(app).delete(`/api/requests/${id}`)).status).toBe(401);
+    });
+  });
+
+  describe('an invalid/expired token is rejected with 401', () => {
+    const bad = 'Bearer not-a-real-token';
+    it('GET /api/me', async () => {
+      expect((await request(makeApp()).get('/api/me').set('Authorization', bad)).status).toBe(401);
+    });
+    it('POST /api/requests', async () => {
+      const res = await request(makeApp())
+        .post('/api/requests')
+        .set('Authorization', bad)
+        .send(validDraft);
+      expect(res.status).toBe(401);
+    });
+    it('DELETE /api/requests/:id', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      const res = await request(app).delete(`/api/requests/${id}`).set('Authorization', bad);
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('the wrong role is rejected with 403', () => {
+    it('a baker cannot post a request', async () => {
+      const res = await request(makeApp())
+        .post('/api/requests')
+        .set('Authorization', 'Bearer bak')
+        .send(validDraft);
+      expect(res.status).toBe(403);
+    });
+    it('a requester cannot reserve a request', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      expect((await reserveAs(app, id, 'req')).status).toBe(403);
+    });
+  });
+
+  describe('acting on a request that isn’t yours is rejected with 403', () => {
+    it('a baker cannot release another baker’s reservation', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      await reserveAs(app, id, 'bak');
+      const res = await request(app)
+        .post(`/api/requests/${id}/release`)
+        .set('Authorization', 'Bearer bak2')
+        .send();
+      expect(res.status).toBe(403);
+    });
+    it('a signed-in requester cannot release a baker’s reservation', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      await reserveAs(app, id, 'bak');
+      const res = await request(app)
+        .post(`/api/requests/${id}/release`)
+        .set('Authorization', 'Bearer req')
+        .send();
+      expect(res.status).toBe(403);
+    });
+    it('a requester cannot delete another requester’s request', async () => {
+      const app = makeApp();
+      const id = await add(app);
+      expect((await request(app).delete(`/api/requests/${id}`).set('Authorization', 'Bearer req2')).status).toBe(403);
+    });
+  });
+});
+
 describe('translate API', () => {
   it('POST /api/translate returns the translated text', async () => {
     const res = await request(makeApp()).post('/api/translate').send({ text: 'hello', to: 'he' });
