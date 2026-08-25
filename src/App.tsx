@@ -45,6 +45,11 @@ export default function App() {
     }
   }
 
+  // A card reserved or released itself; swap in the updated request by id.
+  function handleRequestUpdated(updated: CakeRequest) {
+    setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  }
+
   return (
     <main className="app">
       <header className="app-header">
@@ -55,7 +60,14 @@ export default function App() {
       <RequestForm t={t} onAdd={handleAdd} />
       {status === 'loading' && <p className="list-status">{t.list.loading}</p>}
       {status === 'error' && <p className="list-status list-error">{t.list.loadError}</p>}
-      {status === 'ready' && <RequestList t={t} language={language} requests={requests} />}
+      {status === 'ready' && (
+        <RequestList
+          t={t}
+          language={language}
+          requests={requests}
+          onUpdated={handleRequestUpdated}
+        />
+      )}
     </main>
   );
 }

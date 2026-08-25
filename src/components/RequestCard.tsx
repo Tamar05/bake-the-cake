@@ -3,16 +3,20 @@ import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import type { CakeRequest } from '../types';
 import { translateText } from '../lib/translationApi';
+import { reserveRequest, releaseRequest } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 
 type Props = {
   t: Dictionary;
   language: Language;
   request: CakeRequest;
+  onUpdated: (updated: CakeRequest) => void;
 };
 
 type Mode = 'original' | 'translated';
-type Status = 'idle' | 'loading' | 'error';
+type TranslateStatus = 'idle' | 'loading' | 'error';
+type ReserveStatus = 'idle' | 'saving' | 'error' | 'missing';
+type ReleaseStatus = 'idle' | 'saving' | 'error';
 
 // The four typed-in text fields we may translate (the date is never translated).
 type Translated = {
@@ -23,16 +27,36 @@ type Translated = {
 };
 const TEXT_FIELDS = ['recipient', 'occasion', 'dietary', 'location'] as const;
 
-export default function RequestCard({ t, language, request }: Props) {
+export default function RequestCard({ t, language, request, onUpdated }: Props) {
   const [mode, setMode] = useState<Mode>('original');
-  const [status, setStatus] = useState<Status>('idle');
+  const [translateStatus, setTranslateStatus] = useState<TranslateStatus>('idle');
   const [translated, setTranslated] = useState<Translated | null>(null);
+
+  const [reserveOpen, setReserveOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
+  const [reserveStatus, setReserveStatus] = useState<ReserveStatus>('idle');
+  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatus>('idle');
+
+  // A once-a-second clock, running only while this request is reserved, so the
+  // countdown ticks and the card flips back to Open on its own when it expires.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (request.status !== 'reserved' || request.reservedUntil == null) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [request.status, request.reservedUntil]);
+
+  const isReserved =
+    request.status === 'reserved' && request.reservedUntil != null && request.reservedUntil > now;
 
   // Switching the language selector makes any earlier translation stale (its
   // target language changed), so start this card fresh in its original text.
   useEffect(() => {
     setMode('original');
-    setStatus('idle');
+    setTranslateStatus('idle');
     setTranslated(null);
   }, [language]);
 
@@ -43,19 +67,17 @@ export default function RequestCard({ t, language, request }: Props) {
   );
 
   async function handleTranslateClick() {
-    // Already showing the translation → flip back to the original.
     if (mode === 'translated') {
       setMode('original');
       return;
     }
-    // We fetched it before → reuse the cache, no new network call.
     if (translated) {
       setMode('translated');
       return;
     }
     // First time → translate only the fields that aren't already in the
     // selected language; leave the rest exactly as they were typed.
-    setStatus('loading');
+    setTranslateStatus('loading');
     const next: Translated = {
       recipient: request.recipient,
       occasion: request.occasion,
@@ -72,22 +94,58 @@ export default function RequestCard({ t, language, request }: Props) {
       );
       setTranslated(next);
       setMode('translated');
-      setStatus('idle');
+      setTranslateStatus('idle');
     } catch {
-      setStatus('error');
+      setTranslateStatus('error');
+    }
+  }
+
+  async function handleReserveSubmit() {
+    if (!name.trim() || !contact.trim()) {
+      setReserveStatus('missing');
+      return;
+    }
+    setReserveStatus('saving');
+    try {
+      const updated = await reserveRequest(request.id, name.trim(), contact.trim());
+      onUpdated(updated);
+      setReserveOpen(false);
+      setName('');
+      setContact('');
+      setReserveStatus('idle');
+    } catch {
+      setReserveStatus('error');
+    }
+  }
+
+  async function handleRelease() {
+    setReleaseStatus('saving');
+    try {
+      const updated = await releaseRequest(request.id);
+      onUpdated(updated);
+      setReleaseStatus('idle');
+    } catch {
+      setReleaseStatus('error');
     }
   }
 
   const shown = mode === 'translated' && translated ? translated : request;
-  const buttonLabel =
-    status === 'loading'
+  const translateLabel =
+    translateStatus === 'loading'
       ? t.list.translating
       : mode === 'translated'
         ? t.list.showOriginal
         : t.list.translate;
 
+  const remainingMs = isReserved ? request.reservedUntil! - now : 0;
+  const minsLeft = Math.floor(remainingMs / 60000);
+  const secsLeft = Math.floor((remainingMs % 60000) / 1000);
+
   return (
     <li className="request-card">
+      <span className={`status-badge status-${isReserved ? 'reserved' : 'open'}`}>
+        {isReserved ? t.list.statusReserved : t.list.statusOpen}
+      </span>
       <h3>{shown.recipient}</h3>
       <p>{shown.occasion}</p>
       <p>
@@ -101,13 +159,67 @@ export default function RequestCard({ t, language, request }: Props) {
           {t.list.dietaryPrefix} {shown.dietary}
         </p>
       )}
+
       {needsTranslation && (
         <>
-          <button type="button" onClick={handleTranslateClick} disabled={status === 'loading'}>
-            {buttonLabel}
+          <button
+            type="button"
+            onClick={handleTranslateClick}
+            disabled={translateStatus === 'loading'}
+          >
+            {translateLabel}
           </button>
-          {status === 'error' && <p className="translate-error">{t.list.translateError}</p>}
+          {translateStatus === 'error' && <p className="translate-error">{t.list.translateError}</p>}
         </>
+      )}
+
+      {isReserved ? (
+        <div className="reserved-box">
+          <p>
+            {t.list.reservedByPrefix} {request.reservedBy}
+          </p>
+          <p>
+            {t.list.reservedContactPrefix} {request.reservedContact}
+          </p>
+          <p className="countdown">
+            {t.list.timeLeftPrefix} {minsLeft}m {secsLeft}s
+          </p>
+          <button type="button" onClick={handleRelease} disabled={releaseStatus === 'saving'}>
+            {releaseStatus === 'saving' ? t.list.releasing : t.list.release}
+          </button>
+          {releaseStatus === 'error' && <p className="reserve-error">{t.list.releaseError}</p>}
+        </div>
+      ) : reserveOpen ? (
+        <div className="reserve-form">
+          <label>
+            {t.list.reserveNameLabel}
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label>
+            {t.list.reserveContactLabel}
+            <input value={contact} onChange={(e) => setContact(e.target.value)} />
+          </label>
+          <div className="reserve-form-actions">
+            <button type="button" onClick={handleReserveSubmit} disabled={reserveStatus === 'saving'}>
+              {reserveStatus === 'saving' ? t.list.reserving : t.list.reserveConfirm}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReserveOpen(false);
+                setReserveStatus('idle');
+              }}
+            >
+              {t.list.reserveCancel}
+            </button>
+          </div>
+          {reserveStatus === 'missing' && <p className="reserve-error">{t.list.reserveMissing}</p>}
+          {reserveStatus === 'error' && <p className="reserve-error">{t.list.reserveError}</p>}
+        </div>
+      ) : (
+        <button type="button" className="reserve-button" onClick={() => setReserveOpen(true)}>
+          {t.list.reserve}
+        </button>
       )}
     </li>
   );

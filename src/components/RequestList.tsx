@@ -7,9 +7,10 @@ type Props = {
   t: Dictionary;
   language: Language;
   requests: CakeRequest[];
+  onUpdated: (updated: CakeRequest) => void;
 };
 
-export default function RequestList({ t, language, requests }: Props) {
+export default function RequestList({ t, language, requests, onUpdated }: Props) {
   return (
     <section className="request-list">
       <h2>{t.list.heading}</h2>
@@ -18,7 +19,13 @@ export default function RequestList({ t, language, requests }: Props) {
       ) : (
         <ul>
           {requests.map((request) => (
-            <RequestCard key={request.id} t={t} language={language} request={request} />
+            <RequestCard
+              key={request.id}
+              t={t}
+              language={language}
+              request={request}
+              onUpdated={onUpdated}
+            />
           ))}
         </ul>
       )}

@@ -155,3 +155,92 @@ body {
   color: #c0392b;
   font-size: 0.9rem;
 }
+
+/* --- Reservation (Baker browse & reserve) --- */
+.request-card {
+  position: relative;
+}
+
+.status-badge {
+  position: absolute;
+  top: 0.85rem;
+  inset-inline-end: 1rem; /* right in LTR, left in Hebrew (RTL) */
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+
+.status-open {
+  background: #e7f7ec;
+  color: #1f7a44;
+}
+
+.status-reserved {
+  background: #fff0d6;
+  color: #a35b00;
+}
+
+.request-card button.reserve-button {
+  background: #ff6f91;
+  color: #ffffff;
+  border-color: #ff6f91;
+  padding: 0.5rem 1rem;
+}
+
+.request-card button.reserve-button:hover {
+  background: #ff4d76;
+}
+
+.reserve-form {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fff8fb;
+  border: 1px solid #ffe3ec;
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.reserve-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.reserve-form input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #f0c9d6;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.reserve-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.reserved-box {
+  margin-top: 0.6rem;
+  background: #fffaf0;
+  border: 1px solid #ffe6c2;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+
+.reserved-box .countdown {
+  font-weight: 700;
+  color: #a35b00;
+  font-variant-numeric: tabular-nums;
+}
+
+.reserve-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+}

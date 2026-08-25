@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import type { RequestsStore } from './requestsStore';
+import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
 import type { Translator } from './translator';
 import type { RequestDraft } from './types';
 
@@ -46,6 +46,33 @@ export function createApp(store: RequestsStore, translator: Translator) {
       res.status(201).json(saved);
     } catch {
       res.status(500).json({ error: 'Could not save request' });
+    }
+  });
+
+  app.post('/api/requests/:id/reserve', async (req, res) => {
+    const { name, contact } = (req.body ?? {}) as { name?: string; contact?: string };
+    if (!name || !name.trim() || !contact || !contact.trim()) {
+      res.status(400).json({ error: 'A name and contact are required to reserve' });
+      return;
+    }
+    try {
+      const updated = await store.reserveRequest(req.params.id, name.trim(), contact.trim());
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === ALREADY_RESERVED) {
+        res.status(409).json({ error: 'This request is already reserved' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not reserve this request' });
+    }
+  });
+
+  app.post('/api/requests/:id/release', async (req, res) => {
+    try {
+      const updated = await store.releaseRequest(req.params.id);
+      res.status(200).json(updated);
+    } catch {
+      res.status(500).json({ error: 'Could not release this request' });
     }
   });
 

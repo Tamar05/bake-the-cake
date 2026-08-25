@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app';
-import type { RequestsStore } from './requestsStore';
+import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
 import type { Translator } from './translator';
-import type { CakeRequest, RequestDraft } from './types';
+import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
 // An in-memory stand-in for the Supabase store, so these tests need no database.
 function makeFakeStore(): RequestsStore {
   const items: CakeRequest[] = [];
+  const find = (id: string) => items.find((r) => r.id === id);
   return {
     async listRequests() {
       return [...items].sort((a, b) => b.createdAt - a.createdAt);
@@ -17,9 +18,36 @@ function makeFakeStore(): RequestsStore {
         ...draft,
         id: `id-${items.length + 1}`,
         createdAt: Date.now() + items.length,
+        status: 'open',
+        reservedBy: null,
+        reservedContact: null,
+        reservedUntil: null,
       };
       items.push(saved);
       return saved;
+    },
+    async reserveRequest(id, name, contact) {
+      const item = find(id);
+      if (!item) throw new Error('not found');
+      if (item.status === 'reserved') throw new Error(ALREADY_RESERVED);
+      Object.assign(item, {
+        status: 'reserved',
+        reservedBy: name,
+        reservedContact: contact,
+        reservedUntil: Date.now() + RESERVATION_MS,
+      });
+      return item;
+    },
+    async releaseRequest(id) {
+      const item = find(id);
+      if (!item) throw new Error('not found');
+      Object.assign(item, {
+        status: 'open',
+        reservedBy: null,
+        reservedContact: null,
+        reservedUntil: null,
+      });
+      return item;
     },
   };
 }
@@ -68,6 +96,53 @@ describe('requests API', () => {
       .post('/api/requests')
       .send({ recipient: '', occasion: '', neededBy: '', dietary: '', location: '' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('reserve API', () => {
+  async function addOne(app: ReturnType<typeof createApp>) {
+    const res = await request(app).post('/api/requests').send(validDraft);
+    return res.body.id as string;
+  }
+
+  it('reserving flips a request to reserved with the baker details', async () => {
+    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const id = await addOne(app);
+    const res = await request(app)
+      .post(`/api/requests/${id}/reserve`)
+      .send({ name: 'Dana', contact: 'dana@example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('reserved');
+    expect(res.body.reservedBy).toBe('Dana');
+    expect(res.body.reservedContact).toBe('dana@example.com');
+    expect(res.body.reservedUntil).toBeGreaterThan(Date.now());
+  });
+
+  it('reserving without a name or contact returns 400', async () => {
+    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const id = await addOne(app);
+    const res = await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana' });
+    expect(res.status).toBe(400);
+  });
+
+  it('reserving an already-reserved request returns 409', async () => {
+    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const id = await addOne(app);
+    await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
+    const res = await request(app)
+      .post(`/api/requests/${id}/reserve`)
+      .send({ name: 'Noa', contact: 'n@e.com' });
+    expect(res.status).toBe(409);
+  });
+
+  it('releasing a reserved request returns it to open', async () => {
+    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const id = await addOne(app);
+    await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
+    const res = await request(app).post(`/api/requests/${id}/release`).send();
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('open');
+    expect(res.body.reservedBy).toBeNull();
   });
 });
 
