@@ -10,7 +10,7 @@ export const ALREADY_RESERVED = 'ALREADY_RESERVED';
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
   listRequests(): Promise<CakeRequest[]>;
-  addRequest(draft: RequestDraft): Promise<CakeRequest>;
+  addRequest(draft: RequestDraft, ownerId: string): Promise<CakeRequest>;
   reserveRequest(id: string, name: string, contact: string): Promise<CakeRequest>;
   releaseRequest(id: string): Promise<CakeRequest>;
 };
@@ -34,7 +34,7 @@ export function createSupabaseStore(): RequestsStore {
       return (data as CakeRequestRow[]).map(rowToRequest);
     },
 
-    async addRequest(draft: RequestDraft): Promise<CakeRequest> {
+    async addRequest(draft: RequestDraft, ownerId: string): Promise<CakeRequest> {
       const { data, error } = await supabase
         .from('cake_requests')
         .insert({
@@ -43,6 +43,7 @@ export function createSupabaseStore(): RequestsStore {
           needed_by: draft.neededBy,
           dietary: draft.dietary,
           location: draft.location,
+          owner_id: ownerId,
         })
         .select('*')
         .single();

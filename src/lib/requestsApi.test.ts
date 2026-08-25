@@ -27,14 +27,17 @@ describe('requestsApi', () => {
     expect(result).toEqual([]);
   });
 
-  it('saveRequest POSTs the draft as JSON and returns the saved request', async () => {
+  it('saveRequest POSTs the draft with the auth token and returns the saved request', async () => {
     const saved = { ...draft, id: 'x', createdAt: 1 };
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => saved });
     vi.stubGlobal('fetch', fetchMock);
-    const result = await saveRequest(draft);
+    const result = await saveRequest(draft, 'token-123');
     expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-123',
+      },
       body: JSON.stringify(draft),
     });
     expect(result).toEqual(saved);

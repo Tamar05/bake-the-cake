@@ -6,6 +6,7 @@ import type { RequestDraft } from './types';
 import {
   createSupabaseAuthenticator,
   requireAuth,
+  requireRole,
   type Authenticator,
   type AuthedRequest,
 } from './auth';
@@ -45,20 +46,25 @@ export function createApp(
     }
   });
 
-  app.post('/api/requests', async (req, res) => {
+  app.post('/api/requests', auth, requireRole('requester', 'admin'), async (req, res) => {
     const draft = (req.body ?? {}) as Partial<RequestDraft>;
     if (isMissingRequired(draft)) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
     try {
-      const saved = await store.addRequest({
-        recipient: draft.recipient!,
-        occasion: draft.occasion!,
-        neededBy: draft.neededBy!,
-        dietary: draft.dietary ?? '',
-        location: draft.location!,
-      });
+      // The owner is the verified signed-in user, never taken from the body.
+      const ownerId = (req as AuthedRequest).auth.id;
+      const saved = await store.addRequest(
+        {
+          recipient: draft.recipient!,
+          occasion: draft.occasion!,
+          neededBy: draft.neededBy!,
+          dietary: draft.dietary ?? '',
+          location: draft.location!,
+        },
+        ownerId,
+      );
       res.status(201).json(saved);
     } catch {
       res.status(500).json({ error: 'Could not save request' });

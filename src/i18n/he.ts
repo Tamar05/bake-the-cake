@@ -13,6 +13,7 @@ export const he: Dictionary = {
     locationLabel: 'מיקום משוער',
     submit: 'שליחת בקשה',
     missingFields: 'אנא מלאו את שדות החובה לפני השליחה.',
+    signInToPost: 'התחברו כמבקש כדי לפרסם בקשת עוגה.',
   },
   list: {
     heading: 'בקשות פתוחות',

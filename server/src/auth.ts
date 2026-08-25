@@ -75,3 +75,15 @@ export function requireAuth(authenticator: Authenticator): RequestHandler {
     next();
   };
 }
+
+// Middleware to run AFTER requireAuth: allow only the listed roles, else 403.
+export function requireRole(...roles: AuthedProfile['role'][]): RequestHandler {
+  return (req, res, next) => {
+    const profile = (req as AuthedRequest).auth;
+    if (!profile || !roles.includes(profile.role)) {
+      res.status(403).json({ error: 'Your account is not allowed to do this' });
+      return;
+    }
+    next();
+  };
+}

@@ -10,6 +10,7 @@ export type CakeRequestRow = {
   dietary: string;
   location: string;
   created_at: string; // ISO timestamp from Postgres
+  owner_id: string | null; // the requester who posted it; null for legacy rows
   reserved_by: string | null;
   reserved_contact: string | null;
   reserved_at: string | null; // ISO timestamp, or null when open
@@ -27,6 +28,7 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     dietary: row.dietary,
     location: row.location,
     createdAt: new Date(row.created_at).getTime(),
+    ownerId: row.owner_id,
   };
 
   const reservedUntil = row.reserved_at

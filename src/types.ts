@@ -13,6 +13,7 @@ export type RequestDraft = {
 export type CakeRequest = RequestDraft & {
   id: string;
   createdAt: number; // milliseconds since 1970, used for ordering
+  ownerId: string | null; // the requester who posted it; null for legacy rows
   status: 'open' | 'reserved';
   reservedBy: string | null; // baker's name while reserved, else null
   reservedContact: string | null; // baker's phone/email while reserved, else null

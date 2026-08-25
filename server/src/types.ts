@@ -16,6 +16,7 @@ export const RESERVATION_MS = 60 * 60 * 1000;
 export type CakeRequest = RequestDraft & {
   id: string;
   createdAt: number;
+  ownerId: string | null; // the requester who posted it; null for legacy rows
   status: 'open' | 'reserved';
   reservedBy: string | null; // baker's name while reserved, else null
   reservedContact: string | null; // baker's phone/email while reserved, else null

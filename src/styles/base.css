@@ -365,3 +365,13 @@ body {
   cursor: pointer;
   white-space: nowrap;
 }
+
+.post-note {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  color: #8a6d6d;
+  background: #ffffff;
+  border: 1px dashed #ffd0dd;
+  border-radius: 16px;
+  padding: 1rem;
+}

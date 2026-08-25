@@ -13,6 +13,7 @@ export type Dictionary = {
     locationLabel: string;
     submit: string;
     missingFields: string; // gentle message when required fields are blank
+    signInToPost: string; // shown instead of the form when you can't post
   };
   list: {
     heading: string;

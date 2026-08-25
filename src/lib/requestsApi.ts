@@ -12,11 +12,16 @@ export async function loadRequests(): Promise<CakeRequest[]> {
   return (await res.json()) as CakeRequest[];
 }
 
-// Saves one new request and returns it with its database id + timestamp.
-export async function saveRequest(draft: RequestDraft): Promise<CakeRequest> {
+// Saves one new request and returns it with its database id + timestamp. The
+// login token is sent so the server can record who owns it (and check the
+// person is allowed to post).
+export async function saveRequest(draft: RequestDraft, token: string): Promise<CakeRequest> {
   const res = await fetch(`${apiBase()}/api/requests`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(draft),
   });
   if (!res.ok) throw new Error(`Could not save request (HTTP ${res.status})`);

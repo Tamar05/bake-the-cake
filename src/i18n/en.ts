@@ -13,6 +13,7 @@ export const en: Dictionary = {
     locationLabel: 'Rough location',
     submit: 'Submit request',
     missingFields: 'Please fill in the required fields before submitting.',
+    signInToPost: 'Sign in as a requester to post a cake request.',
   },
   list: {
     heading: 'Open requests',

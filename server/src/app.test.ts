@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app';
 import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
+import type { Authenticator, AuthedProfile } from './auth';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -13,11 +14,12 @@ function makeFakeStore(): RequestsStore {
     async listRequests() {
       return [...items].sort((a, b) => b.createdAt - a.createdAt);
     },
-    async addRequest(draft: RequestDraft) {
+    async addRequest(draft: RequestDraft, ownerId: string) {
       const saved: CakeRequest = {
         ...draft,
         id: `id-${items.length + 1}`,
         createdAt: Date.now() + items.length,
+        ownerId,
         status: 'open',
         reservedBy: null,
         reservedContact: null,
@@ -61,6 +63,25 @@ function makeFakeTranslator(): Translator {
   };
 }
 
+// Fake auth: the tokens 'req' / 'bak' / 'adm' stand for a signed-in requester /
+// baker / admin; any other token (or none) is treated as signed-out.
+const PROFILES: Record<string, AuthedProfile> = {
+  req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null },
+  bak: { id: 'user-bak', displayName: 'Baz', role: 'baker', contact: 'baz@example.com' },
+  adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null },
+};
+function makeFakeAuthenticator(): Authenticator {
+  return {
+    async verify(token: string) {
+      return PROFILES[token] ?? null;
+    },
+  };
+}
+
+function makeApp() {
+  return createApp(makeFakeStore(), makeFakeTranslator(), makeFakeAuthenticator());
+}
+
 const validDraft: RequestDraft = {
   recipient: 'Maya',
   occasion: '8th birthday',
@@ -71,29 +92,47 @@ const validDraft: RequestDraft = {
 
 describe('requests API', () => {
   it('GET /api/requests starts empty', async () => {
-    const res = await request(createApp(makeFakeStore(), makeFakeTranslator())).get('/api/requests');
+    const res = await request(makeApp()).get('/api/requests');
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
   });
 
-  it('POST /api/requests saves and returns the request with an id', async () => {
-    const res = await request(createApp(makeFakeStore(), makeFakeTranslator())).post('/api/requests').send(validDraft);
+  it('a requester can post a request; it is owned by them', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
     expect(res.status).toBe(201);
     expect(res.body.recipient).toBe('Maya');
     expect(res.body.id).toBeTruthy();
+    expect(res.body.ownerId).toBe('user-req');
   });
 
   it('a saved request then appears in the list', async () => {
-    const app = createApp(makeFakeStore(), makeFakeTranslator());
-    await request(app).post('/api/requests').send(validDraft);
+    const app = makeApp();
+    await request(app).post('/api/requests').set('Authorization', 'Bearer req').send(validDraft);
     const res = await request(app).get('/api/requests');
     expect(res.body).toHaveLength(1);
     expect(res.body[0].recipient).toBe('Maya');
   });
 
-  it('POST with a missing required field returns 400', async () => {
-    const res = await request(createApp(makeFakeStore(), makeFakeTranslator()))
+  it('posting without signing in returns 401', async () => {
+    const res = await request(makeApp()).post('/api/requests').send(validDraft);
+    expect(res.status).toBe(401);
+  });
+
+  it('a baker may not post a request (403)', async () => {
+    const res = await request(makeApp())
       .post('/api/requests')
+      .set('Authorization', 'Bearer bak')
+      .send(validDraft);
+    expect(res.status).toBe(403);
+  });
+
+  it('a requester posting a blank form returns 400', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
       .send({ recipient: '', occasion: '', neededBy: '', dietary: '', location: '' });
     expect(res.status).toBe(400);
   });
@@ -101,12 +140,15 @@ describe('requests API', () => {
 
 describe('reserve API', () => {
   async function addOne(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post('/api/requests').send(validDraft);
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
     return res.body.id as string;
   }
 
   it('reserving flips a request to reserved with the baker details', async () => {
-    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const app = makeApp();
     const id = await addOne(app);
     const res = await request(app)
       .post(`/api/requests/${id}/reserve`)
@@ -119,14 +161,14 @@ describe('reserve API', () => {
   });
 
   it('reserving without a name or contact returns 400', async () => {
-    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const app = makeApp();
     const id = await addOne(app);
     const res = await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana' });
     expect(res.status).toBe(400);
   });
 
   it('reserving an already-reserved request returns 409', async () => {
-    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const app = makeApp();
     const id = await addOne(app);
     await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
     const res = await request(app)
@@ -136,7 +178,7 @@ describe('reserve API', () => {
   });
 
   it('releasing a reserved request returns it to open', async () => {
-    const app = createApp(makeFakeStore(), makeFakeTranslator());
+    const app = makeApp();
     const id = await addOne(app);
     await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
     const res = await request(app).post(`/api/requests/${id}/release`).send();
@@ -148,17 +190,13 @@ describe('reserve API', () => {
 
 describe('translate API', () => {
   it('POST /api/translate returns the translated text', async () => {
-    const res = await request(createApp(makeFakeStore(), makeFakeTranslator()))
-      .post('/api/translate')
-      .send({ text: 'hello', to: 'he' });
+    const res = await request(makeApp()).post('/api/translate').send({ text: 'hello', to: 'he' });
     expect(res.status).toBe(200);
     expect(res.body.translated).toBe('[he] hello');
   });
 
   it('POST /api/translate with missing text returns 400', async () => {
-    const res = await request(createApp(makeFakeStore(), makeFakeTranslator()))
-      .post('/api/translate')
-      .send({ text: '', to: 'he' });
+    const res = await request(makeApp()).post('/api/translate').send({ text: '', to: 'he' });
     expect(res.status).toBe(400);
   });
 
@@ -168,7 +206,7 @@ describe('translate API', () => {
         throw new Error('boom');
       },
     };
-    const res = await request(createApp(makeFakeStore(), throwing))
+    const res = await request(createApp(makeFakeStore(), throwing, makeFakeAuthenticator()))
       .post('/api/translate')
       .send({ text: 'hello', to: 'he' });
     expect(res.status).toBe(500);

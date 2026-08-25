@@ -3,6 +3,7 @@ import RequestForm from './components/RequestForm';
 import RequestList from './components/RequestList';
 import LanguageToggle from './components/LanguageToggle';
 import AuthPanel from './auth/AuthPanel';
+import { useAuth } from './auth/AuthProvider';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -15,6 +16,9 @@ export default function App() {
   const [status, setStatus] = useState<Status>('loading');
 
   const t = dictionaries[language];
+  const { profile, session } = useAuth();
+  // Only a signed-in requester (or admin) may post a cake request.
+  const canPost = profile?.role === 'requester' || profile?.role === 'admin';
 
   // Keep the page's reading direction and lang in step with the language.
   useEffect(() => {
@@ -38,8 +42,10 @@ export default function App() {
   }
 
   async function handleAdd(draft: RequestDraft) {
+    const token = session?.access_token;
+    if (!token) return; // the form is only shown to signed-in requesters
     try {
-      const saved = await saveRequest(draft);
+      const saved = await saveRequest(draft, token);
       setRequests((prev) => [saved, ...prev]); // newest first
     } catch {
       setStatus('error');
@@ -59,7 +65,11 @@ export default function App() {
         <p>{t.tagline}</p>
         <AuthPanel t={t} />
       </header>
-      <RequestForm t={t} onAdd={handleAdd} />
+      {canPost ? (
+        <RequestForm t={t} onAdd={handleAdd} />
+      ) : (
+        <p className="post-note">{t.form.signInToPost}</p>
+      )}
       {status === 'loading' && <p className="list-status">{t.list.loading}</p>}
       {status === 'error' && <p className="list-status list-error">{t.list.loadError}</p>}
       {status === 'ready' && (
