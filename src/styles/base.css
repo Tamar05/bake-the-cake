@@ -183,6 +183,21 @@ body {
   color: #a35b00;
 }
 
+.status-committed {
+  background: #e9e2ff;
+  color: #5b3fb0;
+}
+
+.committed-box {
+  background: #f5f1ff;
+  border-color: #ddd2ff;
+}
+
+.baking-note {
+  font-weight: 600;
+  color: #5b3fb0;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

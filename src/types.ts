@@ -14,9 +14,10 @@ export type CakeRequest = RequestDraft & {
   id: string;
   createdAt: number; // milliseconds since 1970, used for ordering
   ownerId: string | null; // the requester who posted it; null for legacy rows
-  status: 'open' | 'reserved';
-  reservedBy: string | null; // baker's name while reserved, else null
-  reservedContact: string | null; // baker's phone/email while reserved, else null
-  reservedByUserId: string | null; // the baker's account id while reserved, else null
-  reservedUntil: number | null; // ms-since-1970 the hold ends, else null
+  status: 'open' | 'reserved' | 'committed';
+  reservedBy: string | null; // baker's name while claimed, else null
+  reservedContact: string | null; // baker's phone/email while claimed, else null
+  reservedByUserId: string | null; // the baker's account id while claimed, else null
+  reservedUntil: number | null; // ms-since-1970 the 1-hour hold ends; null once committed
+  committedAt: number | null; // ms-since-1970 the baker committed to bake, else null
 };

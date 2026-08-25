@@ -5,6 +5,7 @@ import {
   NOT_RESERVER,
   NOT_OWNER,
   NOT_FOUND,
+  INVALID_TRANSITION,
   type RequestsStore,
 } from './requestsStore';
 import type { Translator } from './translator';
@@ -24,11 +25,12 @@ function isMissingRequired(draft: Partial<RequestDraft>): boolean {
   return !draft.recipient || !draft.occasion || !draft.neededBy || !draft.location;
 }
 
-// A reserved request only reveals who reserved it (name + contact + their id) to
-// the baker who reserved it, the requester who posted it, or an admin. Everyone
-// else — including anonymous browsers — sees a plain reserved card.
+// A claimed request (reserved or committed) only reveals who has it (name +
+// contact + their id) to the baker holding it, the requester who posted it, or
+// an admin. Everyone else — including anonymous browsers — sees a plain card
+// with no baker details.
 function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined): CakeRequest {
-  if (request.status !== 'reserved') return request;
+  if (request.reservedByUserId == null && request.reservedBy == null) return request;
   const maySee =
     viewer != null &&
     (viewer.role === 'admin' ||
@@ -112,6 +114,30 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not reserve this request' });
+    }
+  });
+
+  // The reserving baker (or an admin) commits to bake a request they're holding,
+  // turning the 1-hour hold into a lasting claim. Only valid from `reserved`.
+  app.post('/api/requests/:id/commit', auth, requireRole('baker', 'admin'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const updated = await store.commitRequest(req.params.id, me.id, me.role === 'admin');
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_RESERVER) {
+        res.status(403).json({ error: 'Only the baker holding this request can commit to it' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'This request is not in a state that can be committed' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not commit to this request' });
     }
   });
 

@@ -19,6 +19,11 @@ export const NOT_OWNER = 'NOT_OWNER';
 // answer 404 instead of a generic error.
 export const NOT_FOUND = 'NOT_FOUND';
 
+// Thrown by a lifecycle step (commit/deliver/receive) when the request isn't in
+// the state that step needs — e.g. committing something that isn't reserved. The
+// endpoint answers 409 (conflict).
+export const INVALID_TRANSITION = 'INVALID_TRANSITION';
+
 // What the HTTP endpoints need from a store. A real Supabase-backed store is
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
@@ -31,6 +36,7 @@ export type RequestsStore = {
     contact: string,
   ): Promise<CakeRequest>;
   releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
+  commitRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
   deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void>;
 };
 
@@ -112,7 +118,29 @@ export function createSupabaseStore(): RequestsStore {
           reserved_contact: null,
           reserved_by_user_id: null,
           reserved_at: null,
+          committed_at: null, // releasing a committed cake returns it fully to open
         })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
+    },
+
+    async commitRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
+      // The baker who holds the reservation (or an admin) turns the 1-hour hold
+      // into a lasting commitment. Only valid while the request is still an
+      // active reservation.
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      // State first (request state isn't sensitive), then who's allowed.
+      if (rowToRequest(row).status !== 'reserved') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && row.reserved_by_user_id !== userId) throw new Error(NOT_RESERVER);
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update({ committed_at: new Date().toISOString() })
         .eq('id', id)
         .select('*')
         .single();

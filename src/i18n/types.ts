@@ -29,6 +29,11 @@ export type Dictionary = {
     translateError: string; // shown when a translation fails
     statusOpen: string; // badge on an open request
     statusReserved: string; // badge on a reserved request
+    statusBaking: string; // badge on a committed (being-baked) request
+    commit: string; // baker's "I'll bake this" button
+    committing: string; // busy label while committing
+    commitError: string; // shown when committing fails
+    bakingNote: string; // note on a committed card ("a baker is making this now")
     reserve: string; // button that opens the reserve form
     reserveNameLabel: string; // baker's name field
     reserveContactLabel: string; // baker's contact field

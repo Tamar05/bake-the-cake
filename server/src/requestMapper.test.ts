@@ -15,6 +15,7 @@ const baseRow: CakeRequestRow = {
   reserved_contact: null,
   reserved_by_user_id: null,
   reserved_at: null,
+  committed_at: null,
 };
 
 describe('rowToRequest', () => {
@@ -33,6 +34,7 @@ describe('rowToRequest', () => {
       reservedContact: null,
       reservedByUserId: null,
       reservedUntil: null,
+      committedAt: null,
     });
   });
 
@@ -66,5 +68,28 @@ describe('rowToRequest', () => {
     expect(result.status).toBe('open');
     expect(result.reservedBy).toBeNull();
     expect(result.reservedUntil).toBeNull();
+  });
+
+  it('reads a committed row as committed — no countdown, but keeps who is baking', () => {
+    const reservedAt = '2026-08-20T10:00:00.000Z';
+    const committedAt = '2026-08-20T10:30:00.000Z';
+    // Well past the 1-hour hold: were it not committed, this would read as open.
+    const now = Date.parse(reservedAt) + RESERVATION_MS * 5;
+    const result = rowToRequest(
+      {
+        ...baseRow,
+        reserved_by: 'Dana',
+        reserved_contact: 'dana@example.com',
+        reserved_by_user_id: 'user-dana',
+        reserved_at: reservedAt,
+        committed_at: committedAt,
+      },
+      now,
+    );
+    expect(result.status).toBe('committed');
+    expect(result.reservedBy).toBe('Dana'); // still shows the baker
+    expect(result.reservedByUserId).toBe('user-dana');
+    expect(result.reservedUntil).toBeNull(); // countdown gone once committed
+    expect(result.committedAt).toBe(Date.parse(committedAt));
   });
 });

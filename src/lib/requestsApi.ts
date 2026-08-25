@@ -43,6 +43,18 @@ export async function reserveRequest(id: string, token: string): Promise<CakeReq
   return (await res.json()) as CakeRequest;
 }
 
+// The reserving baker commits to bake a request they're holding, turning the
+// 1-hour hold into a lasting claim. The server checks it's really their
+// reservation and that it's still in the reserved state.
+export async function commitRequest(id: string, token: string): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/commit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not commit to request (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
 // Cancels a reservation, returning the request to its open state.
 export async function releaseRequest(id: string, token: string): Promise<CakeRequest> {
   const res = await fetch(`${apiBase()}/api/requests/${id}/release`, {

@@ -6,6 +6,7 @@ import {
   NOT_RESERVER,
   NOT_OWNER,
   NOT_FOUND,
+  INVALID_TRANSITION,
   type RequestsStore,
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
@@ -33,6 +34,7 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         reservedContact: null,
         reservedByUserId: null,
         reservedUntil: null,
+        committedAt: null,
       };
       items.push(saved);
       return saved;
@@ -40,13 +42,16 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
     async reserveRequest(id, userId, name, contact) {
       const item = find(id);
       if (!item) throw new Error('not found');
-      if (item.status === 'reserved') throw new Error(ALREADY_RESERVED);
+      if (item.status === 'reserved' || item.status === 'committed') {
+        throw new Error(ALREADY_RESERVED);
+      }
       Object.assign(item, {
         status: 'reserved',
         reservedBy: name,
         reservedContact: contact,
         reservedByUserId: userId,
         reservedUntil: Date.now() + RESERVATION_MS,
+        committedAt: null,
       });
       return item;
     },
@@ -60,6 +65,19 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         reservedContact: null,
         reservedByUserId: null,
         reservedUntil: null,
+        committedAt: null,
+      });
+      return item;
+    },
+    async commitRequest(id, userId, isAdmin) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (item.status !== 'reserved') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
+      Object.assign(item, {
+        status: 'committed',
+        reservedUntil: null,
+        committedAt: Date.now(),
       });
       return item;
     },
@@ -255,6 +273,89 @@ describe('reserve API', () => {
   });
 });
 
+describe('commit API', () => {
+  const addOne = async (app: ReturnType<typeof createApp>) => {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    return res.body.id as string;
+  };
+  const reserve = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${token}`).send();
+  const commit = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/commit`).set('Authorization', `Bearer ${token}`).send();
+
+  it('the baker who reserved it can commit; the countdown stops', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    const res = await commit(app, id, 'bak');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('committed');
+    expect(res.body.reservedByUserId).toBe('user-bak');
+    expect(res.body.reservedUntil).toBeNull();
+    expect(res.body.committedAt).toBeGreaterThan(0);
+  });
+
+  it('committing without signing in returns 401', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    const res = await request(app).post(`/api/requests/${id}/commit`).send();
+    expect(res.status).toBe(401);
+  });
+
+  it('a requester cannot commit (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    expect((await commit(app, id, 'req')).status).toBe(403);
+  });
+
+  it('a baker who did not reserve it cannot commit (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    expect((await commit(app, id, 'bak2')).status).toBe(403);
+  });
+
+  it('committing a request that is not reserved returns 409', async () => {
+    const app = makeApp();
+    const id = await addOne(app); // still open
+    expect((await commit(app, id, 'bak')).status).toBe(409);
+  });
+
+  it('committing an already-committed request returns 409', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    await commit(app, id, 'bak');
+    expect((await commit(app, id, 'bak')).status).toBe(409);
+  });
+
+  it('an admin can commit a reservation', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    expect((await commit(app, id, 'adm')).status).toBe(200);
+  });
+
+  it('a committed request can be released back to open', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    await commit(app, id, 'bak');
+    const res = await request(app)
+      .post(`/api/requests/${id}/release`)
+      .set('Authorization', 'Bearer bak')
+      .send();
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('open');
+    expect(res.body.committedAt).toBeNull();
+  });
+});
+
 describe('delete API', () => {
   const addOne = async (app: ReturnType<typeof createApp>, token = 'req') => {
     const res = await request(app)
@@ -326,6 +427,7 @@ describe('delete API', () => {
       reservedContact: null,
       reservedByUserId: null,
       reservedUntil: null,
+      committedAt: null,
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());

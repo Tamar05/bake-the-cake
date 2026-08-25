@@ -3,7 +3,7 @@ import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import type { CakeRequest } from '../types';
 import { translateText } from '../lib/translationApi';
-import { reserveRequest, releaseRequest, deleteRequest } from '../lib/requestsApi';
+import { reserveRequest, releaseRequest, commitRequest, deleteRequest } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
 
@@ -38,6 +38,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
 
   const [reserveStatus, setReserveStatus] = useState<ActionStatus>('idle');
   const [releaseStatus, setReleaseStatus] = useState<ActionStatus>('idle');
+  const [commitStatus, setCommitStatus] = useState<ActionStatus>('idle');
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
 
   // A once-a-second clock, running only while this request is reserved, so the
@@ -51,15 +52,22 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     return () => clearInterval(id);
   }, [request.status, request.reservedUntil]);
 
-  const isReserved =
+  // A fresh reservation is "active" only while its client-side countdown still
+  // has time on it; once past, the card behaves as open again (the server agrees
+  // on the next load). A committed request has no countdown — it stays claimed.
+  const committed = request.status === 'committed';
+  const reservedActive =
     request.status === 'reserved' && request.reservedUntil != null && request.reservedUntil > now;
+  const claimed = committed || reservedActive;
 
-  // Who can do what: only bakers/admins reserve; only the baker who reserved it
-  // (or an admin) may release. The server enforces the same rules — this just
+  // Who can do what: only bakers/admins reserve; only the baker holding it (or an
+  // admin) may commit or release. The server enforces the same rules — this just
   // decides which buttons to show.
-  const canReserve = profile?.role === 'baker' || profile?.role === 'admin';
-  const canRelease =
+  const isHolder =
     profile != null && (request.reservedByUserId === profile.id || profile.role === 'admin');
+  const canReserve = profile?.role === 'baker' || profile?.role === 'admin';
+  const canRelease = isHolder;
+  const canCommit = reservedActive && isHolder;
 
   // Who can remove this request: the requester who owns it (cancel their own) or
   // an admin (remove anything). Legacy rows have no owner, so only an admin. The
@@ -132,6 +140,17 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
+  async function handleCommit() {
+    if (!token) return;
+    setCommitStatus('saving');
+    try {
+      onUpdated(await commitRequest(request.id, token));
+      setCommitStatus('idle');
+    } catch {
+      setCommitStatus('error');
+    }
+  }
+
   async function handleDelete() {
     if (!token) return;
     // A deletion can't be undone, so ask before doing it.
@@ -154,15 +173,20 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
         ? t.list.showOriginal
         : t.list.translate;
 
-  const remainingMs = isReserved ? request.reservedUntil! - now : 0;
+  const remainingMs = reservedActive ? request.reservedUntil! - now : 0;
   const minsLeft = Math.floor(remainingMs / 60000);
   const secsLeft = Math.floor((remainingMs % 60000) / 1000);
 
+  const badgeStatus = committed ? 'committed' : reservedActive ? 'reserved' : 'open';
+  const badgeLabel = committed
+    ? t.list.statusBaking
+    : reservedActive
+      ? t.list.statusReserved
+      : t.list.statusOpen;
+
   return (
     <li className="request-card">
-      <span className={`status-badge status-${isReserved ? 'reserved' : 'open'}`}>
-        {isReserved ? t.list.statusReserved : t.list.statusOpen}
-      </span>
+      <span className={`status-badge status-${badgeStatus}`}>{badgeLabel}</span>
       <h3>{shown.recipient}</h3>
       <p>{shown.occasion}</p>
       <p>
@@ -190,8 +214,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
         </>
       )}
 
-      {isReserved ? (
-        <div className="reserved-box">
+      {claimed ? (
+        <div className={`reserved-box${committed ? ' committed-box' : ''}`}>
           {request.reservedBy && (
             <p>
               {t.list.reservedByPrefix} {request.reservedBy}
@@ -202,9 +226,25 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               {t.list.reservedContactPrefix} {request.reservedContact}
             </p>
           )}
-          <p className="countdown">
-            {t.list.timeLeftPrefix} {minsLeft}m {secsLeft}s
-          </p>
+          {reservedActive && (
+            <p className="countdown">
+              {t.list.timeLeftPrefix} {minsLeft}m {secsLeft}s
+            </p>
+          )}
+          {committed && <p className="baking-note">{t.list.bakingNote}</p>}
+          {canCommit && (
+            <>
+              <button
+                type="button"
+                className="reserve-button"
+                onClick={handleCommit}
+                disabled={commitStatus === 'saving'}
+              >
+                {commitStatus === 'saving' ? t.list.committing : t.list.commit}
+              </button>
+              {commitStatus === 'error' && <p className="reserve-error">{t.list.commitError}</p>}
+            </>
+          )}
           {canRelease && (
             <>
               <button type="button" onClick={handleRelease} disabled={releaseStatus === 'saving'}>
