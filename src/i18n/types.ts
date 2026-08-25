@@ -47,4 +47,25 @@ export type Dictionary = {
     filterReserved: string; // browse filter: only reserved requests
     filterEmpty: string; // shown when no request matches the chosen filter
   };
+  auth: {
+    signInHeading: string;
+    signUpHeading: string;
+    emailLabel: string;
+    passwordLabel: string;
+    nameLabel: string;
+    roleLabel: string;
+    roleRequester: string; // "I need a cake"
+    roleBaker: string; // "I want to bake"
+    contactLabel: string;
+    contactHint: string; // why bakers give a contact
+    signInButton: string;
+    signUpButton: string;
+    needAccount: string; // switch to the sign-up form
+    haveAccount: string; // switch to the sign-in form
+    signOut: string;
+    signedInAs: string; // precedes the name + role
+    working: string; // busy label while signing in/up
+    notConfigured: string; // shown when Supabase keys are missing
+    genericError: string; // fallback when sign-in/up fails
+  };
 };

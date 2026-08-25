@@ -266,3 +266,102 @@ body {
   color: #ffffff;
   border-color: #ff6f91;
 }
+
+/* --- Accounts / auth panel --- */
+.auth-panel {
+  max-width: 360px;
+  margin: 1.25rem auto 0;
+  text-align: start;
+  background: #ffffff;
+  border: 1px solid #ffe3ec;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.auth-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.auth-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-panel input,
+.auth-panel select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #f0c9d6;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.auth-panel small {
+  font-weight: 400;
+  color: #8a6d6d;
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.auth-actions button[type='submit'] {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: #ff6f91;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-actions button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  color: #ff4d76;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+}
+
+.auth-note {
+  color: #8a6d6d;
+  font-size: 0.9rem;
+}
+
+.auth-panel.signed-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 420px;
+}
+
+.auth-panel.signed-in button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #ffb3c6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ff4d76;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}

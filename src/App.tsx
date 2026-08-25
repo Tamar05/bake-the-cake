@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import RequestForm from './components/RequestForm';
 import RequestList from './components/RequestList';
 import LanguageToggle from './components/LanguageToggle';
+import AuthPanel from './auth/AuthPanel';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -56,6 +57,7 @@ export default function App() {
         <LanguageToggle t={t} language={language} onChange={handleLanguageChange} />
         <h1>{t.appTitle}</h1>
         <p>{t.tagline}</p>
+        <AuthPanel t={t} />
       </header>
       <RequestForm t={t} onAdd={handleAdd} />
       {status === 'loading' && <p className="list-status">{t.list.loading}</p>}

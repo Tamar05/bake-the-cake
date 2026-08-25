@@ -3,6 +3,12 @@ import cors from 'cors';
 import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
 import type { Translator } from './translator';
 import type { RequestDraft } from './types';
+import {
+  createSupabaseAuthenticator,
+  requireAuth,
+  type Authenticator,
+  type AuthedRequest,
+} from './auth';
 
 // The required fields a new request must include.
 function isMissingRequired(draft: Partial<RequestDraft>): boolean {
@@ -11,13 +17,23 @@ function isMissingRequired(draft: Partial<RequestDraft>): boolean {
 
 // Builds the Express app around a store (real Supabase store in production,
 // an in-memory fake in tests).
-export function createApp(store: RequestsStore, translator: Translator) {
+export function createApp(
+  store: RequestsStore,
+  translator: Translator,
+  authenticator: Authenticator = createSupabaseAuthenticator(),
+) {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  const auth = requireAuth(authenticator);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  // Who am I? Returns the signed-in person's profile (verified server-side).
+  app.get('/api/me', auth, (req, res) => {
+    res.json((req as AuthedRequest).auth);
   });
 
   app.get('/api/requests', async (_req, res) => {
