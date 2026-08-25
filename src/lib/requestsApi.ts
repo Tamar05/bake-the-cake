@@ -55,6 +55,27 @@ export async function commitRequest(id: string, token: string): Promise<CakeRequ
   return (await res.json()) as CakeRequest;
 }
 
+// The baker who committed marks the cake delivered (committed → delivered).
+export async function deliverRequest(id: string, token: string): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/deliver`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not mark delivered (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
+// The requester who owns it confirms they received the cake (delivered →
+// received), closing the loop.
+export async function receiveRequest(id: string, token: string): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/receive`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not confirm receipt (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
 // Cancels a reservation, returning the request to its open state.
 export async function releaseRequest(id: string, token: string): Promise<CakeRequest> {
   const res = await fetch(`${apiBase()}/api/requests/${id}/release`, {

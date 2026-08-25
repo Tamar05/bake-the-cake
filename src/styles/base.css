@@ -198,6 +198,34 @@ body {
   color: #5b3fb0;
 }
 
+.status-delivered {
+  background: #dbeefc;
+  color: #1c5a94;
+}
+
+.status-received {
+  background: #e0f6e6;
+  color: #1f7a44;
+}
+
+.delivered-box {
+  background: #eef6fd;
+  border-color: #cbe4f8;
+}
+
+.delivered-box .baking-note {
+  color: #1c5a94;
+}
+
+.received-box {
+  background: #edfbf1;
+  border-color: #c9efd4;
+}
+
+.received-note {
+  color: #1f7a44;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

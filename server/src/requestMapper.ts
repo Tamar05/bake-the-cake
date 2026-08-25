@@ -16,6 +16,8 @@ export type CakeRequestRow = {
   reserved_by_user_id: string | null; // the baker's account id, or null
   reserved_at: string | null; // ISO timestamp, or null when open
   committed_at: string | null; // ISO timestamp the baker committed to bake, or null
+  delivered_at: string | null; // ISO timestamp the baker marked it delivered, or null
+  received_at: string | null; // ISO timestamp the requester confirmed receipt, or null
 };
 
 // Turns a database row into the camelCase shape the app uses. The lifecycle is
@@ -40,9 +42,22 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     : null;
   const holdActive = reservedUntil !== null && reservedUntil > now;
   const committedAt = row.committed_at ? new Date(row.committed_at).getTime() : null;
+  const deliveredAt = row.delivered_at ? new Date(row.delivered_at).getTime() : null;
+  const receivedAt = row.received_at ? new Date(row.received_at).getTime() : null;
 
-  const status: CakeRequest['status'] = committedAt !== null ? 'committed' : holdActive ? 'reserved' : 'open';
-  const claimed = status === 'reserved' || status === 'committed';
+  // Latest step reached wins; the pre-commit hold only counts while it's running.
+  const status: CakeRequest['status'] =
+    receivedAt !== null
+      ? 'received'
+      : deliveredAt !== null
+        ? 'delivered'
+        : committedAt !== null
+          ? 'committed'
+          : holdActive
+            ? 'reserved'
+            : 'open';
+  // Once a baker has it (any state past open) we keep their identity on the card.
+  const claimed = status !== 'open';
 
   return {
     ...base,
@@ -53,5 +68,7 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     // The countdown is only meaningful during the pre-commit hold.
     reservedUntil: status === 'reserved' ? reservedUntil : null,
     committedAt,
+    deliveredAt,
+    receivedAt,
   };
 }

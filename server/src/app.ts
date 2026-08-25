@@ -141,6 +141,52 @@ export function createApp(
     }
   });
 
+  // The baker who committed marks the cake delivered (committed → delivered).
+  app.post('/api/requests/:id/deliver', auth, requireRole('baker', 'admin'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin');
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_RESERVER) {
+        res.status(403).json({ error: 'Only the baker baking this request can mark it delivered' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'This request is not being baked, so it cannot be delivered' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not mark this request delivered' });
+    }
+  });
+
+  // The requester who owns it confirms receipt (delivered → received).
+  app.post('/api/requests/:id/receive', auth, requireRole('requester', 'admin'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const updated = await store.receiveRequest(req.params.id, me.id, me.role === 'admin');
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_OWNER) {
+        res.status(403).json({ error: 'Only the requester who asked for this cake can confirm it' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'This request has not been delivered yet' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not confirm this request' });
+    }
+  });
+
   app.post('/api/requests/:id/release', auth, async (req, res) => {
     const me = (req as AuthedRequest).auth;
     try {
@@ -149,6 +195,10 @@ export function createApp(
     } catch (err) {
       if (err instanceof Error && err.message === NOT_RESERVER) {
         res.status(403).json({ error: 'Only the baker who reserved it can release it' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'A delivered cake can no longer be released' });
         return;
       }
       res.status(500).json({ error: 'Could not release this request' });

@@ -3,7 +3,14 @@ import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import type { CakeRequest } from '../types';
 import { translateText } from '../lib/translationApi';
-import { reserveRequest, releaseRequest, commitRequest, deleteRequest } from '../lib/requestsApi';
+import {
+  reserveRequest,
+  releaseRequest,
+  commitRequest,
+  deliverRequest,
+  receiveRequest,
+  deleteRequest,
+} from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
 
@@ -39,6 +46,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [reserveStatus, setReserveStatus] = useState<ActionStatus>('idle');
   const [releaseStatus, setReleaseStatus] = useState<ActionStatus>('idle');
   const [commitStatus, setCommitStatus] = useState<ActionStatus>('idle');
+  const [deliverStatus, setDeliverStatus] = useState<ActionStatus>('idle');
+  const [receiveStatus, setReceiveStatus] = useState<ActionStatus>('idle');
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
 
   // A once-a-second clock, running only while this request is reserved, so the
@@ -56,18 +65,23 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // has time on it; once past, the card behaves as open again (the server agrees
   // on the next load). A committed request has no countdown — it stays claimed.
   const committed = request.status === 'committed';
+  const delivered = request.status === 'delivered';
+  const received = request.status === 'received';
   const reservedActive =
     request.status === 'reserved' && request.reservedUntil != null && request.reservedUntil > now;
-  const claimed = committed || reservedActive;
+  const claimed = committed || delivered || received || reservedActive;
 
   // Who can do what: only bakers/admins reserve; only the baker holding it (or an
-  // admin) may commit or release. The server enforces the same rules — this just
+  // admin) may commit / deliver / release; only the requester who owns it (or an
+  // admin) confirms receipt. The server enforces the same rules — this just
   // decides which buttons to show.
-  const isHolder =
-    profile != null && (request.reservedByUserId === profile.id || profile.role === 'admin');
-  const canReserve = profile?.role === 'baker' || profile?.role === 'admin';
-  const canRelease = isHolder;
+  const isAdmin = profile?.role === 'admin';
+  const isHolder = profile != null && (request.reservedByUserId === profile.id || isAdmin);
+  const canReserve = profile?.role === 'baker' || isAdmin;
   const canCommit = reservedActive && isHolder;
+  const canDeliver = committed && isHolder;
+  const canRelease = isHolder && (reservedActive || committed);
+  const canReceive = delivered && profile != null && (request.ownerId === profile.id || isAdmin);
 
   // Who can remove this request: the requester who owns it (cancel their own) or
   // an admin (remove anything). Legacy rows have no owner, so only an admin. The
@@ -151,6 +165,28 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
+  async function handleDeliver() {
+    if (!token) return;
+    setDeliverStatus('saving');
+    try {
+      onUpdated(await deliverRequest(request.id, token));
+      setDeliverStatus('idle');
+    } catch {
+      setDeliverStatus('error');
+    }
+  }
+
+  async function handleReceive() {
+    if (!token) return;
+    setReceiveStatus('saving');
+    try {
+      onUpdated(await receiveRequest(request.id, token));
+      setReceiveStatus('idle');
+    } catch {
+      setReceiveStatus('error');
+    }
+  }
+
   async function handleDelete() {
     if (!token) return;
     // A deletion can't be undone, so ask before doing it.
@@ -177,12 +213,24 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const minsLeft = Math.floor(remainingMs / 60000);
   const secsLeft = Math.floor((remainingMs % 60000) / 1000);
 
-  const badgeStatus = committed ? 'committed' : reservedActive ? 'reserved' : 'open';
-  const badgeLabel = committed
-    ? t.list.statusBaking
-    : reservedActive
-      ? t.list.statusReserved
-      : t.list.statusOpen;
+  const badgeStatus = received
+    ? 'received'
+    : delivered
+      ? 'delivered'
+      : committed
+        ? 'committed'
+        : reservedActive
+          ? 'reserved'
+          : 'open';
+  const badgeLabel = received
+    ? t.list.statusReceived
+    : delivered
+      ? t.list.statusDelivered
+      : committed
+        ? t.list.statusBaking
+        : reservedActive
+          ? t.list.statusReserved
+          : t.list.statusOpen;
 
   return (
     <li className="request-card">
@@ -215,7 +263,11 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
       )}
 
       {claimed ? (
-        <div className={`reserved-box${committed ? ' committed-box' : ''}`}>
+        <div
+          className={`reserved-box${committed ? ' committed-box' : ''}${
+            delivered ? ' delivered-box' : ''
+          }${received ? ' received-box' : ''}`}
+        >
           {request.reservedBy && (
             <p>
               {t.list.reservedByPrefix} {request.reservedBy}
@@ -232,6 +284,34 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
             </p>
           )}
           {committed && <p className="baking-note">{t.list.bakingNote}</p>}
+          {delivered && <p className="baking-note">{t.list.deliveredNote}</p>}
+          {received && <p className="baking-note received-note">{t.list.receivedNote}</p>}
+          {canDeliver && (
+            <>
+              <button
+                type="button"
+                className="reserve-button"
+                onClick={handleDeliver}
+                disabled={deliverStatus === 'saving'}
+              >
+                {deliverStatus === 'saving' ? t.list.delivering : t.list.markDelivered}
+              </button>
+              {deliverStatus === 'error' && <p className="reserve-error">{t.list.deliverError}</p>}
+            </>
+          )}
+          {canReceive && (
+            <>
+              <button
+                type="button"
+                className="reserve-button"
+                onClick={handleReceive}
+                disabled={receiveStatus === 'saving'}
+              >
+                {receiveStatus === 'saving' ? t.list.confirming : t.list.confirmReceived}
+              </button>
+              {receiveStatus === 'error' && <p className="reserve-error">{t.list.receiveError}</p>}
+            </>
+          )}
           {canCommit && (
             <>
               <button

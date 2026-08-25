@@ -37,6 +37,8 @@ export type RequestsStore = {
   ): Promise<CakeRequest>;
   releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
   commitRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
+  deliverRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
+  receiveRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
   deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void>;
 };
 
@@ -104,10 +106,13 @@ export function createSupabaseStore(): RequestsStore {
     },
 
     async releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
-      // Only the baker who reserved it (or an admin) may release it.
+      // Only the baker who reserved it (or an admin) may release it, and only
+      // while it's still reserved or committed — a delivered cake is done.
       const current = await supabase.from('cake_requests').select('*').eq('id', id).single();
       if (current.error) throw new Error(current.error.message);
       const row = current.data as CakeRequestRow;
+      const status = rowToRequest(row).status;
+      if (status === 'delivered' || status === 'received') throw new Error(INVALID_TRANSITION);
       if (!isAdmin && row.reserved_by_user_id !== userId) {
         throw new Error(NOT_RESERVER);
       }
@@ -141,6 +146,45 @@ export function createSupabaseStore(): RequestsStore {
       const { data, error } = await supabase
         .from('cake_requests')
         .update({ committed_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
+    },
+
+    async deliverRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
+      // The baker who committed marks the cake delivered. Only valid from
+      // `committed`, and only the baker holding it (or an admin) may do it.
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      if (rowToRequest(row).status !== 'committed') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && row.reserved_by_user_id !== userId) throw new Error(NOT_RESERVER);
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update({ delivered_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
+    },
+
+    async receiveRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
+      // The requester who owns it confirms they received the cake. Only valid
+      // from `delivered`, and only the owner (or an admin) may confirm. Legacy
+      // rows have no owner, so only an admin can confirm those.
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      if (rowToRequest(row).status !== 'delivered') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && row.owner_id !== userId) throw new Error(NOT_OWNER);
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update({ received_at: new Date().toISOString() })
         .eq('id', id)
         .select('*')
         .single();

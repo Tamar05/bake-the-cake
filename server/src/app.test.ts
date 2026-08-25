@@ -35,6 +35,8 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         reservedByUserId: null,
         reservedUntil: null,
         committedAt: null,
+        deliveredAt: null,
+        receivedAt: null,
       };
       items.push(saved);
       return saved;
@@ -58,6 +60,9 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
     async releaseRequest(id, userId, isAdmin) {
       const item = find(id);
       if (!item) throw new Error('not found');
+      if (item.status === 'delivered' || item.status === 'received') {
+        throw new Error(INVALID_TRANSITION);
+      }
       if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
       Object.assign(item, {
         status: 'open',
@@ -79,6 +84,22 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         reservedUntil: null,
         committedAt: Date.now(),
       });
+      return item;
+    },
+    async deliverRequest(id, userId, isAdmin) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (item.status !== 'committed') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
+      Object.assign(item, { status: 'delivered', deliveredAt: Date.now() });
+      return item;
+    },
+    async receiveRequest(id, userId, isAdmin) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (item.status !== 'delivered') throw new Error(INVALID_TRANSITION);
+      if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
+      Object.assign(item, { status: 'received', receivedAt: Date.now() });
       return item;
     },
     async deleteRequest(id, userId, isAdmin) {
@@ -356,6 +377,116 @@ describe('commit API', () => {
   });
 });
 
+describe('deliver & receive API', () => {
+  const post = (app: ReturnType<typeof createApp>, path: string, token?: string) => {
+    const call = request(app).post(path);
+    return token ? call.set('Authorization', `Bearer ${token}`).send() : call.send();
+  };
+  // Walk a fresh request all the way to `committed`, held by baker 'bak'.
+  const toCommitted = async (app: ReturnType<typeof createApp>) => {
+    const created = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    const id = created.body.id as string;
+    await post(app, `/api/requests/${id}/reserve`, 'bak');
+    await post(app, `/api/requests/${id}/commit`, 'bak');
+    return id;
+  };
+  const deliver = (app: ReturnType<typeof createApp>, id: string, token?: string) =>
+    post(app, `/api/requests/${id}/deliver`, token);
+  const receive = (app: ReturnType<typeof createApp>, id: string, token?: string) =>
+    post(app, `/api/requests/${id}/receive`, token);
+
+  it('the baker baking it marks it delivered', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    const res = await deliver(app, id, 'bak');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('delivered');
+    expect(res.body.deliveredAt).toBeGreaterThan(0);
+  });
+
+  it('delivering needs a token (401), the right role (requester → 403), and the right baker (bak2 → 403)', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    expect((await deliver(app, id)).status).toBe(401);
+    expect((await deliver(app, id, 'req')).status).toBe(403);
+    expect((await deliver(app, id, 'bak2')).status).toBe(403);
+  });
+
+  it('cannot deliver a request that is not committed (409)', async () => {
+    const app = makeApp();
+    const created = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    const id = created.body.id as string;
+    await post(app, `/api/requests/${id}/reserve`, 'bak'); // reserved, not committed
+    expect((await deliver(app, id, 'bak')).status).toBe(409);
+  });
+
+  it('an admin can mark delivered, and a delivered cake can no longer be released (409)', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    expect((await deliver(app, id, 'adm')).status).toBe(200);
+    expect((await post(app, `/api/requests/${id}/release`, 'bak')).status).toBe(409);
+  });
+
+  it('the requester who owns it confirms receipt', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    await deliver(app, id, 'bak');
+    const res = await receive(app, id, 'req');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('received');
+    expect(res.body.receivedAt).toBeGreaterThan(0);
+  });
+
+  it('confirming needs a token (401), the right role (baker → 403), and the owner (req2 → 403)', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    await deliver(app, id, 'bak');
+    expect((await receive(app, id)).status).toBe(401);
+    expect((await receive(app, id, 'bak')).status).toBe(403);
+    expect((await receive(app, id, 'req2')).status).toBe(403);
+  });
+
+  it('cannot confirm receipt before delivery (409)', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app); // committed, not delivered
+    expect((await receive(app, id, 'req')).status).toBe(409);
+  });
+
+  it('an admin can confirm receipt', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    await deliver(app, id, 'bak');
+    expect((await receive(app, id, 'adm')).status).toBe(200);
+  });
+
+  it('a delivered legacy request (no owner) can only be confirmed by an admin', async () => {
+    const legacy: CakeRequest = {
+      ...validDraft,
+      id: 'legacy-d',
+      createdAt: Date.now(),
+      ownerId: null,
+      status: 'delivered',
+      reservedBy: 'Baz',
+      reservedContact: 'baz@example.com',
+      reservedByUserId: 'user-bak',
+      reservedUntil: null,
+      committedAt: Date.now(),
+      deliveredAt: Date.now(),
+      receivedAt: null,
+    };
+    const makeSeeded = () =>
+      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());
+    expect((await receive(makeSeeded(), 'legacy-d', 'req')).status).toBe(403);
+    expect((await receive(makeSeeded(), 'legacy-d', 'adm')).status).toBe(200);
+  });
+});
+
 describe('delete API', () => {
   const addOne = async (app: ReturnType<typeof createApp>, token = 'req') => {
     const res = await request(app)
@@ -428,6 +559,8 @@ describe('delete API', () => {
       reservedByUserId: null,
       reservedUntil: null,
       committedAt: null,
+      deliveredAt: null,
+      receivedAt: null,
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());

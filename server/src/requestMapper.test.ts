@@ -16,6 +16,8 @@ const baseRow: CakeRequestRow = {
   reserved_by_user_id: null,
   reserved_at: null,
   committed_at: null,
+  delivered_at: null,
+  received_at: null,
 };
 
 describe('rowToRequest', () => {
@@ -35,6 +37,8 @@ describe('rowToRequest', () => {
       reservedByUserId: null,
       reservedUntil: null,
       committedAt: null,
+      deliveredAt: null,
+      receivedAt: null,
     });
   });
 
@@ -91,5 +95,33 @@ describe('rowToRequest', () => {
     expect(result.reservedByUserId).toBe('user-dana');
     expect(result.reservedUntil).toBeNull(); // countdown gone once committed
     expect(result.committedAt).toBe(Date.parse(committedAt));
+  });
+
+  const claimedRow = {
+    ...baseRow,
+    reserved_by: 'Dana',
+    reserved_contact: 'dana@example.com',
+    reserved_by_user_id: 'user-dana',
+    reserved_at: '2026-08-20T10:00:00.000Z',
+    committed_at: '2026-08-20T10:30:00.000Z',
+  };
+
+  it('reads a delivered row as delivered, still showing the baker', () => {
+    const result = rowToRequest({ ...claimedRow, delivered_at: '2026-08-22T09:00:00.000Z' });
+    expect(result.status).toBe('delivered');
+    expect(result.reservedBy).toBe('Dana');
+    expect(result.deliveredAt).toBe(Date.parse('2026-08-22T09:00:00.000Z'));
+    expect(result.receivedAt).toBeNull();
+  });
+
+  it('reads a received row as received (the completed end state)', () => {
+    const result = rowToRequest({
+      ...claimedRow,
+      delivered_at: '2026-08-22T09:00:00.000Z',
+      received_at: '2026-08-22T18:00:00.000Z',
+    });
+    expect(result.status).toBe('received');
+    expect(result.deliveredAt).toBe(Date.parse('2026-08-22T09:00:00.000Z'));
+    expect(result.receivedAt).toBe(Date.parse('2026-08-22T18:00:00.000Z'));
   });
 });
