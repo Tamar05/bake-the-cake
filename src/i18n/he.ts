@@ -42,5 +42,9 @@ export const he: Dictionary = {
     release: 'ביטול השמירה',
     releasing: 'מבטלים…',
     releaseError: 'לא ניתן לבטל. נסו שוב.',
+    filterAll: 'הכול',
+    filterOpen: 'פתוחות',
+    filterReserved: 'שמורות',
+    filterEmpty: 'אין בקשות שמתאימות לסינון.',
   },
 };

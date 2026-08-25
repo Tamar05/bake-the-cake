@@ -42,5 +42,9 @@ export type Dictionary = {
     release: string; // cancel a reservation
     releasing: string; // busy label while releasing
     releaseError: string; // shown when releasing fails
+    filterAll: string; // browse filter: show every request
+    filterOpen: string; // browse filter: only open requests
+    filterReserved: string; // browse filter: only reserved requests
+    filterEmpty: string; // shown when no request matches the chosen filter
   };
 };

@@ -42,5 +42,9 @@ export const en: Dictionary = {
     release: 'Release (cancel)',
     releasing: 'Releasing…',
     releaseError: 'Could not release. Please try again.',
+    filterAll: 'All',
+    filterOpen: 'Open',
+    filterReserved: 'Reserved',
+    filterEmpty: 'No requests match this filter.',
   },
 };
