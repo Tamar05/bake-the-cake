@@ -10,6 +10,7 @@ export type SignUpRole = 'requester' | 'baker';
 type AuthContextValue = {
   configured: boolean; // is Supabase set up in .env
   loading: boolean; // still checking for an existing session
+  profileLoading: boolean; // have a session, still fetching the role/profile
   session: Session | null;
   profile: Profile | null;
   signUp: (
@@ -33,6 +34,7 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const configured = supabase !== null;
@@ -54,16 +56,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Whenever the session changes, load (or clear) the profile from our server.
+  // profileLoading stays true from the moment we have a token until the lookup
+  // settles, so route guards can wait instead of treating "not loaded yet" as
+  // "signed out".
   useEffect(() => {
     const token = session?.access_token;
     if (!token) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
     let cancelled = false;
+    setProfileLoading(true);
     fetchMe(token)
-      .then((p) => !cancelled && setProfile(p))
-      .catch(() => !cancelled && setProfile(null));
+      .then((p) => {
+        if (cancelled) return;
+        setProfile(p);
+        setProfileLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfile(null);
+        setProfileLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -97,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ configured, loading, session, profile, signUp, signIn, signOut }}
+      value={{ configured, loading, profileLoading, session, profile, signUp, signIn, signOut }}
     >
       {children}
     </AuthContext.Provider>

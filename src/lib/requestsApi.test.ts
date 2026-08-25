@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadRequests, saveRequest } from './requestsApi';
+import { loadRequests, saveRequest, deleteRequest } from './requestsApi';
 import type { RequestDraft } from '../types';
 
 const draft: RequestDraft = {
@@ -46,5 +46,20 @@ describe('requestsApi', () => {
   it('loadRequests throws on a non-OK response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     await expect(loadRequests()).rejects.toThrow();
+  });
+
+  it('deleteRequest sends a DELETE with the auth token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    await deleteRequest('req-9', 'token-123');
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests/req-9', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer token-123' },
+    });
+  });
+
+  it('deleteRequest throws when the server refuses (e.g. 403)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+    await expect(deleteRequest('req-9', 'token-123')).rejects.toThrow();
   });
 });

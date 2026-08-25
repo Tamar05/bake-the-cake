@@ -47,6 +47,26 @@ export type Dictionary = {
     filterOpen: string; // browse filter: only open requests
     filterReserved: string; // browse filter: only reserved requests
     filterEmpty: string; // shown when no request matches the chosen filter
+    cancelRequest: string; // owner action: withdraw your own request
+    deleteRequest: string; // admin action: remove any request
+    deleting: string; // busy label while deleting
+    deleteError: string; // shown when a delete fails
+    confirmCancel: string; // confirm prompt before an owner cancels
+    confirmDelete: string; // confirm prompt before an admin deletes
+  };
+  nav: {
+    browse: string; // link to the open-requests browse view
+    myRequests: string; // requester's own requests
+    myReservations: string; // baker's reservations
+    admin: string; // admin's manage-everything view
+    signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  views: {
+    myRequestsHeading: string;
+    myRequestsEmpty: string; // requester has posted nothing yet
+    myReservationsHeading: string;
+    myReservationsEmpty: string; // baker has reserved nothing yet
+    adminHeading: string; // admin's list of every request
   };
   auth: {
     signInHeading: string;

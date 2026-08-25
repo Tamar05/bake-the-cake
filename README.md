@@ -30,6 +30,33 @@ the plan and continues exactly where we left off.
 
 ---
 
+## Accounts & roles — making the first admin
+
+The app has three kinds of account: **requester** (asks for cakes), **baker**
+(bakes them), and **admin** (a trusted operator who can see and manage
+everything). When you sign up, you can only choose requester or baker — **admin
+is never self-selectable**, on purpose. The server refuses any attempt to sign
+yourself up as an admin, so the very first admin has to be set by hand in the
+database. Here's how:
+
+1. **Sign up normally** in the app with your email — pick requester or baker,
+   it doesn't matter which.
+2. In **Supabase**, open **SQL Editor** and run this one command, with **your**
+   email in the quotes:
+
+   ```sql
+   update public.profiles
+   set role = 'admin'
+   where id = (select id from auth.users where email = 'you@example.com');
+   ```
+
+3. Back in the app, **sign out and sign in again**. You're now an admin: the
+   **Admin** link appears in the nav, and the admin view lets you release any
+   reservation and delete any request (including the legacy anonymous ones).
+
+After that first one, an admin could promote others the same way. (A proper
+"promote to admin" button for admins is a later slice — for now it's this SQL.)
+
 ## Where things stand right now
 
 - ✅ Project folder created, separate from pocket-pt, with its own git history.

@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import { ALREADY_RESERVED, NOT_RESERVER, type RequestsStore } from './requestsStore';
+import {
+  ALREADY_RESERVED,
+  NOT_RESERVER,
+  NOT_OWNER,
+  NOT_FOUND,
+  type RequestsStore,
+} from './requestsStore';
 import type { Translator } from './translator';
 import type { CakeRequest, RequestDraft } from './types';
 import {
@@ -120,6 +126,28 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not release this request' });
+    }
+  });
+
+  // Delete a request. Only the owner (cancel your own) or an admin (remove
+  // anything) may do this; the store re-checks and this fails closed. Legacy
+  // rows with no owner are admin-only. Missing token → 401 (from `auth`),
+  // wrong person → 403, unknown id → 404.
+  app.delete('/api/requests/:id', auth, async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      await store.deleteRequest(req.params.id, me.id, me.role === 'admin');
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_OWNER) {
+        res.status(403).json({ error: 'You can only delete your own request' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not delete this request' });
     }
   });
 

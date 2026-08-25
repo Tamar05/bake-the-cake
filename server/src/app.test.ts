@@ -1,14 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app';
-import { ALREADY_RESERVED, NOT_RESERVER, type RequestsStore } from './requestsStore';
+import {
+  ALREADY_RESERVED,
+  NOT_RESERVER,
+  NOT_OWNER,
+  NOT_FOUND,
+  type RequestsStore,
+} from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
 // An in-memory stand-in for the Supabase store, so these tests need no database.
-function makeFakeStore(): RequestsStore {
-  const items: CakeRequest[] = [];
+// An optional seed lets a test start with pre-existing rows (e.g. a legacy row
+// with no owner) that the API itself can't create.
+function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
+  const items: CakeRequest[] = [...seed];
   const find = (id: string) => items.find((r) => r.id === id);
   return {
     async listRequests() {
@@ -55,6 +63,12 @@ function makeFakeStore(): RequestsStore {
       });
       return item;
     },
+    async deleteRequest(id, userId, isAdmin) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
+      items.splice(items.indexOf(item), 1);
+    },
   };
 }
 
@@ -71,6 +85,7 @@ function makeFakeTranslator(): Translator {
 // baker / admin; any other token (or none) is treated as signed-out.
 const PROFILES: Record<string, AuthedProfile> = {
   req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null },
+  req2: { id: 'user-req2', displayName: 'Ravi', role: 'requester', contact: null },
   bak: { id: 'user-bak', displayName: 'Baz', role: 'baker', contact: 'baz@example.com' },
   bak2: { id: 'user-bak2', displayName: 'Bex', role: 'baker', contact: 'bex@example.com' },
   adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null },
@@ -237,6 +252,88 @@ describe('reserve API', () => {
     const anon = await seen();
     expect(anon.status).toBe('reserved');
     expect(anon.reservedUntil).toBeGreaterThan(Date.now());
+  });
+});
+
+describe('delete API', () => {
+  const addOne = async (app: ReturnType<typeof createApp>, token = 'req') => {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send(validDraft);
+    return res.body.id as string;
+  };
+  const del = (app: ReturnType<typeof createApp>, id: string, token?: string) => {
+    const call = request(app).delete(`/api/requests/${id}`);
+    return token ? call.set('Authorization', `Bearer ${token}`) : call.send();
+  };
+  const idsInList = async (app: ReturnType<typeof createApp>) => {
+    const res = await request(app).get('/api/requests');
+    return (res.body as { id: string }[]).map((r) => r.id);
+  };
+
+  it('the owner can delete their own request; it then leaves the list', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await del(app, id, 'req');
+    expect(res.status).toBe(204);
+    expect(await idsInList(app)).not.toContain(id);
+  });
+
+  it('another requester cannot delete a request they do not own (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app); // owned by user-req
+    const res = await del(app, id, 'req2');
+    expect(res.status).toBe(403);
+    expect(await idsInList(app)).toContain(id); // still there
+  });
+
+  it('a baker cannot delete a request (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await del(app, id, 'bak');
+    expect(res.status).toBe(403);
+  });
+
+  it('an admin can delete anyone’s request', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await del(app, id, 'adm');
+    expect(res.status).toBe(204);
+    expect(await idsInList(app)).not.toContain(id);
+  });
+
+  it('deleting without signing in returns 401', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await del(app, id);
+    expect(res.status).toBe(401);
+  });
+
+  it('deleting a request that does not exist returns 404', async () => {
+    const res = await del(makeApp(), 'no-such-id', 'adm');
+    expect(res.status).toBe(404);
+  });
+
+  it('a legacy request with no owner can only be deleted by an admin', async () => {
+    const legacy: CakeRequest = {
+      ...validDraft,
+      id: 'legacy-1',
+      createdAt: Date.now(),
+      ownerId: null,
+      status: 'open',
+      reservedBy: null,
+      reservedContact: null,
+      reservedByUserId: null,
+      reservedUntil: null,
+    };
+    const makeSeeded = () =>
+      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());
+
+    // A signed-in requester is not the owner of an unowned row → 403.
+    expect((await del(makeSeeded(), 'legacy-1', 'req')).status).toBe(403);
+    // An admin can remove it.
+    expect((await del(makeSeeded(), 'legacy-1', 'adm')).status).toBe(204);
   });
 });
 

@@ -52,3 +52,14 @@ export async function releaseRequest(id: string, token: string): Promise<CakeReq
   if (!res.ok) throw new Error(`Could not release request (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest;
 }
+
+// Deletes a request for good. The server only allows the owner (cancelling their
+// own) or an admin (removing anything); anyone else gets a 403. Nothing comes
+// back on success (HTTP 204) — the caller drops the request from its own list.
+export async function deleteRequest(id: string, token: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not delete request (HTTP ${res.status})`);
+}

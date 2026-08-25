@@ -375,3 +375,52 @@ body {
   border-radius: 16px;
   padding: 1rem;
 }
+
+/* --- Role navigation (Phase 4) --- */
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.app-nav a {
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  border: 1px solid #ffb3c6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ff4d76;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-nav a:hover {
+  background: #fff0f4;
+}
+
+.app-nav a.active {
+  background: #ff6f91;
+  color: #ffffff;
+  border-color: #ff6f91;
+}
+
+/* --- Delete / cancel a request (Phase 4) --- */
+.card-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #ffe3ec;
+}
+
+.request-card button.delete-button {
+  margin-top: 0;
+  background: #ffffff;
+  border-color: #e8b4b4;
+  color: #b23b3b;
+}
+
+.request-card button.delete-button:hover:not(:disabled) {
+  background: #fff0f0;
+  border-color: #d88;
+}

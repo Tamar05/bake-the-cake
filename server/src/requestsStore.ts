@@ -10,6 +10,15 @@ export const ALREADY_RESERVED = 'ALREADY_RESERVED';
 // nor an admin, so the endpoint can answer 403.
 export const NOT_RESERVER = 'NOT_RESERVER';
 
+// Thrown by deleteRequest when the caller is neither the request's owner nor an
+// admin, so the endpoint can answer 403. Legacy anonymous rows (owner_id null)
+// have no owner, so only an admin ever clears this check.
+export const NOT_OWNER = 'NOT_OWNER';
+
+// Thrown by deleteRequest when no request has the given id, so the endpoint can
+// answer 404 instead of a generic error.
+export const NOT_FOUND = 'NOT_FOUND';
+
 // What the HTTP endpoints need from a store. A real Supabase-backed store is
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
@@ -22,6 +31,7 @@ export type RequestsStore = {
     contact: string,
   ): Promise<CakeRequest>;
   releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
+  deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void>;
 };
 
 // Builds a store backed by the Supabase cake_requests table.
@@ -108,6 +118,23 @@ export function createSupabaseStore(): RequestsStore {
         .single();
       if (error) throw new Error(error.message);
       return rowToRequest(data as CakeRequestRow);
+    },
+
+    async deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void> {
+      // Read the row first so we can answer "not found" and check ownership
+      // before deleting. Only the owner (or an admin) may delete; a legacy row
+      // with no owner_id can only be deleted by an admin.
+      const current = await supabase
+        .from('cake_requests')
+        .select('owner_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const ownerId = (current.data as { owner_id: string | null }).owner_id;
+      if (!isAdmin && ownerId !== userId) throw new Error(NOT_OWNER);
+      const { error } = await supabase.from('cake_requests').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     },
   };
 }
