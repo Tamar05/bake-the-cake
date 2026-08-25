@@ -22,5 +22,9 @@ export const en: Dictionary = {
     locationPrefix: 'Location:',
     loading: 'Loading requests…',
     loadError: 'Could not reach the server. Make sure the backend is running, then refresh.',
+    translate: 'Translate',
+    showOriginal: 'Show original',
+    translating: 'Translating…',
+    translateError: 'Could not translate. Please try again.',
   },
 };

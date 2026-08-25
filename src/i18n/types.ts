@@ -22,5 +22,9 @@ export type Dictionary = {
     locationPrefix: string;
     loading: string; // shown while requests are being fetched
     loadError: string; // shown when the server can't be reached
+    translate: string; // Translate button label
+    showOriginal: string; // toggle-back label
+    translating: string; // busy label while a translation is in flight
+    translateError: string; // shown when a translation fails
   };
 };

@@ -22,5 +22,9 @@ export const he: Dictionary = {
     locationPrefix: 'מיקום:',
     loading: 'טוען בקשות…',
     loadError: 'לא ניתן להתחבר לשרת. ודאו שהשרת פועל ורעננו את הדף.',
+    translate: 'תרגמו',
+    showOriginal: 'הצג מקור',
+    translating: 'מתרגם…',
+    translateError: 'לא ניתן לתרגם. נסו שוב.',
   },
 };

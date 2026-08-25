@@ -1,12 +1,15 @@
 import type { Dictionary } from '../i18n/types';
+import type { Language } from '../i18n/language';
 import type { CakeRequest } from '../types';
+import RequestCard from './RequestCard';
 
 type Props = {
   t: Dictionary;
+  language: Language;
   requests: CakeRequest[];
 };
 
-export default function RequestList({ t, requests }: Props) {
+export default function RequestList({ t, language, requests }: Props) {
   return (
     <section className="request-list">
       <h2>{t.list.heading}</h2>
@@ -15,21 +18,7 @@ export default function RequestList({ t, requests }: Props) {
       ) : (
         <ul>
           {requests.map((request) => (
-            <li key={request.id} className="request-card">
-              <h3>{request.recipient}</h3>
-              <p>{request.occasion}</p>
-              <p>
-                {t.list.neededByPrefix} {request.neededBy}
-              </p>
-              <p>
-                {t.list.locationPrefix} {request.location}
-              </p>
-              {request.dietary && (
-                <p>
-                  {t.list.dietaryPrefix} {request.dietary}
-                </p>
-              )}
-            </li>
+            <RequestCard key={request.id} t={t} language={language} request={request} />
           ))}
         </ul>
       )}

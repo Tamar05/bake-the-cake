@@ -134,3 +134,24 @@ body {
   color: #c0392b;
   font-weight: 600;
 }
+
+.request-card button {
+  margin-top: 0.5rem;
+  font: inherit;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #d8b4b4;
+  border-radius: 6px;
+  background: #fff;
+  color: #7a3e3e;
+  cursor: pointer;
+}
+
+.request-card button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.translate-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+}

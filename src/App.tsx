@@ -55,7 +55,7 @@ export default function App() {
       <RequestForm t={t} onAdd={handleAdd} />
       {status === 'loading' && <p className="list-status">{t.list.loading}</p>}
       {status === 'error' && <p className="list-status list-error">{t.list.loadError}</p>}
-      {status === 'ready' && <RequestList t={t} requests={requests} />}
+      {status === 'ready' && <RequestList t={t} language={language} requests={requests} />}
     </main>
   );
 }
