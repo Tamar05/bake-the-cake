@@ -443,13 +443,40 @@ describe('deliver & receive API', () => {
     expect(res.body.receivedAt).toBeGreaterThan(0);
   });
 
-  it('confirming needs a token (401), the right role (baker → 403), and the owner (req2 → 403)', async () => {
+  it('confirming needs a token (401) and the owner — anyone who is not the owner is refused (403)', async () => {
     const app = makeApp();
     const id = await toCommitted(app);
     await deliver(app, id, 'bak');
     expect((await receive(app, id)).status).toBe(401);
-    expect((await receive(app, id, 'bak')).status).toBe(403);
-    expect((await receive(app, id, 'req2')).status).toBe(403);
+    expect((await receive(app, id, 'bak')).status).toBe(403); // the baker who made it is not the owner
+    expect((await receive(app, id, 'req2')).status).toBe(403); // a different requester
+  });
+
+  it('the owner can confirm even if their account role is baker (auth is by ownership, not role)', async () => {
+    // A single account that both owns a request and baked it (its role happens to
+    // be baker). It must still be able to confirm receipt of its own cake.
+    const ownedByBaker: CakeRequest = {
+      ...validDraft,
+      id: 'owned-by-baker',
+      createdAt: Date.now(),
+      ownerId: 'user-bak',
+      status: 'delivered',
+      reservedBy: 'Baz',
+      reservedContact: 'baz@example.com',
+      reservedByUserId: 'user-bak',
+      reservedUntil: null,
+      committedAt: Date.now(),
+      deliveredAt: Date.now(),
+      receivedAt: null,
+    };
+    const app = createApp(
+      makeFakeStore([ownedByBaker]),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+    );
+    const res = await receive(app, 'owned-by-baker', 'bak');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('received');
   });
 
   it('cannot confirm receipt before delivery (409)', async () => {

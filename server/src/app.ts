@@ -164,8 +164,10 @@ export function createApp(
     }
   });
 
-  // The requester who owns it confirms receipt (delivered → received).
-  app.post('/api/requests/:id/receive', auth, requireRole('requester', 'admin'), async (req, res) => {
+  // The person who owns the request confirms receipt (delivered → received).
+  // Authorized by ownership (the store checks owner-or-admin), not by role — the
+  // owner is the authority here whatever role their account carries.
+  app.post('/api/requests/:id/receive', auth, async (req, res) => {
     const me = (req as AuthedRequest).auth;
     try {
       const updated = await store.receiveRequest(req.params.id, me.id, me.role === 'admin');
