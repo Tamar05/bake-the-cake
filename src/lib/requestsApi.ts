@@ -5,9 +5,13 @@ function apiBase(): string {
   return import.meta.env.VITE_API_BASE_URL;
 }
 
-// Loads every saved request from the server, newest first.
-export async function loadRequests(): Promise<CakeRequest[]> {
-  const res = await fetch(`${apiBase()}/api/requests`);
+// Loads every saved request from the server, newest first. If a login token is
+// passed, the server reveals reserver details on requests this viewer is allowed
+// to see (their own reservations, and requests they posted).
+export async function loadRequests(token?: string): Promise<CakeRequest[]> {
+  const res = await fetch(`${apiBase()}/api/requests`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) throw new Error(`Could not load requests (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest[];
 }
@@ -28,26 +32,22 @@ export async function saveRequest(draft: RequestDraft, token: string): Promise<C
   return (await res.json()) as CakeRequest;
 }
 
-// Reserves a request for a baker (name + contact), returning the updated request.
-export async function reserveRequest(
-  id: string,
-  name: string,
-  contact: string,
-): Promise<CakeRequest> {
+// Reserves a request for the signed-in baker. Their name + contact come from
+// their account on the server, so no details are sent here — just the token.
+export async function reserveRequest(id: string, token: string): Promise<CakeRequest> {
   const res = await fetch(`${apiBase()}/api/requests/${id}/reserve`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, contact }),
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Could not reserve request (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest;
 }
 
-// Cancels a reservation, returning the request back in its open state.
-export async function releaseRequest(id: string): Promise<CakeRequest> {
+// Cancels a reservation, returning the request to its open state.
+export async function releaseRequest(id: string, token: string): Promise<CakeRequest> {
   const res = await fetch(`${apiBase()}/api/requests/${id}/release`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Could not release request (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest;

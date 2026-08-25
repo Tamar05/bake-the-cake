@@ -6,13 +6,22 @@ import { rowToRequest, type CakeRequestRow } from './requestMapper';
 // the endpoint can answer 409 instead of a generic error.
 export const ALREADY_RESERVED = 'ALREADY_RESERVED';
 
+// Thrown by releaseRequest when the caller is neither the baker who reserved it
+// nor an admin, so the endpoint can answer 403.
+export const NOT_RESERVER = 'NOT_RESERVER';
+
 // What the HTTP endpoints need from a store. A real Supabase-backed store is
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
   listRequests(): Promise<CakeRequest[]>;
   addRequest(draft: RequestDraft, ownerId: string): Promise<CakeRequest>;
-  reserveRequest(id: string, name: string, contact: string): Promise<CakeRequest>;
-  releaseRequest(id: string): Promise<CakeRequest>;
+  reserveRequest(
+    id: string,
+    userId: string,
+    name: string,
+    contact: string,
+  ): Promise<CakeRequest>;
+  releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
 };
 
 // Builds a store backed by the Supabase cake_requests table.
@@ -51,7 +60,12 @@ export function createSupabaseStore(): RequestsStore {
       return rowToRequest(data as CakeRequestRow);
     },
 
-    async reserveRequest(id: string, name: string, contact: string): Promise<CakeRequest> {
+    async reserveRequest(
+      id: string,
+      userId: string,
+      name: string,
+      contact: string,
+    ): Promise<CakeRequest> {
       // Read the current row first so we can refuse an already-active reservation.
       const current = await supabase.from('cake_requests').select('*').eq('id', id).single();
       if (current.error) throw new Error(current.error.message);
@@ -63,6 +77,7 @@ export function createSupabaseStore(): RequestsStore {
         .update({
           reserved_by: name,
           reserved_contact: contact,
+          reserved_by_user_id: userId,
           reserved_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -72,10 +87,22 @@ export function createSupabaseStore(): RequestsStore {
       return rowToRequest(data as CakeRequestRow);
     },
 
-    async releaseRequest(id: string): Promise<CakeRequest> {
+    async releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
+      // Only the baker who reserved it (or an admin) may release it.
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).single();
+      if (current.error) throw new Error(current.error.message);
+      const row = current.data as CakeRequestRow;
+      if (!isAdmin && row.reserved_by_user_id !== userId) {
+        throw new Error(NOT_RESERVER);
+      }
       const { data, error } = await supabase
         .from('cake_requests')
-        .update({ reserved_by: null, reserved_contact: null, reserved_at: null })
+        .update({
+          reserved_by: null,
+          reserved_contact: null,
+          reserved_by_user_id: null,
+          reserved_at: null,
+        })
         .eq('id', id)
         .select('*')
         .single();

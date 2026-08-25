@@ -13,6 +13,7 @@ const baseRow: CakeRequestRow = {
   owner_id: null,
   reserved_by: null,
   reserved_contact: null,
+  reserved_by_user_id: null,
   reserved_at: null,
 };
 
@@ -30,6 +31,7 @@ describe('rowToRequest', () => {
       status: 'open',
       reservedBy: null,
       reservedContact: null,
+      reservedByUserId: null,
       reservedUntil: null,
     });
   });
@@ -38,12 +40,19 @@ describe('rowToRequest', () => {
     const reservedAt = '2026-08-20T10:00:00.000Z';
     const now = Date.parse(reservedAt) + 5 * 60 * 1000; // 5 minutes in
     const result = rowToRequest(
-      { ...baseRow, reserved_by: 'Dana', reserved_contact: 'dana@example.com', reserved_at: reservedAt },
+      {
+        ...baseRow,
+        reserved_by: 'Dana',
+        reserved_contact: 'dana@example.com',
+        reserved_by_user_id: 'user-dana',
+        reserved_at: reservedAt,
+      },
       now,
     );
     expect(result.status).toBe('reserved');
     expect(result.reservedBy).toBe('Dana');
     expect(result.reservedContact).toBe('dana@example.com');
+    expect(result.reservedByUserId).toBe('user-dana');
     expect(result.reservedUntil).toBe(Date.parse(reservedAt) + RESERVATION_MS);
   });
 

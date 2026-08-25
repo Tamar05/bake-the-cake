@@ -76,6 +76,21 @@ export function requireAuth(authenticator: Authenticator): RequestHandler {
   };
 }
 
+// Like requireAuth, but never rejects: if a valid token is present it attaches
+// the profile; otherwise the request continues as an anonymous viewer. Used for
+// endpoints that everyone may call but that reveal more to a known viewer.
+export function optionalAuth(authenticator: Authenticator): RequestHandler {
+  return async (req, _res, next) => {
+    const header = req.headers.authorization ?? '';
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (token) {
+      const profile = await authenticator.verify(token);
+      if (profile) (req as AuthedRequest).auth = profile;
+    }
+    next();
+  };
+}
+
 // Middleware to run AFTER requireAuth: allow only the listed roles, else 403.
 export function requireRole(...roles: AuthedProfile['role'][]): RequestHandler {
   return (req, res, next) => {

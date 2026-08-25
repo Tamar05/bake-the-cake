@@ -13,6 +13,7 @@ export type CakeRequestRow = {
   owner_id: string | null; // the requester who posted it; null for legacy rows
   reserved_by: string | null;
   reserved_contact: string | null;
+  reserved_by_user_id: string | null; // the baker's account id, or null
   reserved_at: string | null; // ISO timestamp, or null when open
 };
 
@@ -42,7 +43,15 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
         status: 'reserved',
         reservedBy: row.reserved_by,
         reservedContact: row.reserved_contact,
+        reservedByUserId: row.reserved_by_user_id,
         reservedUntil,
       }
-    : { ...base, status: 'open', reservedBy: null, reservedContact: null, reservedUntil: null };
+    : {
+        ...base,
+        status: 'open',
+        reservedBy: null,
+        reservedContact: null,
+        reservedByUserId: null,
+        reservedUntil: null,
+      };
 }

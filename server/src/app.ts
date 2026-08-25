@@ -1,19 +1,35 @@
 import express from 'express';
 import cors from 'cors';
-import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
+import { ALREADY_RESERVED, NOT_RESERVER, type RequestsStore } from './requestsStore';
 import type { Translator } from './translator';
-import type { RequestDraft } from './types';
+import type { CakeRequest, RequestDraft } from './types';
 import {
   createSupabaseAuthenticator,
   requireAuth,
   requireRole,
+  optionalAuth,
   type Authenticator,
   type AuthedRequest,
+  type AuthedProfile,
 } from './auth';
 
 // The required fields a new request must include.
 function isMissingRequired(draft: Partial<RequestDraft>): boolean {
   return !draft.recipient || !draft.occasion || !draft.neededBy || !draft.location;
+}
+
+// A reserved request only reveals who reserved it (name + contact + their id) to
+// the baker who reserved it, the requester who posted it, or an admin. Everyone
+// else — including anonymous browsers — sees a plain reserved card.
+function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined): CakeRequest {
+  if (request.status !== 'reserved') return request;
+  const maySee =
+    viewer != null &&
+    (viewer.role === 'admin' ||
+      viewer.id === request.reservedByUserId ||
+      viewer.id === request.ownerId);
+  if (maySee) return request;
+  return { ...request, reservedBy: null, reservedContact: null, reservedByUserId: null };
 }
 
 // Builds the Express app around a store (real Supabase store in production,
@@ -27,6 +43,7 @@ export function createApp(
   app.use(cors());
   app.use(express.json());
   const auth = requireAuth(authenticator);
+  const optAuth = optionalAuth(authenticator);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
@@ -37,10 +54,11 @@ export function createApp(
     res.json((req as AuthedRequest).auth);
   });
 
-  app.get('/api/requests', async (_req, res) => {
+  app.get('/api/requests', optAuth, async (req, res) => {
+    const viewer = (req as AuthedRequest).auth as AuthedProfile | undefined;
     try {
       const requests = await store.listRequests();
-      res.json(requests);
+      res.json(requests.map((r) => redactReserver(r, viewer)));
     } catch {
       res.status(500).json({ error: 'Could not load requests' });
     }
@@ -71,14 +89,16 @@ export function createApp(
     }
   });
 
-  app.post('/api/requests/:id/reserve', async (req, res) => {
-    const { name, contact } = (req.body ?? {}) as { name?: string; contact?: string };
-    if (!name || !name.trim() || !contact || !contact.trim()) {
-      res.status(400).json({ error: 'A name and contact are required to reserve' });
-      return;
-    }
+  app.post('/api/requests/:id/reserve', auth, requireRole('baker', 'admin'), async (req, res) => {
+    // The baker's name + contact come from their verified profile, not the body.
+    const me = (req as AuthedRequest).auth;
     try {
-      const updated = await store.reserveRequest(req.params.id, name.trim(), contact.trim());
+      const updated = await store.reserveRequest(
+        req.params.id,
+        me.id,
+        me.displayName,
+        me.contact ?? '',
+      );
       res.status(200).json(updated);
     } catch (err) {
       if (err instanceof Error && err.message === ALREADY_RESERVED) {
@@ -89,11 +109,16 @@ export function createApp(
     }
   });
 
-  app.post('/api/requests/:id/release', async (req, res) => {
+  app.post('/api/requests/:id/release', auth, async (req, res) => {
+    const me = (req as AuthedRequest).auth;
     try {
-      const updated = await store.releaseRequest(req.params.id);
+      const updated = await store.releaseRequest(req.params.id, me.id, me.role === 'admin');
       res.status(200).json(updated);
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_RESERVER) {
+        res.status(403).json({ error: 'Only the baker who reserved it can release it' });
+        return;
+      }
       res.status(500).json({ error: 'Could not release this request' });
     }
   });

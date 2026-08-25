@@ -16,7 +16,8 @@ export default function App() {
   const [status, setStatus] = useState<Status>('loading');
 
   const t = dictionaries[language];
-  const { profile, session } = useAuth();
+  const { profile, session, loading: authLoading } = useAuth();
+  const token = session?.access_token;
   // Only a signed-in requester (or admin) may post a cake request.
   const canPost = profile?.role === 'requester' || profile?.role === 'admin';
 
@@ -26,15 +27,18 @@ export default function App() {
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
   }, [language]);
 
-  // Load the saved requests from the server once, on startup.
+  // Load requests once we know whether someone is signed in, and reload on sign
+  // in/out so reserver details appear or disappear for the right viewer.
   useEffect(() => {
-    loadRequests()
+    if (authLoading) return;
+    setStatus('loading');
+    loadRequests(token)
       .then((list) => {
         setRequests(list);
         setStatus('ready');
       })
       .catch(() => setStatus('error'));
-  }, []);
+  }, [authLoading, token]);
 
   function handleLanguageChange(next: Language) {
     setLanguage(next);
@@ -42,7 +46,6 @@ export default function App() {
   }
 
   async function handleAdd(draft: RequestDraft) {
-    const token = session?.access_token;
     if (!token) return; // the form is only shown to signed-in requesters
     try {
       const saved = await saveRequest(draft, token);

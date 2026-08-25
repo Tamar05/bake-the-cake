@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app';
-import { ALREADY_RESERVED, type RequestsStore } from './requestsStore';
+import { ALREADY_RESERVED, NOT_RESERVER, type RequestsStore } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
@@ -23,12 +23,13 @@ function makeFakeStore(): RequestsStore {
         status: 'open',
         reservedBy: null,
         reservedContact: null,
+        reservedByUserId: null,
         reservedUntil: null,
       };
       items.push(saved);
       return saved;
     },
-    async reserveRequest(id, name, contact) {
+    async reserveRequest(id, userId, name, contact) {
       const item = find(id);
       if (!item) throw new Error('not found');
       if (item.status === 'reserved') throw new Error(ALREADY_RESERVED);
@@ -36,17 +37,20 @@ function makeFakeStore(): RequestsStore {
         status: 'reserved',
         reservedBy: name,
         reservedContact: contact,
+        reservedByUserId: userId,
         reservedUntil: Date.now() + RESERVATION_MS,
       });
       return item;
     },
-    async releaseRequest(id) {
+    async releaseRequest(id, userId, isAdmin) {
       const item = find(id);
       if (!item) throw new Error('not found');
+      if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
       Object.assign(item, {
         status: 'open',
         reservedBy: null,
         reservedContact: null,
+        reservedByUserId: null,
         reservedUntil: null,
       });
       return item;
@@ -68,6 +72,7 @@ function makeFakeTranslator(): Translator {
 const PROFILES: Record<string, AuthedProfile> = {
   req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null },
   bak: { id: 'user-bak', displayName: 'Baz', role: 'baker', contact: 'baz@example.com' },
+  bak2: { id: 'user-bak2', displayName: 'Bex', role: 'baker', contact: 'bex@example.com' },
   adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null },
 };
 function makeFakeAuthenticator(): Authenticator {
@@ -146,45 +151,92 @@ describe('reserve API', () => {
       .send(validDraft);
     return res.body.id as string;
   }
+  const reserve = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${token}`).send();
+  const release = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/release`).set('Authorization', `Bearer ${token}`).send();
 
-  it('reserving flips a request to reserved with the baker details', async () => {
+  it('a baker reserves with one click; details come from their profile', async () => {
     const app = makeApp();
     const id = await addOne(app);
-    const res = await request(app)
-      .post(`/api/requests/${id}/reserve`)
-      .send({ name: 'Dana', contact: 'dana@example.com' });
+    const res = await reserve(app, id, 'bak');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('reserved');
-    expect(res.body.reservedBy).toBe('Dana');
-    expect(res.body.reservedContact).toBe('dana@example.com');
+    expect(res.body.reservedBy).toBe('Baz');
+    expect(res.body.reservedContact).toBe('baz@example.com');
+    expect(res.body.reservedByUserId).toBe('user-bak');
     expect(res.body.reservedUntil).toBeGreaterThan(Date.now());
   });
 
-  it('reserving without a name or contact returns 400', async () => {
+  it('reserving without signing in returns 401', async () => {
     const app = makeApp();
     const id = await addOne(app);
-    const res = await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana' });
-    expect(res.status).toBe(400);
+    const res = await request(app).post(`/api/requests/${id}/reserve`).send();
+    expect(res.status).toBe(401);
+  });
+
+  it('a requester may not reserve (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await reserve(app, id, 'req');
+    expect(res.status).toBe(403);
   });
 
   it('reserving an already-reserved request returns 409', async () => {
     const app = makeApp();
     const id = await addOne(app);
-    await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
-    const res = await request(app)
-      .post(`/api/requests/${id}/reserve`)
-      .send({ name: 'Noa', contact: 'n@e.com' });
+    await reserve(app, id, 'bak');
+    const res = await reserve(app, id, 'bak2');
     expect(res.status).toBe(409);
   });
 
-  it('releasing a reserved request returns it to open', async () => {
+  it('the baker who reserved it can release it back to open', async () => {
     const app = makeApp();
     const id = await addOne(app);
-    await request(app).post(`/api/requests/${id}/reserve`).send({ name: 'Dana', contact: 'd@e.com' });
-    const res = await request(app).post(`/api/requests/${id}/release`).send();
+    await reserve(app, id, 'bak');
+    const res = await release(app, id, 'bak');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('open');
-    expect(res.body.reservedBy).toBeNull();
+    expect(res.body.reservedByUserId).toBeNull();
+  });
+
+  it('a different baker cannot release someone else’s reservation (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    const res = await release(app, id, 'bak2');
+    expect(res.status).toBe(403);
+  });
+
+  it('an admin can release anyone’s reservation', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    const res = await release(app, id, 'adm');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('open');
+  });
+
+  it('reveals the reserver only to the reserver, the owner, and admins', async () => {
+    const app = makeApp();
+    const id = await addOne(app); // owner = user-req
+    await reserve(app, id, 'bak'); // reserver = Baz (user-bak)
+
+    const seen = async (token?: string) => {
+      const call = request(app).get('/api/requests');
+      const res = token ? await call.set('Authorization', `Bearer ${token}`) : await call;
+      return res.body.find((r: { id: string }) => r.id === id);
+    };
+
+    expect((await seen()).reservedBy).toBeNull(); // anonymous browser
+    expect((await seen('bak2')).reservedBy).toBeNull(); // an unrelated baker
+    expect((await seen('bak')).reservedBy).toBe('Baz'); // the reserver
+    expect((await seen('req')).reservedBy).toBe('Baz'); // the requester who posted it
+    expect((await seen('adm')).reservedBy).toBe('Baz'); // an admin
+    // Everyone still sees that it's reserved, with the countdown.
+    const anon = await seen();
+    expect(anon.status).toBe('reserved');
+    expect(anon.reservedUntil).toBeGreaterThan(Date.now());
   });
 });
 

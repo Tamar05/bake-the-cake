@@ -23,7 +23,7 @@ describe('requestsApi', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
     vi.stubGlobal('fetch', fetchMock);
     const result = await loadRequests();
-    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests');
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests', { headers: {} });
     expect(result).toEqual([]);
   });
 

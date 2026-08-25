@@ -20,5 +20,6 @@ export type CakeRequest = RequestDraft & {
   status: 'open' | 'reserved';
   reservedBy: string | null; // baker's name while reserved, else null
   reservedContact: string | null; // baker's phone/email while reserved, else null
+  reservedByUserId: string | null; // the baker's account id while reserved, else null
   reservedUntil: number | null; // ms-since-1970 the hold ends, else null
 };
