@@ -82,6 +82,16 @@ alter table public.cake_requests enable row level security;
 
 (The `profiles` table was already locked down this way back in Phase 1.)
 
+## Finished-cake photos (Storage)
+
+When a baker marks a cake delivered they can attach one photo. Photos live in a
+**private** Supabase Storage bucket called **`cake-photos`** — created once in
+the dashboard (Storage → New bucket → name `cake-photos`, **Public: off**). No
+storage policies are needed: only our server touches Storage (with the secret
+service key, which bypasses the private-bucket lock), and it hands an authorized
+viewer — the requester, the baker, or an admin — a short-lived signed link to
+view the image. The browser never uploads to Storage directly.
+
 ## Where things stand right now
 
 - ✅ Project folder created, separate from pocket-pt, with its own git history.
