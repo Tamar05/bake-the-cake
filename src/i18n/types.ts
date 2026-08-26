@@ -11,6 +11,8 @@ export type Dictionary = {
     neededByLabel: string;
     dietaryLabel: string;
     locationLabel: string;
+    contactPhoneLabel: string; // phone the baker uses to reach the requester
+    contactPhoneHint: string; // why the phone is needed
     submit: string;
     missingFields: string; // gentle message when required fields are blank
     signInToPost: string; // shown instead of the form when you can't post

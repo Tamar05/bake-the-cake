@@ -5,6 +5,7 @@ export type RequestDraft = {
   neededBy: string;
   dietary: string;
   location: string;
+  contactPhone: string; // how the baker reaches the requester to arrange delivery
 };
 
 // How long a reservation is held before it auto-returns to Open (1 hour).

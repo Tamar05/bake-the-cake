@@ -6,6 +6,7 @@ const REQUIRED_FIELDS: Array<keyof RequestDraft> = [
   'occasion',
   'neededBy',
   'location',
+  'contactPhone',
 ];
 
 // Returns the required fields that are still blank (ignoring surrounding spaces).

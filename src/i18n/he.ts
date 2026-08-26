@@ -11,6 +11,8 @@ export const he: Dictionary = {
     neededByLabel: 'תאריך נדרש',
     dietaryLabel: 'צרכים תזונתיים (רשות)',
     locationLabel: 'מיקום משוער',
+    contactPhoneLabel: 'טלפון ליצירת קשר',
+    contactPhoneHint: 'כדי שהאופה יוכל ליצור קשר לתיאום מסירה.',
     submit: 'שליחת בקשה',
     missingFields: 'אנא מלאו את שדות החובה לפני השליחה.',
     signInToPost: 'התחברו כמבקש כדי לפרסם בקשת עוגה.',

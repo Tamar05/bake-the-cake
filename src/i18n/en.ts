@@ -11,6 +11,8 @@ export const en: Dictionary = {
     neededByLabel: 'Date needed',
     dietaryLabel: 'Dietary needs (optional)',
     locationLabel: 'Rough location',
+    contactPhoneLabel: 'Contact phone',
+    contactPhoneHint: 'So the baker can reach you to arrange delivery.',
     submit: 'Submit request',
     missingFields: 'Please fill in the required fields before submitting.',
     signInToPost: 'Sign in as a requester to post a cake request.',

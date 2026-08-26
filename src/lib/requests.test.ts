@@ -8,6 +8,7 @@ const fullDraft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
+  contactPhone: '050-1234567',
 };
 
 describe('findMissingFields', () => {

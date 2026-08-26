@@ -265,6 +265,7 @@ const validDraft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
+  contactPhone: '555-0100',
 };
 
 describe('requests API', () => {
@@ -410,6 +411,24 @@ describe('reserve API', () => {
     expect(anon.status).toBe('reserved');
     expect(anon.reservedUntil).toBeGreaterThan(Date.now());
   });
+
+  it('keeps the requester’s phone private — visible only to owner, reserver, and admin', async () => {
+    const app = makeApp();
+    const id = await addOne(app); // owner = user-req, phone from validDraft
+    await reserve(app, id, 'bak'); // reserver = user-bak
+
+    const phoneSeenBy = async (token?: string) => {
+      const call = request(app).get('/api/requests');
+      const res = token ? await call.set('Authorization', `Bearer ${token}`) : await call;
+      return res.body.find((r: { id: string }) => r.id === id).contactPhone;
+    };
+
+    expect(await phoneSeenBy()).toBe(''); // anonymous — redacted
+    expect(await phoneSeenBy('bak2')).toBe(''); // an unrelated baker — redacted
+    expect(await phoneSeenBy('bak')).toBe(validDraft.contactPhone); // the reserving baker
+    expect(await phoneSeenBy('req')).toBe(validDraft.contactPhone); // the owner
+    expect(await phoneSeenBy('adm')).toBe(validDraft.contactPhone); // an admin
+  });
 });
 
 describe('commit API', () => {
@@ -510,7 +529,8 @@ describe('commit API', () => {
     expect(sent[0].to).toBe('baz.baker@example.com'); // the baker's login email
     expect(sent[0].details.location).toBe(validDraft.location);
     expect(sent[0].details.recipient).toBe(validDraft.recipient);
-    expect(sent[0].details.requesterContact).toBe('rae@example.com'); // owner's contact
+    // The phone the requester gave on the request itself is what the baker sees.
+    expect(sent[0].details.requesterContact).toBe(validDraft.contactPhone);
   });
 
   it('a failed notification does not break the commit', async () => {
@@ -1097,6 +1117,7 @@ describe('attention API', () => {
     neededBy: '2999-01-01',
     dietary: '',
     location: 'Haifa',
+    contactPhone: '555-0100',
     createdAt: Date.now(),
     ownerId: 'user-req',
     status: 'open',

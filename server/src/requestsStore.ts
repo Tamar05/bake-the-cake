@@ -88,6 +88,7 @@ export function createSupabaseStore(): RequestsStore {
           needed_by: draft.neededBy,
           dietary: draft.dietary,
           location: draft.location,
+          contact_phone: draft.contactPhone,
           owner_id: ownerId,
         })
         .select('*')

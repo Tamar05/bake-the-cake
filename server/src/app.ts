@@ -31,23 +31,35 @@ import {
 
 // The required fields a new request must include.
 function isMissingRequired(draft: Partial<RequestDraft>): boolean {
-  return !draft.recipient || !draft.occasion || !draft.neededBy || !draft.location;
+  return (
+    !draft.recipient ||
+    !draft.occasion ||
+    !draft.neededBy ||
+    !draft.location ||
+    !draft.contactPhone
+  );
 }
 
-// A claimed request (reserved or committed) only reveals who has it (name +
-// contact + their id) to the baker holding it, the requester who posted it, or
-// an admin. Everyone else — including anonymous browsers — sees a plain card
-// with no baker details.
+// Trims private details a viewer isn't allowed to see. Only the owner (the
+// requester who posted it), the baker holding it, or an admin may see the
+// requester's delivery phone, the claimant's identity, and that a (private)
+// photo exists. Everyone else — including anonymous browsers — gets a plain card.
 function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined): CakeRequest {
-  if (request.reservedByUserId == null && request.reservedBy == null) return request;
   const maySee =
     viewer != null &&
     (viewer.role === 'admin' ||
       viewer.id === request.reservedByUserId ||
       viewer.id === request.ownerId);
   if (maySee) return request;
-  // Hide who's baking it AND that a (private) photo exists from everyone else.
-  return { ...request, reservedBy: null, reservedContact: null, reservedByUserId: null, hasPhoto: false };
+
+  let result = request;
+  // The requester's phone is private — reached only via the baker's commit email.
+  if (request.contactPhone) result = { ...result, contactPhone: '' };
+  // Hide who's baking it AND that a (private) photo exists.
+  if (request.reservedByUserId != null || request.reservedBy != null) {
+    result = { ...result, reservedBy: null, reservedContact: null, reservedByUserId: null, hasPhoto: false };
+  }
+  return result;
 }
 
 // Accepts an optional finished-cake photo on the deliver request. Held in memory
@@ -122,6 +134,7 @@ export function createApp(
           neededBy: draft.neededBy!,
           dietary: draft.dietary ?? '',
           location: draft.location!,
+          contactPhone: draft.contactPhone!,
         },
         ownerId,
       );
@@ -167,9 +180,13 @@ export function createApp(
       // commit. We look up the requester's contact from their profile.
       if (me.email) {
         try {
-          const contacts = updated.ownerId
-            ? await profilesStore.getContacts([updated.ownerId])
-            : {};
+          // Prefer the phone the requester gave on the request itself; fall back
+          // to their profile contact (e.g. older requests without a phone).
+          let requesterContact: string | null = updated.contactPhone || null;
+          if (!requesterContact && updated.ownerId) {
+            const contacts = await profilesStore.getContacts([updated.ownerId]);
+            requesterContact = contacts[updated.ownerId] ?? null;
+          }
           await notifier.sendBakeConfirmation(me.email, {
             bakerName: me.displayName,
             recipient: updated.recipient,
@@ -177,7 +194,7 @@ export function createApp(
             neededBy: updated.neededBy,
             dietary: updated.dietary,
             location: updated.location,
-            requesterContact: updated.ownerId ? (contacts[updated.ownerId] ?? null) : null,
+            requesterContact,
             requestId: updated.id,
           });
         } catch {

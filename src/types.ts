@@ -5,6 +5,7 @@ export type RequestDraft = {
   neededBy: string; // date the cake is needed, as yyyy-mm-dd
   dietary: string; // dietary needs (optional; '' when none)
   location: string; // rough location, e.g. town or postcode
+  contactPhone: string; // phone the baker uses to reach the requester for delivery
 };
 
 // A saved request: everything from the draft plus an id, a timestamp, and its

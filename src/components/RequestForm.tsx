@@ -9,6 +9,7 @@ const EMPTY_DRAFT: RequestDraft = {
   neededBy: '',
   dietary: '',
   location: '',
+  contactPhone: '',
 };
 
 type Props = {
@@ -62,6 +63,16 @@ export default function RequestForm({ t, onAdd }: Props) {
       <label>
         {t.form.locationLabel}
         <input value={draft.location} onChange={(e) => update('location', e.target.value)} />
+      </label>
+
+      <label>
+        {t.form.contactPhoneLabel}
+        <input
+          type="tel"
+          value={draft.contactPhone}
+          onChange={(e) => update('contactPhone', e.target.value)}
+        />
+        <small>{t.form.contactPhoneHint}</small>
       </label>
 
       {showError && <p className="form-error">{t.form.missingFields}</p>}
