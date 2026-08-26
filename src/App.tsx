@@ -9,6 +9,7 @@ import BrowsePage from './pages/BrowsePage';
 import MyRequestsPage from './pages/MyRequestsPage';
 import MyReservationsPage from './pages/MyReservationsPage';
 import AdminPage from './pages/AdminPage';
+import AdminBakersPage from './pages/AdminBakersPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -114,6 +115,14 @@ export default function App() {
             element={
               <RequireRole roles={['admin']}>
                 <AdminPage {...listProps} />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/bakers"
+            element={
+              <RequireRole roles={['admin']}>
+                <AdminBakersPage t={t} />
               </RequireRole>
             }
           />

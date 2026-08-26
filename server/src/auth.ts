@@ -8,6 +8,7 @@ export type AuthedProfile = {
   displayName: string;
   role: 'requester' | 'baker' | 'admin';
   contact: string | null;
+  verified: boolean; // an admin has vetted this baker; gates reserving/baking
 };
 
 // An Express request that has passed requireAuth carries the verified profile.
@@ -42,7 +43,7 @@ export function createSupabaseAuthenticator(): Authenticator {
       if (error || !data.user) return null; // bad/expired token → fail closed
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, role, contact')
+        .select('id, display_name, role, contact, verified_at')
         .eq('id', data.user.id)
         .single();
       if (profileError || !profile) return null; // no profile → fail closed
@@ -51,6 +52,7 @@ export function createSupabaseAuthenticator(): Authenticator {
         displayName: profile.display_name,
         role: profile.role,
         contact: profile.contact,
+        verified: profile.verified_at != null,
       };
     },
   };
@@ -102,3 +104,15 @@ export function requireRole(...roles: AuthedProfile['role'][]): RequestHandler {
     next();
   };
 }
+
+// Middleware to run AFTER requireRole('baker','admin'): a baker must be verified
+// by an admin before they can bake. Admins always pass. An unverified baker is
+// refused with 403 so they can browse but not reserve.
+export const requireVerifiedBaker: RequestHandler = (req, res, next) => {
+  const profile = (req as AuthedRequest).auth;
+  if (profile && (profile.role === 'admin' || profile.verified)) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: 'Your baker account is awaiting verification' });
+};

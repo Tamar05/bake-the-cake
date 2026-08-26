@@ -71,13 +71,28 @@ export type Dictionary = {
     deleteError: string; // shown when a delete fails
     confirmCancel: string; // confirm prompt before an owner cancels
     confirmDelete: string; // confirm prompt before an admin deletes
+    pendingVerification: string; // shown to an unverified baker in place of Reserve
   };
   nav: {
     browse: string; // link to the open-requests browse view
     myRequests: string; // requester's own requests
     myReservations: string; // baker's reservations
     admin: string; // admin's manage-everything view
+    bakers: string; // admin's baker-verification screen
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  bakers: {
+    heading: string;
+    empty: string; // no bakers signed up yet
+    loading: string;
+    loadError: string;
+    verifiedLabel: string; // status: verified
+    unverifiedLabel: string; // status: not verified
+    verify: string; // button to verify
+    unverify: string; // button to unverify
+    working: string; // busy label
+    contactPrefix: string; // precedes a baker's contact
+    actionError: string; // shown when verify/unverify fails
   };
   views: {
     myRequestsHeading: string;

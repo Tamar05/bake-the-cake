@@ -12,9 +12,15 @@ import {
 import type { Translator } from './translator';
 import type { CakeRequest, RequestDraft } from './types';
 import {
+  createSupabaseProfilesStore,
+  BAKER_NOT_FOUND,
+  type ProfilesStore,
+} from './profilesStore';
+import {
   createSupabaseAuthenticator,
   requireAuth,
   requireRole,
+  requireVerifiedBaker,
   optionalAuth,
   type Authenticator,
   type AuthedRequest,
@@ -70,6 +76,7 @@ export function createApp(
   store: RequestsStore,
   translator: Translator,
   authenticator: Authenticator = createSupabaseAuthenticator(),
+  profilesStore: ProfilesStore = createSupabaseProfilesStore(),
 ) {
   const app = express();
   app.use(cors());
@@ -121,7 +128,12 @@ export function createApp(
     }
   });
 
-  app.post('/api/requests/:id/reserve', auth, requireRole('baker', 'admin'), async (req, res) => {
+  app.post(
+    '/api/requests/:id/reserve',
+    auth,
+    requireRole('baker', 'admin'),
+    requireVerifiedBaker,
+    async (req, res) => {
     // The baker's name + contact come from their verified profile, not the body.
     const me = (req as AuthedRequest).auth;
     try {
@@ -279,6 +291,34 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not delete this request' });
+    }
+  });
+
+  // Admin: list every baker with their verification state.
+  app.get('/api/bakers', auth, requireRole('admin'), async (_req, res) => {
+    try {
+      res.json(await profilesStore.listBakers());
+    } catch {
+      res.status(500).json({ error: 'Could not load bakers' });
+    }
+  });
+
+  // Admin: verify or unverify a baker. Only a verified baker may reserve/bake.
+  app.post('/api/bakers/:id/verification', auth, requireRole('admin'), async (req, res) => {
+    const { verified } = (req.body ?? {}) as { verified?: unknown };
+    if (typeof verified !== 'boolean') {
+      res.status(400).json({ error: 'Missing or invalid "verified" flag' });
+      return;
+    }
+    try {
+      const updated = await profilesStore.setVerified(req.params.id, verified);
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === BAKER_NOT_FOUND) {
+        res.status(404).json({ error: 'No such baker' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not update this baker' });
     }
   });
 

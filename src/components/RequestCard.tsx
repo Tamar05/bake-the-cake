@@ -80,7 +80,10 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // decides which buttons to show.
   const isAdmin = profile?.role === 'admin';
   const isHolder = profile != null && (request.reservedByUserId === profile.id || isAdmin);
-  const canReserve = profile?.role === 'baker' || isAdmin;
+  // Only a verified baker (or an admin) may reserve; an unverified baker can
+  // browse but not bake, and sees a "pending verification" note instead.
+  const canReserve = (profile?.role === 'baker' && profile.verified) || isAdmin;
+  const isUnverifiedBaker = profile?.role === 'baker' && !profile.verified;
   const canCommit = reservedActive && isHolder;
   const canDeliver = committed && isHolder;
   const canRelease = isHolder && (reservedActive || committed);
@@ -364,20 +367,20 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
             </>
           )}
         </div>
+      ) : canReserve ? (
+        <>
+          <button
+            type="button"
+            className="reserve-button"
+            onClick={handleReserve}
+            disabled={reserveStatus === 'saving'}
+          >
+            {reserveStatus === 'saving' ? t.list.reserving : t.list.reserve}
+          </button>
+          {reserveStatus === 'error' && <p className="reserve-error">{t.list.reserveError}</p>}
+        </>
       ) : (
-        canReserve && (
-          <>
-            <button
-              type="button"
-              className="reserve-button"
-              onClick={handleReserve}
-              disabled={reserveStatus === 'saving'}
-            >
-              {reserveStatus === 'saving' ? t.list.reserving : t.list.reserve}
-            </button>
-            {reserveStatus === 'error' && <p className="reserve-error">{t.list.reserveError}</p>}
-          </>
-        )
+        isUnverifiedBaker && <p className="pending-note">{t.list.pendingVerification}</p>
       )}
 
       {canDelete && (

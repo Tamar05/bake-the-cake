@@ -255,6 +255,79 @@ body {
   color: #8a6d6d;
 }
 
+/* --- Baker verification (Slice 6) --- */
+.pending-note {
+  margin: 0.5rem 0 0;
+  color: #a35b00;
+  background: #fff8ef;
+  border: 1px dashed #ffd9a8;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.baker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.baker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border: 1px solid #ffe3ec;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.baker-info p {
+  margin: 0.25rem 0 0;
+}
+
+.baker-contact {
+  font-size: 0.85rem;
+  color: #8a6d6d;
+}
+
+.baker-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+
+.baker-status.is-verified {
+  background: #e0f6e6;
+  color: #1f7a44;
+}
+
+.baker-status.is-unverified {
+  background: #fff0d6;
+  color: #a35b00;
+}
+
+.baker-row button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #ffb3c6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ff4d76;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.baker-row button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

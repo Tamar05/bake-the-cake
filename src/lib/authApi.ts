@@ -5,6 +5,7 @@ export type Profile = {
   displayName: string;
   role: 'requester' | 'baker' | 'admin';
   contact: string | null;
+  verified: boolean; // an admin has vetted this baker (only meaningful for bakers)
 };
 
 function apiBase(): string {

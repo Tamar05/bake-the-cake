@@ -10,6 +10,7 @@ import {
   type RequestsStore,
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
+import { BAKER_NOT_FOUND, type ProfilesStore, type BakerSummary } from './profilesStore';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -136,11 +137,31 @@ function makeFakeTranslator(): Translator {
 // Fake auth: the tokens 'req' / 'bak' / 'adm' stand for a signed-in requester /
 // baker / admin; any other token (or none) is treated as signed-out.
 const PROFILES: Record<string, AuthedProfile> = {
-  req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null },
-  req2: { id: 'user-req2', displayName: 'Ravi', role: 'requester', contact: null },
-  bak: { id: 'user-bak', displayName: 'Baz', role: 'baker', contact: 'baz@example.com' },
-  bak2: { id: 'user-bak2', displayName: 'Bex', role: 'baker', contact: 'bex@example.com' },
-  adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null },
+  req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null, verified: false },
+  req2: { id: 'user-req2', displayName: 'Ravi', role: 'requester', contact: null, verified: false },
+  bak: {
+    id: 'user-bak',
+    displayName: 'Baz',
+    role: 'baker',
+    contact: 'baz@example.com',
+    verified: true,
+  },
+  bak2: {
+    id: 'user-bak2',
+    displayName: 'Bex',
+    role: 'baker',
+    contact: 'bex@example.com',
+    verified: true,
+  },
+  // An unverified baker: signed in, but not yet vetted by an admin.
+  bakU: {
+    id: 'user-bakU',
+    displayName: 'Uma',
+    role: 'baker',
+    contact: 'uma@example.com',
+    verified: false,
+  },
+  adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null, verified: false },
 };
 function makeFakeAuthenticator(): Authenticator {
   return {
@@ -150,8 +171,33 @@ function makeFakeAuthenticator(): Authenticator {
   };
 }
 
+// An in-memory stand-in for the profiles store, seeded with the fake bakers.
+function makeFakeProfilesStore(): ProfilesStore {
+  const bakers: BakerSummary[] = [
+    { id: 'user-bak', displayName: 'Baz', contact: 'baz@example.com', verified: true, createdAt: 1 },
+    { id: 'user-bak2', displayName: 'Bex', contact: 'bex@example.com', verified: true, createdAt: 2 },
+    { id: 'user-bakU', displayName: 'Uma', contact: 'uma@example.com', verified: false, createdAt: 3 },
+  ];
+  return {
+    async listBakers() {
+      return bakers.map((b) => ({ ...b }));
+    },
+    async setVerified(id, verified) {
+      const baker = bakers.find((b) => b.id === id);
+      if (!baker) throw new Error(BAKER_NOT_FOUND);
+      baker.verified = verified;
+      return { ...baker };
+    },
+  };
+}
+
 function makeApp() {
-  return createApp(makeFakeStore(), makeFakeTranslator(), makeFakeAuthenticator());
+  return createApp(
+    makeFakeStore(),
+    makeFakeTranslator(),
+    makeFakeAuthenticator(),
+    makeFakeProfilesStore(),
+  );
 }
 
 const validDraft: RequestDraft = {
@@ -487,6 +533,7 @@ describe('deliver & receive API', () => {
       makeFakeStore([ownedByBaker]),
       makeFakeTranslator(),
       makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
     );
     const res = await receive(app, 'owned-by-baker', 'bak');
     expect(res.status).toBe(200);
@@ -523,7 +570,7 @@ describe('deliver & receive API', () => {
       hasPhoto: false,
     };
     const makeSeeded = () =>
-      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());
+      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
     expect((await receive(makeSeeded(), 'legacy-d', 'req')).status).toBe(403);
     expect((await receive(makeSeeded(), 'legacy-d', 'adm')).status).toBe(200);
   });
@@ -677,7 +724,7 @@ describe('delete API', () => {
       hasPhoto: false,
     };
     const makeSeeded = () =>
-      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());
+      createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
 
     // A signed-in requester is not the owner of an unowned row → 403.
     expect((await del(makeSeeded(), 'legacy-1', 'req')).status).toBe(403);
@@ -789,6 +836,90 @@ describe('auth negative tests (Phase 5 hardening)', () => {
   });
 });
 
+describe('verification & bakers API', () => {
+  const addOne = async (app: ReturnType<typeof createApp>) => {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    return res.body.id as string;
+  };
+  const reserve = (app: ReturnType<typeof createApp>, id: string, token: string) =>
+    request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${token}`).send();
+
+  it('an unverified baker cannot reserve (403), but a verified one and an admin can', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await reserve(app, id, 'bakU')).status).toBe(403); // awaiting verification
+    expect((await reserve(app, id, 'bak')).status).toBe(200); // verified baker
+  });
+
+  it('an admin (never needing verification) can reserve', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await reserve(app, id, 'adm')).status).toBe(200);
+  });
+
+  it('GET /api/bakers is admin-only', async () => {
+    const app = makeApp();
+    expect((await request(app).get('/api/bakers')).status).toBe(401); // no token
+    expect((await request(app).get('/api/bakers').set('Authorization', 'Bearer bak')).status).toBe(
+      403,
+    ); // a baker
+    const res = await request(app).get('/api/bakers').set('Authorization', 'Bearer adm');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toHaveProperty('verified');
+  });
+
+  it('an admin can verify a baker; the verified flag flips', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .post('/api/bakers/user-bakU/verification')
+      .set('Authorization', 'Bearer adm')
+      .send({ verified: true });
+    expect(res.status).toBe(200);
+    expect(res.body.verified).toBe(true);
+    // and back again
+    const off = await request(app)
+      .post('/api/bakers/user-bakU/verification')
+      .set('Authorization', 'Bearer adm')
+      .send({ verified: false });
+    expect(off.body.verified).toBe(false);
+  });
+
+  it('verifying is admin-only and validated', async () => {
+    const app = makeApp();
+    // a baker cannot verify anyone
+    expect(
+      (
+        await request(app)
+          .post('/api/bakers/user-bakU/verification')
+          .set('Authorization', 'Bearer bak')
+          .send({ verified: true })
+      ).status,
+    ).toBe(403);
+    // missing flag → 400
+    expect(
+      (
+        await request(app)
+          .post('/api/bakers/user-bakU/verification')
+          .set('Authorization', 'Bearer adm')
+          .send({})
+      ).status,
+    ).toBe(400);
+    // unknown baker → 404
+    expect(
+      (
+        await request(app)
+          .post('/api/bakers/nobody/verification')
+          .set('Authorization', 'Bearer adm')
+          .send({ verified: true })
+      ).status,
+    ).toBe(404);
+  });
+});
+
 describe('translate API', () => {
   it('POST /api/translate returns the translated text', async () => {
     const res = await request(makeApp()).post('/api/translate').send({ text: 'hello', to: 'he' });
@@ -807,7 +938,7 @@ describe('translate API', () => {
         throw new Error('boom');
       },
     };
-    const res = await request(createApp(makeFakeStore(), throwing, makeFakeAuthenticator()))
+    const res = await request(createApp(makeFakeStore(), throwing, makeFakeAuthenticator(), makeFakeProfilesStore()))
       .post('/api/translate')
       .send({ text: 'hello', to: 'he' });
     expect(res.status).toBe(500);
