@@ -78,6 +78,14 @@ export const he: Dictionary = {
     pendingVerification:
       'חשבון האופה שלכם ממתין לאימות — אפשר לעיין, אך עדיין לא ניתן לשמור עוגות.',
   },
+  timeline: {
+    heading: 'המסע של העוגה הזו',
+    posted: 'פורסמה',
+    reserved: 'נשמרה',
+    baking: 'באפייה',
+    delivered: 'נמסרה',
+    received: 'התקבלה',
+  },
   nav: {
     browse: 'בקשות פתוחות',
     myRequests: 'הבקשות שלי',

@@ -15,6 +15,7 @@ import {
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
+import Timeline from './Timeline';
 
 type Props = {
   t: Dictionary;
@@ -417,6 +418,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
       ) : (
         isUnverifiedBaker && <p className="pending-note">{t.list.pendingVerification}</p>
       )}
+
+      {request.committedAt != null && <Timeline t={t} language={language} request={request} />}
 
       {canDelete && (
         <div className="card-actions">

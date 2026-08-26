@@ -18,6 +18,7 @@ const base: CakeRequest = {
   reservedContact: null,
   reservedByUserId: null,
   reservedUntil: null,
+  reservedAt: null,
   committedAt: null,
   deliveredAt: null,
   receivedAt: null,

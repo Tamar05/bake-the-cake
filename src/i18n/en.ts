@@ -78,6 +78,14 @@ export const en: Dictionary = {
     pendingVerification:
       'Your baker account is awaiting verification — you can browse, but can’t reserve cakes yet.',
   },
+  timeline: {
+    heading: 'This cake’s journey',
+    posted: 'Posted',
+    reserved: 'Reserved',
+    baking: 'Baking',
+    delivered: 'Delivered',
+    received: 'Received',
+  },
   nav: {
     browse: 'Open requests',
     myRequests: 'My requests',

@@ -77,6 +77,14 @@ export type Dictionary = {
     confirmDelete: string; // confirm prompt before an admin deletes
     pendingVerification: string; // shown to an unverified baker in place of Reserve
   };
+  timeline: {
+    heading: string; // "This cake's journey"
+    posted: string;
+    reserved: string;
+    baking: string;
+    delivered: string;
+    received: string;
+  };
   nav: {
     browse: string; // link to the open-requests browse view
     myRequests: string; // requester's own requests

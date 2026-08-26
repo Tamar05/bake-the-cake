@@ -24,6 +24,7 @@ export type CakeRequest = RequestDraft & {
   reservedContact: string | null; // baker's phone/email while claimed, else null
   reservedByUserId: string | null; // the baker's account id while claimed, else null
   reservedUntil: number | null; // ms-since-1970 the 1-hour hold ends; null once committed
+  reservedAt: number | null; // ms-since-1970 the baker first claimed it, else null
   committedAt: number | null; // ms-since-1970 the baker committed to bake, else null
   deliveredAt: number | null; // ms-since-1970 the baker marked it delivered, else null
   receivedAt: number | null; // ms-since-1970 the requester confirmed receipt, else null

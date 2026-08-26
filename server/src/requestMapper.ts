@@ -68,6 +68,7 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     reservedByUserId: claimed ? row.reserved_by_user_id : null,
     // The countdown is only meaningful during the pre-commit hold.
     reservedUntil: status === 'reserved' ? reservedUntil : null,
+    reservedAt: row.reserved_at ? new Date(row.reserved_at).getTime() : null,
     committedAt,
     deliveredAt,
     receivedAt,
