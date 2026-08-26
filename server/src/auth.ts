@@ -9,6 +9,7 @@ export type AuthedProfile = {
   role: 'requester' | 'baker' | 'admin';
   contact: string | null;
   verified: boolean; // an admin has vetted this baker; gates reserving/baking
+  email: string | null; // the account's login email (used to notify bakers)
 };
 
 // An Express request that has passed requireAuth carries the verified profile.
@@ -53,6 +54,7 @@ export function createSupabaseAuthenticator(): Authenticator {
         role: profile.role,
         contact: profile.contact,
         verified: profile.verified_at != null,
+        email: data.user.email ?? null, // from the verified auth user, not the profile row
       };
     },
   };

@@ -4,6 +4,7 @@ import { createSupabaseStore } from './requestsStore';
 import { createSupabaseProfilesStore } from './profilesStore';
 import { createMyMemoryTranslator } from './translator';
 import { createSupabaseAuthenticator } from './auth';
+import { createResendNotifier } from './emailer';
 
 const port = Number(process.env.PORT ?? 3001);
 const store = createSupabaseStore();
@@ -13,6 +14,7 @@ const app = createApp(
   translator,
   createSupabaseAuthenticator(),
   createSupabaseProfilesStore(),
+  createResendNotifier(),
 );
 
 app.listen(port, () => {

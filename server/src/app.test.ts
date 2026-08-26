@@ -11,6 +11,7 @@ import {
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
 import { BAKER_NOT_FOUND, type ProfilesStore, type BakerSummary } from './profilesStore';
+import type { Notifier, BakeEmailDetails } from './emailer';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -148,14 +149,29 @@ function makeFakeTranslator(): Translator {
 // Fake auth: the tokens 'req' / 'bak' / 'adm' stand for a signed-in requester /
 // baker / admin; any other token (or none) is treated as signed-out.
 const PROFILES: Record<string, AuthedProfile> = {
-  req: { id: 'user-req', displayName: 'Rae', role: 'requester', contact: null, verified: false },
-  req2: { id: 'user-req2', displayName: 'Ravi', role: 'requester', contact: null, verified: false },
+  req: {
+    id: 'user-req',
+    displayName: 'Rae',
+    role: 'requester',
+    contact: null,
+    verified: false,
+    email: 'rae@example.com',
+  },
+  req2: {
+    id: 'user-req2',
+    displayName: 'Ravi',
+    role: 'requester',
+    contact: null,
+    verified: false,
+    email: 'ravi@example.com',
+  },
   bak: {
     id: 'user-bak',
     displayName: 'Baz',
     role: 'baker',
     contact: 'baz@example.com',
     verified: true,
+    email: 'baz.baker@example.com',
   },
   bak2: {
     id: 'user-bak2',
@@ -163,6 +179,7 @@ const PROFILES: Record<string, AuthedProfile> = {
     role: 'baker',
     contact: 'bex@example.com',
     verified: true,
+    email: 'bex.baker@example.com',
   },
   // An unverified baker: signed in, but not yet vetted by an admin.
   bakU: {
@@ -171,8 +188,16 @@ const PROFILES: Record<string, AuthedProfile> = {
     role: 'baker',
     contact: 'uma@example.com',
     verified: false,
+    email: 'uma.baker@example.com',
   },
-  adm: { id: 'user-adm', displayName: 'Ada', role: 'admin', contact: null, verified: false },
+  adm: {
+    id: 'user-adm',
+    displayName: 'Ada',
+    role: 'admin',
+    contact: null,
+    verified: false,
+    email: 'ada.admin@example.com',
+  },
 };
 function makeFakeAuthenticator(): Authenticator {
   return {
@@ -211,12 +236,26 @@ function makeFakeProfilesStore(): ProfilesStore {
   };
 }
 
+// A notifier that records what it was asked to send, so tests can inspect it.
+function makeFakeNotifier(): { notifier: Notifier; sent: { to: string; details: BakeEmailDetails }[] } {
+  const sent: { to: string; details: BakeEmailDetails }[] = [];
+  return {
+    notifier: {
+      async sendBakeConfirmation(to, details) {
+        sent.push({ to, details });
+      },
+    },
+    sent,
+  };
+}
+
 function makeApp() {
   return createApp(
     makeFakeStore(),
     makeFakeTranslator(),
     makeFakeAuthenticator(),
     makeFakeProfilesStore(),
+    makeFakeNotifier().notifier,
   );
 }
 
@@ -453,6 +492,45 @@ describe('commit API', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('open');
     expect(res.body.committedAt).toBeNull();
+  });
+
+  it('emails the baker the request details (location + requester contact) on commit', async () => {
+    const { notifier, sent } = makeFakeNotifier();
+    const app = createApp(
+      makeFakeStore(),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
+      notifier,
+    );
+    const id = await addOne(app); // posted by 'req' (owner user-req)
+    await reserve(app, id, 'bak');
+    await commit(app, id, 'bak');
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe('baz.baker@example.com'); // the baker's login email
+    expect(sent[0].details.location).toBe(validDraft.location);
+    expect(sent[0].details.recipient).toBe(validDraft.recipient);
+    expect(sent[0].details.requesterContact).toBe('rae@example.com'); // owner's contact
+  });
+
+  it('a failed notification does not break the commit', async () => {
+    const throwing: Notifier = {
+      async sendBakeConfirmation() {
+        throw new Error('mail server down');
+      },
+    };
+    const app = createApp(
+      makeFakeStore(),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
+      throwing,
+    );
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    const res = await commit(app, id, 'bak');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('committed');
   });
 });
 

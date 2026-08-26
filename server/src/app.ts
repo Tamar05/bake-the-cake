@@ -17,6 +17,7 @@ import {
   type ProfilesStore,
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
+import { createResendNotifier, type Notifier } from './emailer';
 import {
   createSupabaseAuthenticator,
   requireAuth,
@@ -78,6 +79,7 @@ export function createApp(
   translator: Translator,
   authenticator: Authenticator = createSupabaseAuthenticator(),
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
+  notifier: Notifier = createResendNotifier(),
 ) {
   const app = express();
   app.use(cors());
@@ -160,6 +162,28 @@ export function createApp(
     const me = (req as AuthedRequest).auth;
     try {
       const updated = await store.commitRequest(req.params.id, me.id, me.role === 'admin');
+      // Email the baker the request details (location + requester contact) so
+      // they can bake and deliver. Best-effort: a mail failure never breaks the
+      // commit. We look up the requester's contact from their profile.
+      if (me.email) {
+        try {
+          const contacts = updated.ownerId
+            ? await profilesStore.getContacts([updated.ownerId])
+            : {};
+          await notifier.sendBakeConfirmation(me.email, {
+            bakerName: me.displayName,
+            recipient: updated.recipient,
+            occasion: updated.occasion,
+            neededBy: updated.neededBy,
+            dietary: updated.dietary,
+            location: updated.location,
+            requesterContact: updated.ownerId ? (contacts[updated.ownerId] ?? null) : null,
+            requestId: updated.id,
+          });
+        } catch {
+          // swallow — the commit already succeeded
+        }
+      }
       res.status(200).json(updated);
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
