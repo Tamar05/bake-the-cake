@@ -328,6 +328,23 @@ body {
   cursor: default;
 }
 
+/* --- Needs attention (Slice 6) --- */
+.status-badge.attention-overdue {
+  background: #fde2e2;
+  color: #b23b3b;
+}
+
+.status-badge.attention-unclaimed {
+  background: #fff0d6;
+  color: #a35b00;
+}
+
+.attention-contact {
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: #7a3e3e;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

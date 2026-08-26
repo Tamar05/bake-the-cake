@@ -83,7 +83,18 @@ export type Dictionary = {
     myReservations: string; // baker's reservations
     admin: string; // admin's manage-everything view
     bakers: string; // admin's baker-verification screen
+    attention: string; // admin's needs-attention screen
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  attention: {
+    heading: string;
+    empty: string; // nothing needs attention
+    loading: string;
+    loadError: string;
+    reasonOverdue: string; // badge: past its needed-by date
+    reasonUnclaimed: string; // badge: open with no baker too long
+    contactPrefix: string; // precedes the requester's contact
+    noContact: string; // shown when the requester left no contact
   };
   bakers: {
     heading: string;

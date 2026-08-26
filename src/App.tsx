@@ -10,6 +10,7 @@ import MyRequestsPage from './pages/MyRequestsPage';
 import MyReservationsPage from './pages/MyReservationsPage';
 import AdminPage from './pages/AdminPage';
 import AdminBakersPage from './pages/AdminBakersPage';
+import AdminAttentionPage from './pages/AdminAttentionPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -123,6 +124,14 @@ export default function App() {
             element={
               <RequireRole roles={['admin']}>
                 <AdminBakersPage t={t} />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/attention"
+            element={
+              <RequireRole roles={['admin']}>
+                <AdminAttentionPage t={t} />
               </RequireRole>
             }
           />

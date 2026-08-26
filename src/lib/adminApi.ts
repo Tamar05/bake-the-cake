@@ -1,4 +1,5 @@
-// Admin-only calls for the baker verification screen.
+// Admin-only calls for the baker verification and needs-attention screens.
+import type { CakeRequest } from '../types';
 
 function apiBase(): string {
   return import.meta.env.VITE_API_BASE_URL;
@@ -35,4 +36,19 @@ export async function setBakerVerified(
   });
   if (!res.ok) throw new Error(`Could not update baker (HTTP ${res.status})`);
   return (await res.json()) as Baker;
+}
+
+// A stuck request the admin should look at, with why and the requester's contact.
+export type AttentionItem = CakeRequest & {
+  reason: 'overdue' | 'unclaimed';
+  ownerContact: string | null;
+};
+
+// Lists requests that need an admin's attention (admin only).
+export async function listAttention(token: string): Promise<AttentionItem[]> {
+  const res = await fetch(`${apiBase()}/api/attention`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not load attention list (HTTP ${res.status})`);
+  return (await res.json()) as AttentionItem[];
 }

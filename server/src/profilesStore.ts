@@ -17,6 +17,9 @@ export const BAKER_NOT_FOUND = 'BAKER_NOT_FOUND';
 export type ProfilesStore = {
   listBakers(): Promise<BakerSummary[]>;
   setVerified(id: string, verified: boolean): Promise<BakerSummary>;
+  // Contact details for the given profile ids, as an id → contact map. Used to
+  // show an admin how to reach the requester behind a stuck request.
+  getContacts(ids: string[]): Promise<Record<string, string | null>>;
 };
 
 type ProfileRow = {
@@ -67,6 +70,20 @@ export function createSupabaseProfilesStore(): ProfilesStore {
       if (error) throw new Error(error.message);
       if (!data) throw new Error(BAKER_NOT_FOUND);
       return rowToBaker(data as ProfileRow);
+    },
+
+    async getContacts(ids: string[]): Promise<Record<string, string | null>> {
+      if (ids.length === 0) return {};
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, contact')
+        .in('id', ids);
+      if (error) throw new Error(error.message);
+      const map: Record<string, string | null> = {};
+      for (const row of data as { id: string; contact: string | null }[]) {
+        map[row.id] = row.contact;
+      }
+      return map;
     },
   };
 }

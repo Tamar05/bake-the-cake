@@ -84,7 +84,18 @@ export const he: Dictionary = {
     myReservations: 'השמירות שלי',
     admin: 'ניהול',
     bakers: 'אופים',
+    attention: 'דורש טיפול',
     signInPrompt: 'התחברו כדי לפרסם בקשה או כדי לאפות.',
+  },
+  attention: {
+    heading: 'דורש טיפול',
+    empty: 'אין כרגע מה שדורש טיפול. 🎉',
+    loading: 'טוען…',
+    loadError: 'לא ניתן לטעון את הרשימה. רעננו את הדף.',
+    reasonOverdue: 'באיחור',
+    reasonUnclaimed: 'עדיין אין אופה',
+    contactPrefix: 'ליצירת קשר עם המבקש:',
+    noContact: 'אין פרטי קשר',
   },
   bakers: {
     heading: 'אופים',

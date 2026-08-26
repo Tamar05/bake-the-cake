@@ -16,6 +16,7 @@ import {
   BAKER_NOT_FOUND,
   type ProfilesStore,
 } from './profilesStore';
+import { attentionReason, type AttentionReason } from './attention';
 import {
   createSupabaseAuthenticator,
   requireAuth,
@@ -337,6 +338,34 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not update this baker' });
+    }
+  });
+
+  // Admin: the "needs attention" list — stuck requests (unclaimed too long, or
+  // overdue), each enriched with the requester's contact so an admin can reach
+  // out. The requester's contact is only ever revealed here, to admins.
+  app.get('/api/attention', auth, requireRole('admin'), async (_req, res) => {
+    try {
+      const requests = await store.listRequests();
+      const now = Date.now();
+      const flagged = requests
+        .map((request) => ({ request, reason: attentionReason(request, now) }))
+        .filter(
+          (x): x is { request: CakeRequest; reason: AttentionReason } => x.reason !== null,
+        );
+      const ownerIds = [
+        ...new Set(flagged.map((x) => x.request.ownerId).filter((v): v is string => v != null)),
+      ];
+      const contacts = await profilesStore.getContacts(ownerIds);
+      res.json(
+        flagged.map((x) => ({
+          ...x.request,
+          reason: x.reason,
+          ownerContact: x.request.ownerId ? contacts[x.request.ownerId] ?? null : null,
+        })),
+      );
+    } catch {
+      res.status(500).json({ error: 'Could not load the attention list' });
     }
   });
 

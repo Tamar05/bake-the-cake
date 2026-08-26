@@ -84,7 +84,18 @@ export const en: Dictionary = {
     myReservations: 'My reservations',
     admin: 'Admin',
     bakers: 'Bakers',
+    attention: 'Needs attention',
     signInPrompt: 'Sign in to post a request or to bake one.',
+  },
+  attention: {
+    heading: 'Needs attention',
+    empty: 'Nothing needs attention right now. 🎉',
+    loading: 'Loading…',
+    loadError: 'Could not load the list. Please refresh.',
+    reasonOverdue: 'Overdue',
+    reasonUnclaimed: 'No baker yet',
+    contactPrefix: 'Requester contact:',
+    noContact: 'No contact on file',
   },
   bakers: {
     heading: 'Bakers',

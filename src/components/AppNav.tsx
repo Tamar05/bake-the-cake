@@ -35,6 +35,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
           {t.nav.bakers}
         </NavLink>
       )}
+      {role === 'admin' && (
+        <NavLink to="/admin/attention" className={linkClass}>
+          {t.nav.attention}
+        </NavLink>
+      )}
     </nav>
   );
 }

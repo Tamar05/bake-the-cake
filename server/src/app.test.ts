@@ -197,6 +197,15 @@ function makeFakeProfilesStore(): ProfilesStore {
       baker.verified = verified;
       return { ...baker };
     },
+    async getContacts(ids) {
+      const known: Record<string, string | null> = {
+        'user-req': 'rae@example.com',
+        'user-req2': 'ravi@example.com',
+      };
+      const map: Record<string, string | null> = {};
+      for (const id of ids) if (id in known) map[id] = known[id];
+      return map;
+    },
   };
 }
 
@@ -971,6 +980,58 @@ describe('verification & bakers API', () => {
           .send({ verified: true })
       ).status,
     ).toBe(404);
+  });
+});
+
+describe('attention API', () => {
+  const makeRequest = (over: Partial<CakeRequest>): CakeRequest => ({
+    id: 'x',
+    recipient: 'Maya',
+    occasion: 'birthday',
+    neededBy: '2999-01-01',
+    dietary: '',
+    location: 'Haifa',
+    createdAt: Date.now(),
+    ownerId: 'user-req',
+    status: 'open',
+    reservedBy: null,
+    reservedContact: null,
+    reservedByUserId: null,
+    reservedUntil: null,
+    committedAt: null,
+    deliveredAt: null,
+    receivedAt: null,
+    hasPhoto: false,
+    ...over,
+  });
+
+  it('GET /api/attention is admin-only', async () => {
+    const app = makeApp();
+    expect((await request(app).get('/api/attention')).status).toBe(401);
+    expect(
+      (await request(app).get('/api/attention').set('Authorization', 'Bearer bak')).status,
+    ).toBe(403);
+  });
+
+  it('lists stuck requests with a reason and the requester’s contact', async () => {
+    const overdue = makeRequest({ id: 'a1', neededBy: '2020-01-01', ownerId: 'user-req' });
+    const fresh = makeRequest({ id: 'a2' }); // future date, just created → fine
+    const app = createApp(
+      makeFakeStore([overdue, fresh]),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
+    );
+    const res = await request(app).get('/api/attention').set('Authorization', 'Bearer adm');
+    expect(res.status).toBe(200);
+    const ids = (res.body as { id: string }[]).map((x) => x.id);
+    expect(ids).toContain('a1');
+    expect(ids).not.toContain('a2');
+    const item = (res.body as { id: string; reason: string; ownerContact: string }[]).find(
+      (x) => x.id === 'a1',
+    )!;
+    expect(item.reason).toBe('overdue');
+    expect(item.ownerContact).toBe('rae@example.com');
   });
 });
 
