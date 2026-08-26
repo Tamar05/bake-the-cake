@@ -11,6 +11,7 @@ import MyReservationsPage from './pages/MyReservationsPage';
 import AdminPage from './pages/AdminPage';
 import AdminBakersPage from './pages/AdminBakersPage';
 import AdminAttentionPage from './pages/AdminAttentionPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -135,6 +136,14 @@ export default function App() {
               </RequireRole>
             }
           />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <RequireRole roles={['admin']}>
+                <AdminDashboardPage t={t} />
+              </RequireRole>
+            }
+          />
           <Route path="*" element={<Navigate to="/browse" replace />} />
         </Routes>
       )}
@@ -149,6 +158,6 @@ function HomeRedirect() {
   const { loading, profileLoading, profile } = useAuth();
   if (loading || profileLoading) return <p className="list-status" aria-hidden />;
   if (profile?.role === 'requester') return <Navigate to="/my" replace />;
-  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+  if (profile?.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/browse" replace />;
 }

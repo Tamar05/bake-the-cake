@@ -84,7 +84,22 @@ export type Dictionary = {
     admin: string; // admin's manage-everything view
     bakers: string; // admin's baker-verification screen
     attention: string; // admin's needs-attention screen
+    dashboard: string; // admin's stats dashboard
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  dashboard: {
+    heading: string;
+    loading: string;
+    loadError: string;
+    total: string; // total requests
+    open: string;
+    reserved: string;
+    baking: string; // committed / being baked
+    delivered: string;
+    fulfilled: string; // received
+    needsAttention: string;
+    bakers: string;
+    verifiedSuffix: string; // e.g. "verified" → "3 verified"
   };
   attention: {
     heading: string;

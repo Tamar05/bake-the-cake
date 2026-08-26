@@ -983,6 +983,29 @@ describe('verification & bakers API', () => {
   });
 });
 
+describe('stats API', () => {
+  it('GET /api/stats is admin-only', async () => {
+    const app = makeApp();
+    expect((await request(app).get('/api/stats')).status).toBe(401);
+    expect((await request(app).get('/api/stats').set('Authorization', 'Bearer bak')).status).toBe(
+      403,
+    );
+  });
+
+  it('counts requests by status and bakers by verification', async () => {
+    const app = makeApp();
+    await request(app).post('/api/requests').set('Authorization', 'Bearer req').send(validDraft);
+    await request(app).post('/api/requests').set('Authorization', 'Bearer req').send(validDraft);
+    const res = await request(app).get('/api/stats').set('Authorization', 'Bearer adm');
+    expect(res.status).toBe(200);
+    expect(res.body.requests.total).toBe(2);
+    expect(res.body.requests.open).toBe(2);
+    expect(res.body.requests.received).toBe(0);
+    expect(res.body.bakers.total).toBe(3); // fake store seeds 3 bakers
+    expect(res.body.bakers.verified).toBe(2); // two are verified
+  });
+});
+
 describe('attention API', () => {
   const makeRequest = (over: Partial<CakeRequest>): CakeRequest => ({
     id: 'x',

@@ -345,6 +345,61 @@ body {
   color: #7a3e3e;
 }
 
+/* --- Stats dashboard (Slice 7) --- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.85rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1.1rem 1rem;
+  border: 1px solid #ffe3ec;
+  border-radius: 14px;
+  background: #fff8fb;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #ff4d76;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7a3e3e;
+}
+
+.stat-note {
+  font-size: 0.75rem;
+  color: #8a6d6d;
+}
+
+.stat-highlight {
+  background: #edfbf1;
+  border-color: #c9efd4;
+}
+
+.stat-highlight .stat-value {
+  color: #1f7a44;
+}
+
+.stat-warn.stat-tile {
+  background: #fff6e9;
+  border-color: #ffe0b8;
+}
+
+.stat-warn .stat-value {
+  color: #a35b00;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

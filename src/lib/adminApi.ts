@@ -52,3 +52,25 @@ export async function listAttention(token: string): Promise<AttentionItem[]> {
   if (!res.ok) throw new Error(`Could not load attention list (HTTP ${res.status})`);
   return (await res.json()) as AttentionItem[];
 }
+
+// A small overview of the whole service, for the admin dashboard.
+export type Stats = {
+  requests: {
+    total: number;
+    open: number;
+    reserved: number;
+    committed: number;
+    delivered: number;
+    received: number;
+  };
+  bakers: { total: number; verified: number };
+  needsAttention: number;
+};
+
+export async function getStats(token: string): Promise<Stats> {
+  const res = await fetch(`${apiBase()}/api/stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not load stats (HTTP ${res.status})`);
+  return (await res.json()) as Stats;
+}

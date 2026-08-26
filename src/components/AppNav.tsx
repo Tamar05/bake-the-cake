@@ -26,6 +26,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
         </NavLink>
       )}
       {role === 'admin' && (
+        <NavLink to="/admin/dashboard" className={linkClass}>
+          {t.nav.dashboard}
+        </NavLink>
+      )}
+      {role === 'admin' && (
         <NavLink to="/admin" className={linkClass} end>
           {t.nav.admin}
         </NavLink>

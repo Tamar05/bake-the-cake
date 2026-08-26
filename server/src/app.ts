@@ -341,6 +341,28 @@ export function createApp(
     }
   });
 
+  // Admin: a small overview of the whole service, from data we already have.
+  app.get('/api/stats', auth, requireRole('admin'), async (_req, res) => {
+    try {
+      const requests = await store.listRequests();
+      const now = Date.now();
+      const byStatus = { open: 0, reserved: 0, committed: 0, delivered: 0, received: 0 };
+      let needsAttention = 0;
+      for (const request of requests) {
+        byStatus[request.status] += 1;
+        if (attentionReason(request, now) !== null) needsAttention += 1;
+      }
+      const bakers = await profilesStore.listBakers();
+      res.json({
+        requests: { total: requests.length, ...byStatus },
+        bakers: { total: bakers.length, verified: bakers.filter((b) => b.verified).length },
+        needsAttention,
+      });
+    } catch {
+      res.status(500).json({ error: 'Could not load the stats' });
+    }
+  });
+
   // Admin: the "needs attention" list — stuck requests (unclaimed too long, or
   // overdue), each enriched with the requester's contact so an admin can reach
   // out. The requester's contact is only ever revealed here, to admins.
