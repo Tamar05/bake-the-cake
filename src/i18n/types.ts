@@ -40,6 +40,7 @@ export type Dictionary = {
     delivering: string; // busy label while marking delivered
     deliverError: string; // shown when marking delivered fails
     addPhoto: string; // label above the optional photo picker at delivery
+    photoPrivacyHint: string; // clarifies the delivery photo is private, not public
     photoAlt: string; // alt text for the finished-cake photo
     deliveredNote: string; // note on a delivered card (awaiting confirmation)
     confirmReceived: string; // requester's "confirm received" button

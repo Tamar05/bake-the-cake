@@ -40,6 +40,7 @@ export const en: Dictionary = {
     delivering: 'Saving…',
     deliverError: 'Could not mark delivered. Please try again.',
     addPhoto: 'Add a photo of the cake (optional)',
+    photoPrivacyHint: 'Private — only you, the requester, and an admin can see it.',
     photoAlt: 'The finished cake',
     deliveredNote: 'Delivered — waiting for the requester to confirm.',
     confirmReceived: 'Confirm received',

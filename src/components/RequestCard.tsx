@@ -316,6 +316,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
                 />
+                <small className="photo-hint">{t.list.photoPrivacyHint}</small>
               </label>
               <button
                 type="button"

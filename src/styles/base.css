@@ -250,6 +250,11 @@ body {
   font-weight: 400;
 }
 
+.photo-hint {
+  font-weight: 400;
+  color: #8a6d6d;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

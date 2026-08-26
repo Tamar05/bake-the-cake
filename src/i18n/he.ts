@@ -40,6 +40,7 @@ export const he: Dictionary = {
     delivering: 'שומרים…',
     deliverError: 'לא ניתן לסמן כנמסרה. נסו שוב.',
     addPhoto: 'הוסיפו תמונה של העוגה (רשות)',
+    photoPrivacyHint: 'פרטי — רק אתם, המבקש ומנהל תוכלו לראות אותה.',
     photoAlt: 'העוגה המוכנה',
     deliveredNote: 'נמסרה — ממתינה לאישור המבקש.',
     confirmReceived: 'אשרו קבלה',
