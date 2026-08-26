@@ -116,6 +116,12 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (!item.hasPhoto) throw new Error(NOT_FOUND);
       return `https://fake.storage/${id}.jpg`;
     },
+    async removePhoto(id) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      item.hasPhoto = false;
+      return item;
+    },
     async deleteRequest(id, userId, isAdmin) {
       const item = find(id);
       if (!item) throw new Error(NOT_FOUND);
@@ -644,6 +650,38 @@ describe('photo API', () => {
         contentType: 'text/plain',
       });
     expect(res.status).toBe(400);
+  });
+
+  it('an admin can remove a photo; a baker cannot; no token 401', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .attach('photo', Buffer.from('x'), { filename: 'c.png', contentType: 'image/png' });
+    // a baker cannot moderate
+    expect(
+      (await request(app).delete(`/api/requests/${id}/photo`).set('Authorization', 'Bearer bak'))
+        .status,
+    ).toBe(403);
+    // no token
+    expect((await request(app).delete(`/api/requests/${id}/photo`)).status).toBe(401);
+    // admin removes it
+    const removed = await request(app)
+      .delete(`/api/requests/${id}/photo`)
+      .set('Authorization', 'Bearer adm');
+    expect(removed.status).toBe(200);
+    expect(removed.body.hasPhoto).toBe(false);
+    // and the photo is now gone
+    expect((await getPhoto(app, id, 'req')).status).toBe(404);
+  });
+
+  it('removing a photo from a missing request returns 404', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .delete('/api/requests/nope/photo')
+      .set('Authorization', 'Bearer adm');
+    expect(res.status).toBe(404);
   });
 });
 

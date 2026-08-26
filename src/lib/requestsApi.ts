@@ -86,6 +86,17 @@ export async function getPhotoUrl(id: string, token: string): Promise<string> {
   return data.url;
 }
 
+// Admin moderation: remove a request's finished-cake photo. Returns the updated
+// request (now with no photo).
+export async function removePhoto(id: string, token: string): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/photo`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not remove photo (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
 // The requester who owns it confirms they received the cake (delivered →
 // received), closing the loop.
 export async function receiveRequest(id: string, token: string): Promise<CakeRequest> {

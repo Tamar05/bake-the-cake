@@ -11,6 +11,7 @@ import {
   receiveRequest,
   deleteRequest,
   getPhotoUrl,
+  removePhoto,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
@@ -52,6 +53,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
   const [photoFile, setPhotoFile] = useState<File | null>(null); // chosen at delivery
   const [photoUrl, setPhotoUrl] = useState<string | null>(null); // signed URL for viewing
+  const [removePhotoStatus, setRemovePhotoStatus] = useState<ActionStatus>('idle');
 
   // A once-a-second clock, running only while this request is reserved, so the
   // countdown ticks and the card flips back to Open on its own when it expires.
@@ -98,6 +100,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // The finished-cake photo is private: only the owner, the baker who made it, or
   // an admin may see it. If allowed, we fetch a short-lived signed URL below.
   const canSeePhoto = request.hasPhoto && (isOwner || isHolder);
+  // Admins can moderate (take down) a photo.
+  const canModeratePhoto = isAdmin && request.hasPhoto;
 
   // Switching the language selector makes any earlier translation stale.
   useEffect(() => {
@@ -210,6 +214,20 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
+  async function handleRemovePhoto() {
+    if (!token) return;
+    if (!window.confirm(t.list.confirmRemovePhoto)) return;
+    setRemovePhotoStatus('saving');
+    try {
+      const updated = await removePhoto(request.id, token);
+      setPhotoUrl(null); // drop the now-stale signed URL
+      onUpdated(updated); // hasPhoto is now false
+      setRemovePhotoStatus('idle');
+    } catch {
+      setRemovePhotoStatus('error');
+    }
+  }
+
   async function handleDelete() {
     if (!token) return;
     // A deletion can't be undone, so ask before doing it.
@@ -310,6 +328,21 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           {delivered && <p className="baking-note">{t.list.deliveredNote}</p>}
           {received && <p className="baking-note received-note">{t.list.receivedNote}</p>}
           {photoUrl && <img className="cake-photo" src={photoUrl} alt={t.list.photoAlt} />}
+          {canModeratePhoto && (
+            <>
+              <button
+                type="button"
+                className="delete-button"
+                onClick={handleRemovePhoto}
+                disabled={removePhotoStatus === 'saving'}
+              >
+                {removePhotoStatus === 'saving' ? t.list.removingPhoto : t.list.removePhoto}
+              </button>
+              {removePhotoStatus === 'error' && (
+                <p className="reserve-error">{t.list.removePhotoError}</p>
+              )}
+            </>
+          )}
           {canDeliver && (
             <>
               <label className="photo-input">

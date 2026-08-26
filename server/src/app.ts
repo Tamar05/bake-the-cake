@@ -254,6 +254,20 @@ export function createApp(
     }
   });
 
+  // Admin moderation: remove a request's finished-cake photo.
+  app.delete('/api/requests/:id/photo', auth, requireRole('admin'), async (req, res) => {
+    try {
+      const updated = await store.removePhoto(req.params.id);
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not remove the photo' });
+    }
+  });
+
   app.post('/api/requests/:id/release', auth, async (req, res) => {
     const me = (req as AuthedRequest).auth;
     try {

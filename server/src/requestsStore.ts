@@ -55,6 +55,9 @@ export type RequestsStore = {
   // viewer allowed to see it (owner / baker / admin). Throws NOT_FOUND when there
   // is no request or no photo, NOT_OWNER when the viewer isn't allowed.
   createPhotoUrl(id: string, viewerId: string, isAdmin: boolean): Promise<string>;
+  // Moderation: delete a request's photo (file + path). Admin-gated at the
+  // endpoint. Throws NOT_FOUND when there is no such request.
+  removePhoto(id: string): Promise<CakeRequest>;
 };
 
 // Builds a store backed by the Supabase cake_requests table.
@@ -253,6 +256,26 @@ export function createSupabaseStore(): RequestsStore {
         .createSignedUrl(row.photo_path, 60); // valid for 60 seconds
       if (signed.error || !signed.data) throw new Error(signed.error?.message ?? 'Could not sign');
       return signed.data.signedUrl;
+    },
+
+    async removePhoto(id: string): Promise<CakeRequest> {
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      if (row.photo_path) {
+        // Best-effort delete of the file; clearing the path is what matters, so
+        // a storage hiccup shouldn't block moderation.
+        await supabase.storage.from(PHOTO_BUCKET).remove([row.photo_path]);
+      }
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update({ photo_path: null })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
     },
 
     async deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void> {
