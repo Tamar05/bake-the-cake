@@ -1,5 +1,6 @@
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import {
   ALREADY_RESERVED,
   NOT_RESERVER,
@@ -37,8 +38,31 @@ function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined)
       viewer.id === request.reservedByUserId ||
       viewer.id === request.ownerId);
   if (maySee) return request;
-  return { ...request, reservedBy: null, reservedContact: null, reservedByUserId: null };
+  // Hide who's baking it AND that a (private) photo exists from everyone else.
+  return { ...request, reservedBy: null, reservedContact: null, reservedByUserId: null, hasPhoto: false };
 }
+
+// Accepts an optional finished-cake photo on the deliver request. Held in memory
+// (never written to disk here), capped at 5 MB, and limited to common image
+// types. Multer's own errors (too big / wrong type) become a clean 400.
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('INVALID_TYPE'));
+  },
+});
+const acceptPhoto: RequestHandler = (req, res, next) => {
+  photoUpload.single('photo')(req, res, (err) => {
+    if (err) {
+      res.status(400).json({ error: 'Invalid photo (JPEG, PNG or WebP, up to 5 MB)' });
+      return;
+    }
+    next();
+  });
+};
 
 // Builds the Express app around a store (real Supabase store in production,
 // an in-memory fake in tests).
@@ -141,11 +165,19 @@ export function createApp(
     }
   });
 
-  // The baker who committed marks the cake delivered (committed → delivered).
-  app.post('/api/requests/:id/deliver', auth, requireRole('baker', 'admin'), async (req, res) => {
+  // The baker who committed marks the cake delivered (committed → delivered),
+  // optionally attaching one finished-cake photo (multipart field `photo`).
+  app.post(
+    '/api/requests/:id/deliver',
+    auth,
+    requireRole('baker', 'admin'),
+    acceptPhoto,
+    async (req, res) => {
     const me = (req as AuthedRequest).auth;
+    const file = (req as AuthedRequest & { file?: Express.Multer.File }).file;
+    const photo = file ? { buffer: file.buffer, contentType: file.mimetype } : undefined;
     try {
-      const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin');
+      const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin', photo);
       res.status(200).json(updated);
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
@@ -186,6 +218,27 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not confirm this request' });
+    }
+  });
+
+  // Hands an authorized viewer (owner / baker / admin) a short-lived signed URL
+  // for the finished-cake photo. The bucket is private, so this is the only way
+  // to see it; everyone else is refused.
+  app.get('/api/requests/:id/photo', auth, async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const url = await store.createPhotoUrl(req.params.id, me.id, me.role === 'admin');
+      res.status(200).json({ url });
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_OWNER) {
+        res.status(403).json({ error: 'You are not allowed to see this photo' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'No photo for this request' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not load the photo' });
     }
   });
 

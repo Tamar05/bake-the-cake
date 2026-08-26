@@ -18,6 +18,7 @@ export type CakeRequestRow = {
   committed_at: string | null; // ISO timestamp the baker committed to bake, or null
   delivered_at: string | null; // ISO timestamp the baker marked it delivered, or null
   received_at: string | null; // ISO timestamp the requester confirmed receipt, or null
+  photo_path: string | null; // Storage key of the finished-cake photo, or null
 };
 
 // Turns a database row into the camelCase shape the app uses. The lifecycle is
@@ -70,5 +71,6 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     committedAt,
     deliveredAt,
     receivedAt,
+    hasPhoto: row.photo_path != null,
   };
 }

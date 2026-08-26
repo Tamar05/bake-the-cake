@@ -39,6 +39,8 @@ export const en: Dictionary = {
     markDelivered: 'Mark delivered',
     delivering: 'Saving…',
     deliverError: 'Could not mark delivered. Please try again.',
+    addPhoto: 'Add a photo of the cake (optional)',
+    photoAlt: 'The finished cake',
     deliveredNote: 'Delivered — waiting for the requester to confirm.',
     confirmReceived: 'Confirm received',
     confirming: 'Saving…',

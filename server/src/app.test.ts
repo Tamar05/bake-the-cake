@@ -37,6 +37,7 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         committedAt: null,
         deliveredAt: null,
         receivedAt: null,
+        hasPhoto: false,
       };
       items.push(saved);
       return saved;
@@ -86,12 +87,16 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       });
       return item;
     },
-    async deliverRequest(id, userId, isAdmin) {
+    async deliverRequest(id, userId, isAdmin, photo) {
       const item = find(id);
       if (!item) throw new Error(NOT_FOUND);
       if (item.status !== 'committed') throw new Error(INVALID_TRANSITION);
       if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
-      Object.assign(item, { status: 'delivered', deliveredAt: Date.now() });
+      Object.assign(item, {
+        status: 'delivered',
+        deliveredAt: Date.now(),
+        hasPhoto: item.hasPhoto || photo != null,
+      });
       return item;
     },
     async receiveRequest(id, userId, isAdmin) {
@@ -101,6 +106,14 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
       Object.assign(item, { status: 'received', receivedAt: Date.now() });
       return item;
+    },
+    async createPhotoUrl(id, viewerId, isAdmin) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      const maySee = isAdmin || item.ownerId === viewerId || item.reservedByUserId === viewerId;
+      if (!maySee) throw new Error(NOT_OWNER);
+      if (!item.hasPhoto) throw new Error(NOT_FOUND);
+      return `https://fake.storage/${id}.jpg`;
     },
     async deleteRequest(id, userId, isAdmin) {
       const item = find(id);
@@ -468,6 +481,7 @@ describe('deliver & receive API', () => {
       committedAt: Date.now(),
       deliveredAt: Date.now(),
       receivedAt: null,
+      hasPhoto: false,
     };
     const app = createApp(
       makeFakeStore([ownedByBaker]),
@@ -506,11 +520,83 @@ describe('deliver & receive API', () => {
       committedAt: Date.now(),
       deliveredAt: Date.now(),
       receivedAt: null,
+      hasPhoto: false,
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());
     expect((await receive(makeSeeded(), 'legacy-d', 'req')).status).toBe(403);
     expect((await receive(makeSeeded(), 'legacy-d', 'adm')).status).toBe(200);
+  });
+});
+
+describe('photo API', () => {
+  const toCommitted = async (app: ReturnType<typeof createApp>) => {
+    const created = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    const id = created.body.id as string;
+    await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
+    await request(app).post(`/api/requests/${id}/commit`).set('Authorization', 'Bearer bak').send();
+    return id;
+  };
+  const getPhoto = (app: ReturnType<typeof createApp>, id: string, token?: string) => {
+    const call = request(app).get(`/api/requests/${id}/photo`);
+    return token ? call.set('Authorization', `Bearer ${token}`) : call;
+  };
+
+  it('a photo attached at delivery is stored and visible to the owner', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    const delivered = await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .attach('photo', Buffer.from('fake-image-bytes'), {
+        filename: 'cake.jpg',
+        contentType: 'image/jpeg',
+      });
+    expect(delivered.status).toBe(200);
+    expect(delivered.body.hasPhoto).toBe(true);
+    const photo = await getPhoto(app, id, 'req'); // the owner
+    expect(photo.status).toBe(200);
+    expect(photo.body.url).toContain('http');
+  });
+
+  it('delivering without a photo leaves hasPhoto false and the photo endpoint 404s', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    const delivered = await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .send();
+    expect(delivered.body.hasPhoto).toBe(false);
+    expect((await getPhoto(app, id, 'req')).status).toBe(404);
+  });
+
+  it('the photo is private: no token 401, an unrelated baker 403, the baker and admin allowed', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .attach('photo', Buffer.from('x'), { filename: 'c.png', contentType: 'image/png' });
+    expect((await getPhoto(app, id)).status).toBe(401);
+    expect((await getPhoto(app, id, 'bak2')).status).toBe(403);
+    expect((await getPhoto(app, id, 'bak')).status).toBe(200);
+    expect((await getPhoto(app, id, 'adm')).status).toBe(200);
+  });
+
+  it('rejects a non-image upload with 400', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    const res = await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .attach('photo', Buffer.from('not an image'), {
+        filename: 'notes.txt',
+        contentType: 'text/plain',
+      });
+    expect(res.status).toBe(400);
   });
 });
 
@@ -588,6 +674,7 @@ describe('delete API', () => {
       committedAt: null,
       deliveredAt: null,
       receivedAt: null,
+      hasPhoto: false,
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator());

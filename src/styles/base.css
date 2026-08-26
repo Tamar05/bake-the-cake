@@ -226,6 +226,30 @@ body {
   color: #1f7a44;
 }
 
+.cake-photo {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin: 0.5rem 0;
+}
+
+.photo-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5b3fb0;
+}
+
+.photo-input input[type='file'] {
+  font: inherit;
+  font-weight: 400;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

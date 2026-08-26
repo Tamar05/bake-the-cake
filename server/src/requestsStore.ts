@@ -24,6 +24,12 @@ export const NOT_FOUND = 'NOT_FOUND';
 // endpoint answers 409 (conflict).
 export const INVALID_TRANSITION = 'INVALID_TRANSITION';
 
+// The private Supabase Storage bucket that finished-cake photos live in.
+export const PHOTO_BUCKET = 'cake-photos';
+
+// An image the server has already validated (type + size), ready to store.
+export type PhotoUpload = { buffer: Buffer; contentType: string };
+
 // What the HTTP endpoints need from a store. A real Supabase-backed store is
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
@@ -37,9 +43,18 @@ export type RequestsStore = {
   ): Promise<CakeRequest>;
   releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
   commitRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
-  deliverRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
+  deliverRequest(
+    id: string,
+    userId: string,
+    isAdmin: boolean,
+    photo?: PhotoUpload,
+  ): Promise<CakeRequest>;
   receiveRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest>;
   deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void>;
+  // A short-lived signed URL for a request's finished-cake photo, but only for a
+  // viewer allowed to see it (owner / baker / admin). Throws NOT_FOUND when there
+  // is no request or no photo, NOT_OWNER when the viewer isn't allowed.
+  createPhotoUrl(id: string, viewerId: string, isAdmin: boolean): Promise<string>;
 };
 
 // Builds a store backed by the Supabase cake_requests table.
@@ -153,7 +168,12 @@ export function createSupabaseStore(): RequestsStore {
       return rowToRequest(data as CakeRequestRow);
     },
 
-    async deliverRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
+    async deliverRequest(
+      id: string,
+      userId: string,
+      isAdmin: boolean,
+      photo?: PhotoUpload,
+    ): Promise<CakeRequest> {
       // The baker who committed marks the cake delivered. Only valid from
       // `committed`, and only the baker holding it (or an admin) may do it.
       const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
@@ -162,9 +182,28 @@ export function createSupabaseStore(): RequestsStore {
       const row = current.data as CakeRequestRow;
       if (rowToRequest(row).status !== 'committed') throw new Error(INVALID_TRANSITION);
       if (!isAdmin && row.reserved_by_user_id !== userId) throw new Error(NOT_RESERVER);
+
+      // An optional finished-cake photo: store it privately, keyed under the
+      // request id, and record its path on the row.
+      const update: Record<string, string> = { delivered_at: new Date().toISOString() };
+      if (photo) {
+        const ext =
+          photo.contentType === 'image/png'
+            ? 'png'
+            : photo.contentType === 'image/webp'
+              ? 'webp'
+              : 'jpg';
+        const path = `${id}/${Date.now()}.${ext}`;
+        const upload = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(path, photo.buffer, { contentType: photo.contentType, upsert: false });
+        if (upload.error) throw new Error(upload.error.message);
+        update.photo_path = path;
+      }
+
       const { data, error } = await supabase
         .from('cake_requests')
-        .update({ delivered_at: new Date().toISOString() })
+        .update(update)
         .eq('id', id)
         .select('*')
         .single();
@@ -190,6 +229,30 @@ export function createSupabaseStore(): RequestsStore {
         .single();
       if (error) throw new Error(error.message);
       return rowToRequest(data as CakeRequestRow);
+    },
+
+    async createPhotoUrl(id: string, viewerId: string, isAdmin: boolean): Promise<string> {
+      const current = await supabase
+        .from('cake_requests')
+        .select('owner_id, reserved_by_user_id, photo_path')
+        .eq('id', id)
+        .maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as Pick<
+        CakeRequestRow,
+        'owner_id' | 'reserved_by_user_id' | 'photo_path'
+      >;
+      // Only the owner, the baker who made it, or an admin may view the photo.
+      const maySee =
+        isAdmin || row.owner_id === viewerId || row.reserved_by_user_id === viewerId;
+      if (!maySee) throw new Error(NOT_OWNER);
+      if (!row.photo_path) throw new Error(NOT_FOUND);
+      const signed = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .createSignedUrl(row.photo_path, 60); // valid for 60 seconds
+      if (signed.error || !signed.data) throw new Error(signed.error?.message ?? 'Could not sign');
+      return signed.data.signedUrl;
     },
 
     async deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void> {

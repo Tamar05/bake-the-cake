@@ -55,14 +55,35 @@ export async function commitRequest(id: string, token: string): Promise<CakeRequ
   return (await res.json()) as CakeRequest;
 }
 
-// The baker who committed marks the cake delivered (committed → delivered).
-export async function deliverRequest(id: string, token: string): Promise<CakeRequest> {
-  const res = await fetch(`${apiBase()}/api/requests/${id}/deliver`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// The baker who committed marks the cake delivered (committed → delivered),
+// optionally attaching one finished-cake photo. With a photo we send multipart
+// form-data (the browser sets the Content-Type + boundary itself); without one,
+// a plain POST.
+export async function deliverRequest(
+  id: string,
+  token: string,
+  photo?: File | null,
+): Promise<CakeRequest> {
+  const init: RequestInit = { method: 'POST', headers: { Authorization: `Bearer ${token}` } };
+  if (photo) {
+    const form = new FormData();
+    form.append('photo', photo);
+    init.body = form;
+  }
+  const res = await fetch(`${apiBase()}/api/requests/${id}/deliver`, init);
   if (!res.ok) throw new Error(`Could not mark delivered (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest;
+}
+
+// Fetches a short-lived signed URL for a request's finished-cake photo. The
+// server only returns one to a viewer allowed to see it (owner / baker / admin).
+export async function getPhotoUrl(id: string, token: string): Promise<string> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/photo`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not load photo (HTTP ${res.status})`);
+  const data = (await res.json()) as { url: string };
+  return data.url;
 }
 
 // The requester who owns it confirms they received the cake (delivered →

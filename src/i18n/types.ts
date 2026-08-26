@@ -39,6 +39,8 @@ export type Dictionary = {
     markDelivered: string; // baker's "mark delivered" button
     delivering: string; // busy label while marking delivered
     deliverError: string; // shown when marking delivered fails
+    addPhoto: string; // label above the optional photo picker at delivery
+    photoAlt: string; // alt text for the finished-cake photo
     deliveredNote: string; // note on a delivered card (awaiting confirmation)
     confirmReceived: string; // requester's "confirm received" button
     confirming: string; // busy label while confirming receipt

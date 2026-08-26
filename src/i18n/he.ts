@@ -39,6 +39,8 @@ export const he: Dictionary = {
     markDelivered: 'סמנו כנמסרה',
     delivering: 'שומרים…',
     deliverError: 'לא ניתן לסמן כנמסרה. נסו שוב.',
+    addPhoto: 'הוסיפו תמונה של העוגה (רשות)',
+    photoAlt: 'העוגה המוכנה',
     deliveredNote: 'נמסרה — ממתינה לאישור המבקש.',
     confirmReceived: 'אשרו קבלה',
     confirming: 'שומרים…',

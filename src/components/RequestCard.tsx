@@ -10,6 +10,7 @@ import {
   deliverRequest,
   receiveRequest,
   deleteRequest,
+  getPhotoUrl,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
@@ -49,6 +50,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [deliverStatus, setDeliverStatus] = useState<ActionStatus>('idle');
   const [receiveStatus, setReceiveStatus] = useState<ActionStatus>('idle');
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
+  const [photoFile, setPhotoFile] = useState<File | null>(null); // chosen at delivery
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null); // signed URL for viewing
 
   // A once-a-second clock, running only while this request is reserved, so the
   // countdown ticks and the card flips back to Open on its own when it expires.
@@ -89,12 +92,28 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const isOwner = profile != null && request.ownerId != null && request.ownerId === profile.id;
   const canDelete = isOwner || profile?.role === 'admin';
 
+  // The finished-cake photo is private: only the owner, the baker who made it, or
+  // an admin may see it. If allowed, we fetch a short-lived signed URL below.
+  const canSeePhoto = request.hasPhoto && (isOwner || isHolder);
+
   // Switching the language selector makes any earlier translation stale.
   useEffect(() => {
     setMode('original');
     setTranslateStatus('idle');
     setTranslated(null);
   }, [language]);
+
+  // Once we know a photo exists and the viewer is allowed, fetch its signed URL.
+  useEffect(() => {
+    if (!canSeePhoto || !token || photoUrl) return;
+    let cancelled = false;
+    getPhotoUrl(request.id, token)
+      .then((url) => !cancelled && setPhotoUrl(url))
+      .catch(() => {}); // if it fails we simply don't show the photo
+    return () => {
+      cancelled = true;
+    };
+  }, [canSeePhoto, token, request.id, photoUrl]);
 
   const needsTranslation = TEXT_FIELDS.some((field) =>
     fieldNeedsTranslation(request[field], language),
@@ -169,7 +188,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     if (!token) return;
     setDeliverStatus('saving');
     try {
-      onUpdated(await deliverRequest(request.id, token));
+      onUpdated(await deliverRequest(request.id, token, photoFile));
+      setPhotoFile(null);
       setDeliverStatus('idle');
     } catch {
       setDeliverStatus('error');
@@ -286,8 +306,17 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           {committed && <p className="baking-note">{t.list.bakingNote}</p>}
           {delivered && <p className="baking-note">{t.list.deliveredNote}</p>}
           {received && <p className="baking-note received-note">{t.list.receivedNote}</p>}
+          {photoUrl && <img className="cake-photo" src={photoUrl} alt={t.list.photoAlt} />}
           {canDeliver && (
             <>
+              <label className="photo-input">
+                {t.list.addPhoto}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
               <button
                 type="button"
                 className="reserve-button"

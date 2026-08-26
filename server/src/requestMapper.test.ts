@@ -18,6 +18,7 @@ const baseRow: CakeRequestRow = {
   committed_at: null,
   delivered_at: null,
   received_at: null,
+  photo_path: null,
 };
 
 describe('rowToRequest', () => {
@@ -39,6 +40,7 @@ describe('rowToRequest', () => {
       committedAt: null,
       deliveredAt: null,
       receivedAt: null,
+      hasPhoto: false,
     });
   });
 
