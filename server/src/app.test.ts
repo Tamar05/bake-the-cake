@@ -126,6 +126,9 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       const item = find(id);
       if (!item) throw new Error(NOT_FOUND);
       if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
+      if (!isAdmin && (item.status === 'delivered' || item.status === 'received')) {
+        throw new Error(INVALID_TRANSITION);
+      }
       items.splice(items.indexOf(item), 1);
     },
   };
@@ -743,6 +746,19 @@ describe('delete API', () => {
   it('deleting a request that does not exist returns 404', async () => {
     const res = await del(makeApp(), 'no-such-id', 'adm');
     expect(res.status).toBe(404);
+  });
+
+  it('a requester cannot cancel a delivered cake (409), but an admin can still remove it', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const asBak = (action: string) =>
+      request(app).post(`/api/requests/${id}/${action}`).set('Authorization', 'Bearer bak').send();
+    await asBak('reserve');
+    await asBak('commit');
+    await asBak('deliver');
+    expect((await del(app, id, 'req')).status).toBe(409); // owner can't cancel a delivered cake
+    expect(await idsInList(app)).toContain(id); // still there
+    expect((await del(app, id, 'adm')).status).toBe(204); // admin can remove it
   });
 
   it('a legacy request with no owner can only be deleted by an admin', async () => {

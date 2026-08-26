@@ -304,6 +304,10 @@ export function createApp(
         res.status(403).json({ error: 'You can only delete your own request' });
         return;
       }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'A delivered cake can no longer be cancelled' });
+        return;
+      }
       res.status(500).json({ error: 'Could not delete this request' });
     }
   });

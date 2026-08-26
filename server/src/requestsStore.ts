@@ -282,15 +282,17 @@ export function createSupabaseStore(): RequestsStore {
       // Read the row first so we can answer "not found" and check ownership
       // before deleting. Only the owner (or an admin) may delete; a legacy row
       // with no owner_id can only be deleted by an admin.
-      const current = await supabase
-        .from('cake_requests')
-        .select('owner_id')
-        .eq('id', id)
-        .maybeSingle();
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
       if (current.error) throw new Error(current.error.message);
       if (!current.data) throw new Error(NOT_FOUND);
-      const ownerId = (current.data as { owner_id: string | null }).owner_id;
-      if (!isAdmin && ownerId !== userId) throw new Error(NOT_OWNER);
+      const row = current.data as CakeRequestRow;
+      if (!isAdmin && row.owner_id !== userId) throw new Error(NOT_OWNER);
+      // A requester can't cancel a cake once it's been delivered — it's done.
+      // Admins can still remove anything (moderation).
+      if (!isAdmin) {
+        const status = rowToRequest(row).status;
+        if (status === 'delivered' || status === 'received') throw new Error(INVALID_TRANSITION);
+      }
       const { error } = await supabase.from('cake_requests').delete().eq('id', id);
       if (error) throw new Error(error.message);
     },

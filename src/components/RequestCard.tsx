@@ -95,7 +95,9 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // an admin (remove anything). Legacy rows have no owner, so only an admin. The
   // owner sees "Cancel request"; an admin acting on someone else's sees "Delete".
   const isOwner = profile != null && request.ownerId != null && request.ownerId === profile.id;
-  const canDelete = isOwner || profile?.role === 'admin';
+  // An admin can remove anything; a requester can cancel their own request only
+  // until it's delivered — once a cake is on its way, it's no longer cancellable.
+  const canDelete = isAdmin || (isOwner && !delivered && !received);
 
   // The finished-cake photo is private: only the owner, the baker who made it, or
   // an admin may see it. If allowed, we fetch a short-lived signed URL below.
