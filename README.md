@@ -8,25 +8,21 @@ project (React + TypeScript + Vite frontend, Express backend, Supabase database)
 
 ## 👉 START HERE — how to continue building
 
-This project is built **one small slice at a time**. The full plan (vision,
-tech stack, and the step-by-step roadmap) lives here:
+This project was built **one small slice at a time**, and the core app is now
+done (see the roadmap status below). The original plan lives here:
 
-**`docs/superpowers/specs/2026-08-20-bake-the-cake-design.md`**
+**`docs/superpowers/specs/2026-08-20-bake-the-cake-design.md`** — with a
+detailed spec per slice under `docs/superpowers/specs/`.
 
-Read that first. Then, to pick up work with Claude Code:
+To pick up work with Claude Code:
 
 1. Open this `bake-the-cake` folder in VS Code (you're likely here already).
 2. Trust the folder if VS Code asks (dismiss "Restricted Mode").
-3. Open Claude Code **in this window** and start a new conversation.
-4. Paste this to Claude to get going:
-
-   > Read `docs/superpowers/specs/2026-08-20-bake-the-cake-design.md`.
-   > It's the plan for this project. Let's build Slice 1 — the cake request
-   > form and the list of open requests. I'm new to coding, so explain each
-   > step in plain English and keep changes small.
-
-That single message gives a fresh Claude Code everything it needs — it reads
-the plan and continues exactly where we left off.
+3. Start both servers (see **Running it locally** below) so you can test.
+4. Open Claude Code **in this window** and tell it what you'd like next — e.g.
+   *"the core app is built; let's add the next Slice 7 magic touch"* or a fix.
+   Claude also keeps project memory, so a fresh chat already knows where things
+   stand.
 
 ---
 
@@ -94,33 +90,66 @@ view the image. The browser never uploads to Storage directly.
 
 ## Where things stand right now
 
-- ✅ Project folder created, separate from pocket-pt, with its own git history.
-- ✅ Full design + roadmap written (the doc linked above).
-- ✅ Language plan decided: **English + Hebrew**, built in from the start
-  (Hebrew reads right-to-left, so the layout flips).
-- ⬜ **Slice 1 not started yet** — that's the next thing to build.
+The core app is **built and working**, through Slice 6 plus several Slice 7
+extras. What the app does today:
 
-The current files (`index.html`, `styles.css`, `script.js`) are a temporary
-plain-HTML placeholder — a "prove the folder works" pink cake page. They get
-**replaced** by the proper React setup when Slice 1 begins. Nothing important
-is lost.
+- **Requesters** sign up, post cake requests (with a contact phone), and track
+  their own requests through to completion.
+- **Bakers** sign up, get **verified by an admin**, browse open requests, and
+  reserve one → **"I'll bake this"** (which emails them the request details:
+  location + the requester's phone) → **mark it delivered** (optionally with a
+  private photo).
+- **Requesters** then **confirm received**, closing the loop.
+- **Both** can opt a finished cake into a public **inspiration gallery** (with a
+  caption); it appears only when both agree.
+- **Admins** get a **dashboard**, verify bakers, remove photos, see a
+  **"needs attention"** list of stuck requests, and can manage anything.
+- Everything is **bilingual (English + Hebrew, RTL)** and each cake shows a
+  **journey timeline**.
+
+## The roadmap — status
+
+| # | Slice | Status |
+|---|-------|--------|
+| 1 | Request form + open list | ✅ Done |
+| 1.5 | Language toggle (EN / עברית) | ✅ Done |
+| 2 | Make it remember (backend + DB) | ✅ Done |
+| 3 | Baker browse & reserve | ✅ Done |
+| 4 | Accounts / logging in (+ RLS hardening) | ✅ Done |
+| 5 | Fulfillment flow (commit → deliver → receive, photos) | ✅ Done |
+| 6 | Admin tools (verify bakers, moderate photos, needs-attention) | ✅ Done |
+| 7 | Magic touches | 🔵 In progress — done: stats dashboard, Compassion Timeline, baker email on commit, public gallery. Not yet: AI tagging (needs a paid LLM key), notify-nearby-bakers |
+
+Full detail for each slice is in the design doc and the per-slice specs under
+`docs/superpowers/specs/`.
 
 ---
 
-## The roadmap at a glance
+## Running it locally (two servers)
 
-| # | Slice | What you get |
-|---|-------|--------------|
-| 1 | Request form + open list | Fill a cake request, see it listed |
-| 1.5 | Language toggle (EN / עברית) | Switch languages; layout flips for Hebrew |
-| 2 | Make it remember | Requests stay saved (adds backend + database) |
-| 3 | Baker browse & reserve | Bakers claim requests |
-| 4 | Accounts / logging in | Sign in as requester, baker, or admin |
-| 5 | Fulfillment flow | Photos, mark delivered, confirm received |
-| 6 | Admin tools | Verify bakers, moderate photos, outreach |
-| 7 | Magic touches | AI tagging, matching, gallery, stats dashboard |
+The app is **two programs that both need to run**:
 
-Full detail for each slice is in the design doc.
+- **Backend** (Express API): `npm --prefix server run dev` → http://localhost:3001
+- **Frontend** (Vite): `npm run dev` → http://localhost:5173
+
+Open the frontend URL. If the page says "could not reach the server," the
+backend isn't running.
+
+## One-time setup (env + database)
+
+- **Frontend `.env`** (git-ignored): `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_ANON_KEY` (the publishable key). See `.env.example`.
+- **`server/.env`** (git-ignored): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  (the **secret** key), `PORT`, and optionally `RESEND_API_KEY` / `EMAIL_FROM`
+  for baker emails. See `server/.env.example`.
+- **Supabase database** — the live database is the source of truth; it was built
+  up column-by-column as slices landed. In order, the schema gained: the
+  `profiles` table (`role`, `display_name`, `contact`, `verified_at`) with an
+  on-signup trigger; and on `cake_requests` the columns `owner_id`,
+  `reserved_by`/`reserved_contact`/`reserved_by_user_id`/`reserved_at`,
+  `committed_at`/`delivered_at`/`received_at`, `photo_path`, `contact_phone`, and
+  `shared_by_owner`/`shared_by_baker`/`gallery_caption`. Plus **RLS enabled** on
+  both tables (see above) and a private **`cake-photos`** Storage bucket.
 
 ---
 
