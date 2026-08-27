@@ -95,7 +95,24 @@ export type Dictionary = {
     bakers: string; // admin's baker-verification screen
     attention: string; // admin's needs-attention screen
     dashboard: string; // admin's stats dashboard
+    gallery: string; // the public inspiration gallery
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  gallery: {
+    heading: string;
+    intro: string; // short line under the gallery heading
+    loading: string;
+    loadError: string;
+    empty: string; // no cakes shared yet
+    shareInvite: string; // card: prompt to share your finished cake
+    inGallery: string; // card: both agreed, it's live
+    waitingOther: string; // card: you agreed, waiting for the other person
+    captionLabel: string; // card: label for the caption input
+    captionPlaceholder: string; // card: caption placeholder
+    share: string; // card: add to gallery button
+    unshare: string; // card: remove from gallery button
+    saveMessage: string; // card: save an edited caption
+    shareError: string; // card: shown when sharing fails
   };
   dashboard: {
     heading: string;

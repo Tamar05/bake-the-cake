@@ -12,6 +12,7 @@ import AdminPage from './pages/AdminPage';
 import AdminBakersPage from './pages/AdminBakersPage';
 import AdminAttentionPage from './pages/AdminAttentionPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import GalleryPage from './pages/GalleryPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -96,6 +97,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/browse" element={<BrowsePage {...listProps} />} />
+          <Route path="/gallery" element={<GalleryPage t={t} />} />
           <Route
             path="/my"
             element={

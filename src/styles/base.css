@@ -458,6 +458,76 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* --- Inspiration gallery (Slice 7) --- */
+.gallery-intro {
+  margin-top: -0.25rem;
+  color: #8a6d6d;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.gallery-item {
+  margin: 0;
+  border: 1px solid #ffe3ec;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff8fb;
+}
+
+.gallery-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.gallery-item figcaption {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  color: #7a3e3e;
+}
+
+.gallery-share {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #fff5fa;
+  border: 1px dashed #ffcfe0;
+  border-radius: 10px;
+}
+
+.gallery-share-status {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: #b0468a;
+}
+
+.gallery-caption-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.gallery-caption-label input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #f0c9d6;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.gallery-share-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .request-card button.reserve-button {
   background: #ff6f91;
   color: #ffffff;

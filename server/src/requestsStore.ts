@@ -30,6 +30,10 @@ export const PHOTO_BUCKET = 'cake-photos';
 // An image the server has already validated (type + size), ready to store.
 export type PhotoUpload = { buffer: Buffer; contentType: string };
 
+// A public gallery entry: just a photo and an optional caption — never any
+// names, location, or contact.
+export type GalleryItem = { id: string; photoUrl: string; caption: string };
+
 // What the HTTP endpoints need from a store. A real Supabase-backed store is
 // used in production; tests inject an in-memory fake with the same shape.
 export type RequestsStore = {
@@ -58,6 +62,19 @@ export type RequestsStore = {
   // Moderation: delete a request's photo (file + path). Admin-gated at the
   // endpoint. Throws NOT_FOUND when there is no such request.
   removePhoto(id: string): Promise<CakeRequest>;
+  // The requester or baker toggles their consent to show a received cake in the
+  // public gallery, and may set the caption. An admin with share=false can pull
+  // it from the gallery (moderation). Only a received cake with a photo qualifies.
+  setGalleryShare(
+    id: string,
+    userId: string,
+    isAdmin: boolean,
+    share: boolean,
+    caption?: string,
+  ): Promise<CakeRequest>;
+  // The public gallery: cakes both parties agreed to show, each with a fresh
+  // signed photo URL. No names, location, or contact.
+  listGallery(): Promise<GalleryItem[]>;
 };
 
 // Builds a store backed by the Supabase cake_requests table.
@@ -277,6 +294,67 @@ export function createSupabaseStore(): RequestsStore {
         .single();
       if (error) throw new Error(error.message);
       return rowToRequest(data as CakeRequestRow);
+    },
+
+    async setGalleryShare(
+      id: string,
+      userId: string,
+      isAdmin: boolean,
+      share: boolean,
+      caption?: string,
+    ): Promise<CakeRequest> {
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      // Only a completed cake that actually has a photo can go in the gallery.
+      if (rowToRequest(row).status !== 'received' || !row.photo_path) {
+        throw new Error(INVALID_TRANSITION);
+      }
+      const update: Record<string, unknown> = {};
+      if (caption !== undefined) update.gallery_caption = caption;
+      if (isAdmin && !share) {
+        // Moderation: an admin pulls it from the gallery entirely.
+        update.shared_by_owner = false;
+        update.shared_by_baker = false;
+      } else if (userId === row.owner_id) {
+        update.shared_by_owner = share;
+      } else if (userId === row.reserved_by_user_id) {
+        update.shared_by_baker = share;
+      } else {
+        throw new Error(NOT_OWNER);
+      }
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update(update)
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
+    },
+
+    async listGallery(): Promise<GalleryItem[]> {
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .select('id, gallery_caption, photo_path')
+        .eq('shared_by_owner', true)
+        .eq('shared_by_baker', true)
+        .not('photo_path', 'is', null)
+        .not('received_at', 'is', null)
+        .order('received_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      const rows = data as { id: string; gallery_caption: string | null; photo_path: string }[];
+      const items: GalleryItem[] = [];
+      for (const row of rows) {
+        const signed = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .createSignedUrl(row.photo_path, 3600); // 1 hour, refreshed each load
+        if (signed.data?.signedUrl) {
+          items.push({ id: row.id, photoUrl: signed.data.signedUrl, caption: row.gallery_caption ?? '' });
+        }
+      }
+      return items;
     },
 
     async deleteRequest(id: string, userId: string, isAdmin: boolean): Promise<void> {

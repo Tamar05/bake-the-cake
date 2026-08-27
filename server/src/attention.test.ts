@@ -24,6 +24,9 @@ const base: CakeRequest = {
   deliveredAt: null,
   receivedAt: null,
   hasPhoto: false,
+  sharedByOwner: false,
+  sharedByBaker: false,
+  galleryCaption: '',
 };
 
 describe('attentionReason', () => {

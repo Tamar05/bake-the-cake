@@ -86,6 +86,23 @@ export async function getPhotoUrl(id: string, token: string): Promise<string> {
   return data.url;
 }
 
+// The requester or baker toggles their agreement to show a received cake in the
+// public gallery, optionally setting the caption. Returns the updated request.
+export async function setGalleryShare(
+  id: string,
+  share: boolean,
+  token: string,
+  caption?: string,
+): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/gallery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(caption === undefined ? { share } : { share, caption }),
+  });
+  if (!res.ok) throw new Error(`Could not update sharing (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
 // Admin moderation: remove a request's finished-cake photo. Returns the updated
 // request (now with no photo).
 export async function removePhoto(id: string, token: string): Promise<CakeRequest> {

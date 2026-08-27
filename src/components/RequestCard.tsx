@@ -12,6 +12,7 @@ import {
   deleteRequest,
   getPhotoUrl,
   removePhoto,
+  setGalleryShare,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { useAuth } from '../auth/AuthProvider';
@@ -55,6 +56,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [photoFile, setPhotoFile] = useState<File | null>(null); // chosen at delivery
   const [photoUrl, setPhotoUrl] = useState<string | null>(null); // signed URL for viewing
   const [removePhotoStatus, setRemovePhotoStatus] = useState<ActionStatus>('idle');
+  const [caption, setCaption] = useState(request.galleryCaption); // gallery message
+  const [galleryStatus, setGalleryStatus] = useState<ActionStatus>('idle');
 
   // A once-a-second clock, running only while this request is reserved, so the
   // countdown ticks and the card flips back to Open on its own when it expires.
@@ -105,6 +108,13 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const canSeePhoto = request.hasPhoto && (isOwner || isHolder);
   // Admins can moderate (take down) a photo.
   const canModeratePhoto = isAdmin && request.hasPhoto;
+
+  // Public gallery: a finished cake with a photo can be shared, but only once
+  // BOTH the requester and the baker agree. Each toggles their own consent.
+  const isBaker = profile != null && request.reservedByUserId === profile.id;
+  const canShareGallery = received && request.hasPhoto && (isOwner || isBaker);
+  const myShared = isOwner ? request.sharedByOwner : isBaker ? request.sharedByBaker : false;
+  const bothShared = request.sharedByOwner && request.sharedByBaker;
 
   // Switching the language selector makes any earlier translation stale.
   useEffect(() => {
@@ -231,6 +241,17 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
+  async function saveGalleryShare(share: boolean) {
+    if (!token) return;
+    setGalleryStatus('saving');
+    try {
+      onUpdated(await setGalleryShare(request.id, share, token, caption));
+      setGalleryStatus('idle');
+    } catch {
+      setGalleryStatus('error');
+    }
+  }
+
   async function handleDelete() {
     if (!token) return;
     // A deletion can't be undone, so ask before doing it.
@@ -345,6 +366,45 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
                 <p className="reserve-error">{t.list.removePhotoError}</p>
               )}
             </>
+          )}
+          {canShareGallery && (
+            <div className="gallery-share">
+              <p className="gallery-share-status">
+                {bothShared
+                  ? t.gallery.inGallery
+                  : myShared
+                    ? t.gallery.waitingOther
+                    : t.gallery.shareInvite}
+              </p>
+              <label className="gallery-caption-label">
+                {t.gallery.captionLabel}
+                <input
+                  value={caption}
+                  maxLength={200}
+                  placeholder={t.gallery.captionPlaceholder}
+                  onChange={(e) => setCaption(e.target.value)}
+                />
+              </label>
+              <div className="gallery-share-actions">
+                <button
+                  type="button"
+                  onClick={() => saveGalleryShare(!myShared)}
+                  disabled={galleryStatus === 'saving'}
+                >
+                  {myShared ? t.gallery.unshare : t.gallery.share}
+                </button>
+                {myShared && (
+                  <button
+                    type="button"
+                    onClick={() => saveGalleryShare(true)}
+                    disabled={galleryStatus === 'saving'}
+                  >
+                    {t.gallery.saveMessage}
+                  </button>
+                )}
+              </div>
+              {galleryStatus === 'error' && <p className="reserve-error">{t.gallery.shareError}</p>}
+            </div>
           )}
           {canDeliver && (
             <>

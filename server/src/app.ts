@@ -55,6 +55,8 @@ function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined)
   let result = request;
   // The requester's phone is private — reached only via the baker's commit email.
   if (request.contactPhone) result = { ...result, contactPhone: '' };
+  // The gallery caption is only public through the gallery endpoint, once shared.
+  if (request.galleryCaption) result = { ...result, galleryCaption: '' };
   // Hide who's baking it AND that a (private) photo exists.
   if (request.reservedByUserId != null || request.reservedBy != null) {
     result = { ...result, reservedBy: null, reservedContact: null, reservedByUserId: null, hasPhoto: false };
@@ -101,6 +103,16 @@ export function createApp(
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  // The public inspiration gallery — no login. Only cakes both the requester and
+  // the baker agreed to show; each item is just a photo + optional caption.
+  app.get('/api/gallery', async (_req, res) => {
+    try {
+      res.json(await store.listGallery());
+    } catch {
+      res.status(500).json({ error: 'Could not load the gallery' });
+    }
   });
 
   // Who am I? Returns the signed-in person's profile (verified server-side).
@@ -293,6 +305,48 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not load the photo' });
+    }
+  });
+
+  // The requester or the baker toggles their agreement to show a received cake
+  // in the public gallery (both must agree), and may set the caption. An admin
+  // sending { share: false } pulls it from the gallery (moderation).
+  app.post('/api/requests/:id/gallery', auth, async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    const body = (req.body ?? {}) as { share?: unknown; caption?: unknown };
+    if (typeof body.share !== 'boolean') {
+      res.status(400).json({ error: 'Missing or invalid "share" flag' });
+      return;
+    }
+    if (body.caption !== undefined && typeof body.caption !== 'string') {
+      res.status(400).json({ error: 'Invalid caption' });
+      return;
+    }
+    const caption =
+      typeof body.caption === 'string' ? body.caption.slice(0, 200).trim() : undefined;
+    try {
+      const updated = await store.setGalleryShare(
+        req.params.id,
+        me.id,
+        me.role === 'admin',
+        body.share,
+        caption,
+      );
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_OWNER) {
+        res.status(403).json({ error: 'Only the requester or the baker can share this cake' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'Only a received cake with a photo can be shared' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not update gallery sharing' });
     }
   });
 

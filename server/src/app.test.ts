@@ -41,6 +41,9 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         deliveredAt: null,
         receivedAt: null,
         hasPhoto: false,
+        sharedByOwner: false,
+        sharedByBaker: false,
+        galleryCaption: '',
       };
       items.push(saved);
       return saved;
@@ -124,6 +127,32 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (!item) throw new Error(NOT_FOUND);
       item.hasPhoto = false;
       return item;
+    },
+    async setGalleryShare(id, userId, isAdmin, share, caption) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (item.status !== 'received' || !item.hasPhoto) throw new Error(INVALID_TRANSITION);
+      if (caption !== undefined) item.galleryCaption = caption;
+      if (isAdmin && !share) {
+        item.sharedByOwner = false;
+        item.sharedByBaker = false;
+      } else if (item.ownerId === userId) {
+        item.sharedByOwner = share;
+      } else if (item.reservedByUserId === userId) {
+        item.sharedByBaker = share;
+      } else {
+        throw new Error(NOT_OWNER);
+      }
+      return item;
+    },
+    async listGallery() {
+      return items
+        .filter((r) => r.sharedByOwner && r.sharedByBaker && r.hasPhoto && r.status === 'received')
+        .map((r) => ({
+          id: r.id,
+          photoUrl: `https://fake.storage/${r.id}.jpg`,
+          caption: r.galleryCaption,
+        }));
     },
     async deleteRequest(id, userId, isAdmin) {
       const item = find(id);
@@ -647,6 +676,9 @@ describe('deliver & receive API', () => {
       deliveredAt: Date.now(),
       receivedAt: null,
       hasPhoto: false,
+      sharedByOwner: false,
+      sharedByBaker: false,
+      galleryCaption: '',
     };
     const app = createApp(
       makeFakeStore([ownedByBaker]),
@@ -688,6 +720,9 @@ describe('deliver & receive API', () => {
       deliveredAt: Date.now(),
       receivedAt: null,
       hasPhoto: false,
+      sharedByOwner: false,
+      sharedByBaker: false,
+      galleryCaption: '',
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
@@ -888,6 +923,9 @@ describe('delete API', () => {
       deliveredAt: null,
       receivedAt: null,
       hasPhoto: false,
+      sharedByOwner: false,
+      sharedByBaker: false,
+      galleryCaption: '',
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
@@ -1130,6 +1168,9 @@ describe('attention API', () => {
     deliveredAt: null,
     receivedAt: null,
     hasPhoto: false,
+    sharedByOwner: false,
+    sharedByBaker: false,
+    galleryCaption: '',
     ...over,
   });
 
@@ -1160,6 +1201,101 @@ describe('attention API', () => {
     )!;
     expect(item.reason).toBe('overdue');
     expect(item.ownerContact).toBe('rae@example.com');
+  });
+});
+
+describe('gallery API', () => {
+  // A completed cake with a photo, owned by user-req and baked by user-bak.
+  const receivedCake = (over: Partial<CakeRequest> = {}): CakeRequest => ({
+    id: 'g1',
+    recipient: 'Maya',
+    occasion: 'birthday',
+    neededBy: '2026-09-01',
+    dietary: '',
+    location: 'Haifa',
+    contactPhone: '555-0100',
+    createdAt: Date.now(),
+    ownerId: 'user-req',
+    status: 'received',
+    reservedBy: 'Baz',
+    reservedContact: 'baz@example.com',
+    reservedByUserId: 'user-bak',
+    reservedUntil: null,
+    reservedAt: Date.now(),
+    committedAt: Date.now(),
+    deliveredAt: Date.now(),
+    receivedAt: Date.now(),
+    hasPhoto: true,
+    sharedByOwner: false,
+    sharedByBaker: false,
+    galleryCaption: '',
+    ...over,
+  });
+  const appWith = (seed: CakeRequest[]) =>
+    createApp(
+      makeFakeStore(seed),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
+      makeFakeNotifier().notifier,
+    );
+  const share = (
+    app: ReturnType<typeof createApp>,
+    id: string,
+    token: string,
+    body: object,
+  ) => request(app).post(`/api/requests/${id}/gallery`).set('Authorization', `Bearer ${token}`).send(body);
+  const gallery = (app: ReturnType<typeof createApp>) => request(app).get('/api/gallery');
+
+  it('appears in the public gallery only after BOTH the requester and baker agree', async () => {
+    const app = appWith([receivedCake()]);
+    await share(app, 'g1', 'req', { share: true }); // requester agrees
+    expect((await gallery(app)).body).toHaveLength(0); // baker hasn't yet
+    await share(app, 'g1', 'bak', { share: true }); // baker agrees
+    const res = await gallery(app);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].photoUrl).toContain('http');
+  });
+
+  it('the gallery is public (no login) and never leaks names/location/contact', async () => {
+    const app = appWith([receivedCake({ sharedByOwner: true, sharedByBaker: true, galleryCaption: 'Made with love' })]);
+    const res = await gallery(app); // no Authorization header
+    expect(res.status).toBe(200);
+    expect(res.body[0].caption).toBe('Made with love');
+    expect(res.body[0]).not.toHaveProperty('recipient');
+    expect(res.body[0]).not.toHaveProperty('location');
+    expect(res.body[0]).not.toHaveProperty('contactPhone');
+  });
+
+  it('only the requester or baker may share; a stranger is refused (403)', async () => {
+    const app = appWith([receivedCake()]);
+    expect((await share(app, 'g1', 'req2', { share: true })).status).toBe(403);
+  });
+
+  it('a cake that is not received (with a photo) cannot be shared (409)', async () => {
+    const app = appWith([receivedCake({ id: 'g2', status: 'open', hasPhoto: false })]);
+    expect((await share(app, 'g2', 'req', { share: true })).status).toBe(409);
+  });
+
+  it('a caption can be added and shows in the gallery', async () => {
+    const app = appWith([receivedCake({ sharedByBaker: true })]); // baker already agreed
+    await share(app, 'g1', 'req', { share: true, caption: 'A rainbow cake 🌈' });
+    const res = await gallery(app);
+    expect(res.body[0].caption).toBe('A rainbow cake 🌈');
+  });
+
+  it('an admin can pull a cake from the gallery (moderation)', async () => {
+    const app = appWith([receivedCake({ sharedByOwner: true, sharedByBaker: true })]);
+    expect((await gallery(app)).body).toHaveLength(1);
+    await share(app, 'g1', 'adm', { share: false });
+    expect((await gallery(app)).body).toHaveLength(0);
+  });
+
+  it('sharing needs a valid flag (400) and a real request (404)', async () => {
+    const app = appWith([receivedCake()]);
+    expect((await share(app, 'g1', 'req', {})).status).toBe(400); // no share flag
+    expect((await share(app, 'nope', 'req', { share: true })).status).toBe(404);
   });
 });
 
