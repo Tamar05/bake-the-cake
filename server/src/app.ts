@@ -18,6 +18,7 @@ import {
   type NotificationPrefs,
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
+import { matchesCapabilities } from './matching';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinDietary, parseDietary } from './options';
 import { normalizePhone } from './phone';
 import {
@@ -190,6 +191,43 @@ export function createApp(
       res.json(await profilesStore.setNotificationSettings(me.id, prefs));
     } catch {
       res.status(500).json({ error: 'Could not save your notification settings' });
+    }
+  });
+
+  // The 🔔 bell: open requests relevant to this baker that are new since they
+  // last looked. Relevant = matches their areas/dietary/kashrut and still open;
+  // "new" = created after their last look (all of them the first time). Baker-
+  // only and pull-based (recomputed each call) — no live push.
+  app.get('/api/me/notifications/new', auth, requireRole('baker'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const settings = await profilesStore.getNotificationSettings(me.id);
+      if (!settings.notifyNewRequests) {
+        res.json({ count: 0, items: [] });
+        return;
+      }
+      const requests = await store.listRequests();
+      const relevant = requests
+        .filter((r) => r.status === 'open' && matchesCapabilities(r, settings))
+        .filter((r) => settings.seenAt === null || r.createdAt > settings.seenAt)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      res.json({
+        count: relevant.length,
+        items: relevant.map((r) => ({ id: r.id, occasion: r.occasion, area: r.location })),
+      });
+    } catch {
+      res.status(500).json({ error: 'Could not load your notifications' });
+    }
+  });
+
+  // Clears the bell's count by recording that the baker just looked.
+  app.post('/api/me/notifications/seen', auth, requireRole('baker'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      const seenAt = await profilesStore.markNotificationsSeen(me.id);
+      res.json({ seenAt });
+    } catch {
+      res.status(500).json({ error: 'Could not update your notifications' });
     }
   });
 

@@ -10,6 +10,12 @@ export type NotificationSettings = {
 // The part a baker edits on the settings screen (seenAt is managed by the bell).
 export type NotificationPrefs = Omit<NotificationSettings, 'seenAt'>;
 
+// One relevant new request as shown in the bell panel (no private details).
+export type RelevantRequest = { id: string; occasion: string; area: string };
+
+// What the bell shows: how many new relevant requests, and their short list.
+export type NewRelevant = { count: number; items: RelevantRequest[] };
+
 function apiBase(): string {
   return import.meta.env.VITE_API_BASE_URL;
 }
@@ -35,4 +41,22 @@ export async function saveNotificationSettings(
   });
   if (!res.ok) throw new Error(`Could not save settings (HTTP ${res.status})`);
   return (await res.json()) as NotificationSettings;
+}
+
+// New relevant open requests for the signed-in baker (the 🔔 bell).
+export async function getNewRelevant(token: string): Promise<NewRelevant> {
+  const res = await fetch(`${apiBase()}/api/me/notifications/new`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not load notifications (HTTP ${res.status})`);
+  return (await res.json()) as NewRelevant;
+}
+
+// Records that the baker just looked at the bell, clearing the count.
+export async function markNotificationsSeen(token: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/me/notifications/seen`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not update notifications (HTTP ${res.status})`);
 }

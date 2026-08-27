@@ -178,6 +178,106 @@ body {
   border-color: #ff6f91;
 }
 
+/* Header row holding the language toggle and the notification bell. */
+.header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.header-controls .language-toggle {
+  margin-bottom: 0; /* the row handles the spacing now */
+}
+
+.notif-bell {
+  position: relative;
+}
+
+.notif-bell-button {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #ffb3c6;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #ff4d76;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.notif-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 0.4rem);
+  width: min(20rem, 80vw);
+  background: #ffffff;
+  border: 1px solid #f0c9d6;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  padding: 0.75rem 1rem 1rem;
+  text-align: start;
+  z-index: 20;
+}
+
+.notif-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.notif-panel ul {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.notif-panel li a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.notif-panel li a:hover {
+  background: #fff1f5;
+}
+
+.notif-area {
+  font-size: 0.85rem;
+  color: #8a6d6d;
+}
+
+.notif-empty {
+  color: #8a6d6d;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.notif-settings-link {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: #ff4d76;
+}
+
 .list-status {
   text-align: center;
   color: #8a6d6d;

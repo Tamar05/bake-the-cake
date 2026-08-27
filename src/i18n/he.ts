@@ -121,6 +121,10 @@ export const he: Dictionary = {
     saving: 'שומרים…',
     saved: 'נשמר ✓',
     saveError: 'לא ניתן לשמור. נסו שוב.',
+    bellTitle: 'בקשות חדשות בשבילכם',
+    bellHeading: 'בקשות חדשות בשבילכם',
+    bellEmpty: 'אין בקשות חדשות כרגע.',
+    bellSettingsHint: 'בחרו מה אתם יכולים להכין ←',
   },
   gallery: {
     heading: 'גלריית השראה',

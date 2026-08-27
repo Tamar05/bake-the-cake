@@ -122,6 +122,10 @@ export type Dictionary = {
     saving: string; // busy label while saving
     saved: string; // confirmation after a save
     saveError: string; // shown when saving fails
+    bellTitle: string; // accessible label on the header bell button
+    bellHeading: string; // heading at the top of the bell panel
+    bellEmpty: string; // shown in the panel when there are no new requests
+    bellSettingsHint: string; // link in the panel to the notification settings
   };
   gallery: {
     heading: string;

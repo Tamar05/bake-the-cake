@@ -280,6 +280,12 @@ function makeFakeProfilesStore(): ProfilesStore {
       settings.set(userId, next);
       return next;
     },
+    async markNotificationsSeen(userId) {
+      const seenAt = Date.now();
+      const current = settings.get(userId) ?? emptySettings();
+      settings.set(userId, { ...current, seenAt });
+      return seenAt;
+    },
   };
 }
 
@@ -482,6 +488,71 @@ describe('notification settings API', () => {
     expect((await put(app, 'bak', { notifyNewRequests: true, areas: ['Atlantis'], dietary: [], kashrut: [] })).status).toBe(400);
     expect((await put(app, 'bak', { notifyNewRequests: 'yes', areas: [], dietary: [], kashrut: [] })).status).toBe(400);
     expect((await put(app, 'bak', { notifyNewRequests: true, areas: [], dietary: ['keto'], kashrut: [] })).status).toBe(400);
+  });
+});
+
+describe('notification bell API', () => {
+  const addOne = (app: ReturnType<typeof createApp>, over: object = {}) =>
+    request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, ...over })
+      .then((r) => r.body.id as string);
+  const setPrefs = (app: ReturnType<typeof createApp>, body: object) =>
+    request(app).put('/api/me/notifications').set('Authorization', 'Bearer bak').send(body);
+  const bell = (app: ReturnType<typeof createApp>, token = 'bak') =>
+    request(app).get('/api/me/notifications/new').set('Authorization', `Bearer ${token}`);
+
+  it('requires signing in (401) and is baker-only (403)', async () => {
+    const app = makeApp();
+    expect((await request(app).get('/api/me/notifications/new')).status).toBe(401);
+    expect((await bell(app, 'req')).status).toBe(403);
+  });
+
+  it('counts a new open request that matches the baker’s capabilities', async () => {
+    const app = makeApp();
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app);
+    const res = await bell(app);
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(1);
+    expect(res.body.items[0].occasion).toBe(validDraft.occasion);
+    expect(res.body.items[0].area).toBe('Haifa');
+  });
+
+  it('ignores requests outside the baker’s capabilities', async () => {
+    const app = makeApp();
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Tel Aviv'], dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app); // Haifa → not one of this baker's areas
+    expect((await bell(app)).body.count).toBe(0);
+  });
+
+  it('returns nothing when notifications are switched off', async () => {
+    const app = makeApp();
+    await setPrefs(app, { notifyNewRequests: false, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app);
+    expect((await bell(app)).body.count).toBe(0);
+  });
+
+  it('marking seen clears the count', async () => {
+    const app = makeApp();
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app);
+    expect((await bell(app)).body.count).toBe(1);
+    const seen = await request(app)
+      .post('/api/me/notifications/seen')
+      .set('Authorization', 'Bearer bak')
+      .send();
+    expect(seen.status).toBe(200);
+    expect((await bell(app)).body.count).toBe(0);
+  });
+
+  it('a request that has been reserved is no longer counted', async () => {
+    const app = makeApp();
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    const id = await addOne(app);
+    await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
+    expect((await bell(app)).body.count).toBe(0);
   });
 });
 

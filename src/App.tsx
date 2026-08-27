@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LanguageToggle from './components/LanguageToggle';
+import NotificationBell from './components/NotificationBell';
 import AppNav from './components/AppNav';
 import AuthPanel from './auth/AuthPanel';
 import { useAuth } from './auth/AuthProvider';
@@ -84,7 +85,10 @@ export default function App() {
   return (
     <main className="app">
       <header className="app-header">
-        <LanguageToggle t={t} language={language} onChange={handleLanguageChange} />
+        <div className="header-controls">
+          <LanguageToggle t={t} language={language} onChange={handleLanguageChange} />
+          <NotificationBell t={t} />
+        </div>
         <h1>{t.appTitle}</h1>
         <p>{t.tagline}</p>
         <AuthPanel t={t} />

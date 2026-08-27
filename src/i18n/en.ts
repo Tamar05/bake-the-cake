@@ -121,6 +121,10 @@ export const en: Dictionary = {
     saving: 'Saving…',
     saved: 'Saved ✓',
     saveError: 'Could not save. Please try again.',
+    bellTitle: 'New requests for you',
+    bellHeading: 'New requests for you',
+    bellEmpty: 'No new requests right now.',
+    bellSettingsHint: 'Choose what you can make →',
   },
   gallery: {
     heading: 'Inspiration gallery',

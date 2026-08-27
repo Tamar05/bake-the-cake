@@ -41,6 +41,9 @@ export type ProfilesStore = {
   getNotificationSettings(userId: string): Promise<NotificationSettings>;
   // Saves a baker's notification preferences and returns the full settings.
   setNotificationSettings(userId: string, prefs: NotificationPrefs): Promise<NotificationSettings>;
+  // Records that the baker just looked at the bell, clearing the "new since last
+  // seen" count. Returns the new seen timestamp (ms since 1970).
+  markNotificationsSeen(userId: string): Promise<number>;
 };
 
 type ProfileRow = {
@@ -156,6 +159,16 @@ export function createSupabaseProfilesStore(): ProfilesStore {
         .maybeSingle();
       if (error) throw new Error(error.message);
       return rowToNotificationSettings(data as NotifyRow | null);
+    },
+
+    async markNotificationsSeen(userId: string): Promise<number> {
+      const seenAt = new Date().toISOString();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ notifications_seen_at: seenAt })
+        .eq('id', userId);
+      if (error) throw new Error(error.message);
+      return new Date(seenAt).getTime();
     },
   };
 }
