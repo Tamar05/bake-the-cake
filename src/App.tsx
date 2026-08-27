@@ -8,6 +8,7 @@ import RequireRole from './pages/RequireRole';
 import BrowsePage from './pages/BrowsePage';
 import MyRequestsPage from './pages/MyRequestsPage';
 import MyReservationsPage from './pages/MyReservationsPage';
+import BakerNotificationsPage from './pages/BakerNotificationsPage';
 import AdminPage from './pages/AdminPage';
 import AdminBakersPage from './pages/AdminBakersPage';
 import AdminAttentionPage from './pages/AdminAttentionPage';
@@ -111,6 +112,14 @@ export default function App() {
             element={
               <RequireRole roles={['baker']}>
                 <MyReservationsPage {...listProps} />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <RequireRole roles={['baker']}>
+                <BakerNotificationsPage t={t} />
               </RequireRole>
             }
           />

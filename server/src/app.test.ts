@@ -10,8 +10,12 @@ import {
   type RequestsStore,
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
-import { BAKER_NOT_FOUND, type ProfilesStore, type BakerSummary } from './profilesStore';
-import type { Notifier, NewRequestAlert } from './emailer';
+import {
+  BAKER_NOT_FOUND,
+  type ProfilesStore,
+  type BakerSummary,
+  type NotificationSettings,
+} from './profilesStore';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -248,6 +252,7 @@ function makeFakeProfilesStore(): ProfilesStore {
     { id: 'user-bak2', displayName: 'Bex', contact: 'bex@example.com', verified: true, createdAt: 2 },
     { id: 'user-bakU', displayName: 'Uma', contact: 'uma@example.com', verified: false, createdAt: 3 },
   ];
+  const settings = new Map<string, NotificationSettings>();
   return {
     async listBakers() {
       return bakers.map((b) => ({ ...b }));
@@ -267,27 +272,20 @@ function makeFakeProfilesStore(): ProfilesStore {
       for (const id of ids) if (id in known) map[id] = known[id];
       return map;
     },
-    async getVerifiedBakerEmails() {
-      // bak and bak2 are verified; bakU is not.
-      return ['baz.baker@example.com', 'bex.baker@example.com'];
+    async getNotificationSettings(userId) {
+      return settings.get(userId) ?? emptySettings();
+    },
+    async setNotificationSettings(userId, prefs) {
+      const next: NotificationSettings = { ...prefs, seenAt: settings.get(userId)?.seenAt ?? null };
+      settings.set(userId, next);
+      return next;
     },
   };
 }
 
-// A notifier that records what it was asked to send, so tests can inspect it.
-function makeFakeNotifier(): {
-  notifier: Notifier;
-  alerts: { recipients: string[]; details: NewRequestAlert }[];
-} {
-  const alerts: { recipients: string[]; details: NewRequestAlert }[] = [];
-  return {
-    notifier: {
-      async sendNewRequestAlert(recipients, details) {
-        alerts.push({ recipients, details });
-      },
-    },
-    alerts,
-  };
+// Default notification settings for a baker who has set none.
+function emptySettings(): NotificationSettings {
+  return { notifyNewRequests: false, areas: [], dietary: [], kashrut: [], seenAt: null };
 }
 
 function makeApp() {
@@ -296,7 +294,6 @@ function makeApp() {
     makeFakeTranslator(),
     makeFakeAuthenticator(),
     makeFakeProfilesStore(),
-    makeFakeNotifier().notifier,
   );
 }
 
@@ -327,26 +324,6 @@ describe('requests API', () => {
     expect(res.body.recipient).toBe('Maya');
     expect(res.body.id).toBeTruthy();
     expect(res.body.ownerId).toBe('user-req');
-  });
-
-  it('alerts verified bakers when a new request is posted (no requester contact)', async () => {
-    const { notifier, alerts } = makeFakeNotifier();
-    const app = createApp(
-      makeFakeStore(),
-      makeFakeTranslator(),
-      makeFakeAuthenticator(),
-      makeFakeProfilesStore(),
-      notifier,
-    );
-    const res = await request(app)
-      .post('/api/requests')
-      .set('Authorization', 'Bearer req')
-      .send(validDraft);
-    expect(res.status).toBe(201);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].recipients).toEqual(['baz.baker@example.com', 'bex.baker@example.com']);
-    expect(alerts[0].details.location).toBe(validDraft.location);
-    expect(alerts[0].details).not.toHaveProperty('contactPhone'); // stays private
   });
 
   it('a saved request then appears in the list', async () => {
@@ -456,6 +433,55 @@ describe('requests API', () => {
     const asBaker = await request(app).get('/api/requests').set('Authorization', 'Bearer bak');
     expect(asBaker.body[0].aboutRecipient.length).toBeLessThan(longNote.length);
     expect(asBaker.body[0].aboutRecipient.endsWith('…')).toBe(true);
+  });
+});
+
+describe('notification settings API', () => {
+  const get = (app: ReturnType<typeof createApp>, token: string) =>
+    request(app).get('/api/me/notifications').set('Authorization', `Bearer ${token}`);
+  const put = (app: ReturnType<typeof createApp>, token: string, body: object) =>
+    request(app).put('/api/me/notifications').set('Authorization', `Bearer ${token}`).send(body);
+
+  it('requires signing in (401)', async () => {
+    expect((await request(makeApp()).get('/api/me/notifications')).status).toBe(401);
+  });
+
+  it('is baker-only — a requester is refused (403)', async () => {
+    expect((await get(makeApp(), 'req')).status).toBe(403);
+  });
+
+  it('defaults to notifications off with empty capability lists', async () => {
+    const res = await get(makeApp(), 'bak');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      notifyNewRequests: false,
+      areas: [],
+      dietary: [],
+      kashrut: [],
+      seenAt: null,
+    });
+  });
+
+  it('saves and reads back a baker’s preferences', async () => {
+    const app = makeApp();
+    const saved = await put(app, 'bak', {
+      notifyNewRequests: true,
+      areas: ['Haifa', 'Tel Aviv'],
+      dietary: ['nut-free'],
+      kashrut: ['Rabbanut', 'Badatz Eda Haredit'],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.notifyNewRequests).toBe(true);
+    expect(saved.body.areas).toEqual(['Haifa', 'Tel Aviv']);
+    const reread = await get(app, 'bak');
+    expect(reread.body.kashrut).toEqual(['Rabbanut', 'Badatz Eda Haredit']);
+  });
+
+  it('rejects values that are not in the shared lists (400)', async () => {
+    const app = makeApp();
+    expect((await put(app, 'bak', { notifyNewRequests: true, areas: ['Atlantis'], dietary: [], kashrut: [] })).status).toBe(400);
+    expect((await put(app, 'bak', { notifyNewRequests: 'yes', areas: [], dietary: [], kashrut: [] })).status).toBe(400);
+    expect((await put(app, 'bak', { notifyNewRequests: true, areas: [], dietary: ['keto'], kashrut: [] })).status).toBe(400);
   });
 });
 
@@ -1321,13 +1347,7 @@ describe('gallery API', () => {
     ...over,
   });
   const appWith = (seed: CakeRequest[]) =>
-    createApp(
-      makeFakeStore(seed),
-      makeFakeTranslator(),
-      makeFakeAuthenticator(),
-      makeFakeProfilesStore(),
-      makeFakeNotifier().notifier,
-    );
+    createApp(makeFakeStore(seed), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
   const share = (
     app: ReturnType<typeof createApp>,
     id: string,

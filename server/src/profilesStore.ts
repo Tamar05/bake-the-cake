@@ -9,6 +9,23 @@ export type BakerSummary = {
   createdAt: number; // ms since 1970
 };
 
+// A baker's in-app notification preferences: whether they want to hear about new
+// requests, and which areas / dietary needs / kashrut levels they can make.
+// seenAt is when they last cleared the bell (ms since 1970, or null if never).
+export type NotificationSettings = {
+  notifyNewRequests: boolean;
+  areas: string[];
+  dietary: string[];
+  kashrut: string[];
+  seenAt: number | null;
+};
+
+// The subset a baker actually edits (seenAt is managed by opening the bell).
+export type NotificationPrefs = Pick<
+  NotificationSettings,
+  'notifyNewRequests' | 'areas' | 'dietary' | 'kashrut'
+>;
+
 // Thrown by setVerified when no baker has the given id.
 export const BAKER_NOT_FOUND = 'BAKER_NOT_FOUND';
 
@@ -20,9 +37,10 @@ export type ProfilesStore = {
   // Contact details for the given profile ids, as an id → contact map. Used to
   // show an admin how to reach the requester behind a stuck request.
   getContacts(ids: string[]): Promise<Record<string, string | null>>;
-  // The login emails of every verified baker — used to alert them when a new
-  // cake is requested.
-  getVerifiedBakerEmails(): Promise<string[]>;
+  // A baker's notification preferences (defaults when they've set none).
+  getNotificationSettings(userId: string): Promise<NotificationSettings>;
+  // Saves a baker's notification preferences and returns the full settings.
+  setNotificationSettings(userId: string, prefs: NotificationPrefs): Promise<NotificationSettings>;
 };
 
 type ProfileRow = {
@@ -32,6 +50,28 @@ type ProfileRow = {
   verified_at: string | null;
   created_at: string;
 };
+
+// The notification columns as stored on a profile row.
+type NotifyRow = {
+  notify_new_requests: boolean | null;
+  notify_areas: string[] | null;
+  notify_dietary: string[] | null;
+  notify_kashrut: string[] | null;
+  notifications_seen_at: string | null;
+};
+
+const NOTIFY_COLUMNS =
+  'notify_new_requests, notify_areas, notify_dietary, notify_kashrut, notifications_seen_at';
+
+function rowToNotificationSettings(row: NotifyRow | null): NotificationSettings {
+  return {
+    notifyNewRequests: row?.notify_new_requests ?? false,
+    areas: row?.notify_areas ?? [],
+    dietary: row?.notify_dietary ?? [],
+    kashrut: row?.notify_kashrut ?? [],
+    seenAt: row?.notifications_seen_at ? new Date(row.notifications_seen_at).getTime() : null,
+  };
+}
 
 function rowToBaker(row: ProfileRow): BakerSummary {
   return {
@@ -89,21 +129,33 @@ export function createSupabaseProfilesStore(): ProfilesStore {
       return map;
     },
 
-    async getVerifiedBakerEmails(): Promise<string[]> {
-      const { data: bakers, error } = await supabase
+    async getNotificationSettings(userId: string): Promise<NotificationSettings> {
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('role', 'baker')
-        .not('verified_at', 'is', null);
+        .select(NOTIFY_COLUMNS)
+        .eq('id', userId)
+        .maybeSingle();
       if (error) throw new Error(error.message);
-      const ids = new Set((bakers as { id: string }[]).map((b) => b.id));
-      if (ids.size === 0) return [];
-      // The email lives on the auth user, not the profile row.
-      const { data, error: usersError } = await supabase.auth.admin.listUsers();
-      if (usersError) throw new Error(usersError.message);
-      return data.users
-        .filter((u) => ids.has(u.id) && u.email)
-        .map((u) => u.email as string);
+      return rowToNotificationSettings(data as NotifyRow | null);
+    },
+
+    async setNotificationSettings(
+      userId: string,
+      prefs: NotificationPrefs,
+    ): Promise<NotificationSettings> {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          notify_new_requests: prefs.notifyNewRequests,
+          notify_areas: prefs.areas,
+          notify_dietary: prefs.dietary,
+          notify_kashrut: prefs.kashrut,
+        })
+        .eq('id', userId)
+        .select(NOTIFY_COLUMNS)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return rowToNotificationSettings(data as NotifyRow | null);
     },
   };
 }

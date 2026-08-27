@@ -28,6 +28,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
           {t.nav.myReservations}
         </NavLink>
       )}
+      {role === 'baker' && (
+        <NavLink to="/notifications" className={linkClass}>
+          {t.nav.notifications}
+        </NavLink>
+      )}
       {role === 'admin' && (
         <NavLink to="/admin/dashboard" className={linkClass}>
           {t.nav.dashboard}

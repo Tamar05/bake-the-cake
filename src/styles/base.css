@@ -66,20 +66,21 @@ body {
   min-height: 3.2rem;
 }
 
-/* The dietary multi-select: a bordered group of inline checkbox rows. */
-.dietary-fieldset {
+/* A multi-select: a bordered group of inline checkbox rows (dietary needs on
+   the request form, and each capability list on the baker settings screen). */
+.options-fieldset {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem 1rem;
   border: 1px solid #f0c9d6;
   border-radius: 12px;
 }
 
-.dietary-fieldset legend {
+.options-fieldset legend {
   font-weight: 600;
   padding: 0 0.4rem;
 }
 
-.dietary-fieldset .checkbox-option {
+.request-form .checkbox-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -88,11 +89,26 @@ body {
 }
 
 /* Checkboxes are inline ticks, not the full-width block inputs above. */
-.dietary-fieldset .checkbox-option input[type='checkbox'] {
+.request-form .checkbox-option input[type='checkbox'] {
   display: inline-block;
   width: auto;
   margin: 0;
   accent-color: #ff6f91;
+}
+
+.notifications-intro {
+  color: #8a6d6d;
+  margin-top: 0;
+}
+
+.notifications-saved {
+  color: #1f8a4c;
+  font-weight: 600;
+}
+
+.request-form .checkbox-option.enable-toggle {
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
 .form-error {

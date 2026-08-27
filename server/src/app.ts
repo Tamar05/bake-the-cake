@@ -15,11 +15,11 @@ import {
   createSupabaseProfilesStore,
   BAKER_NOT_FOUND,
   type ProfilesStore,
+  type NotificationPrefs,
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinDietary, parseDietary } from './options';
 import { normalizePhone } from './phone';
-import { createResendNotifier, type Notifier } from './emailer';
 import {
   createSupabaseAuthenticator,
   requireAuth,
@@ -56,6 +56,29 @@ function previewText(text: string, max: number): string {
   const lastSpace = slice.lastIndexOf(' ');
   const cut = lastSpace > max * 0.6 ? slice.slice(0, lastSpace) : slice;
   return cut.trimEnd() + '…';
+}
+
+// Validates a baker's notification preferences from the request body: the flag
+// must be a boolean, and every area / dietary / kashrut value must come from the
+// shared lists. Returns clean, de-duplicated prefs, or null when malformed.
+function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as Record<string, unknown>;
+  if (typeof b.notifyNewRequests !== 'boolean') return null;
+  const asList = (value: unknown, allowed: readonly string[]): string[] | null => {
+    if (!Array.isArray(value)) return null;
+    const seen = new Set<string>();
+    for (const item of value) {
+      if (typeof item !== 'string' || !allowed.includes(item)) return null;
+      seen.add(item);
+    }
+    return [...seen];
+  };
+  const areas = asList(b.areas, AREAS);
+  const dietary = asList(b.dietary, DIETARY_OPTIONS);
+  const kashrut = asList(b.kashrut, KASHRUT_OPTIONS);
+  if (areas === null || dietary === null || kashrut === null) return null;
+  return { notifyNewRequests: b.notifyNewRequests, areas, dietary, kashrut };
 }
 
 // Trims private details a viewer isn't allowed to see. Only the owner (the
@@ -117,7 +140,6 @@ export function createApp(
   translator: Translator,
   authenticator: Authenticator = createSupabaseAuthenticator(),
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
-  notifier: Notifier = createResendNotifier(),
 ) {
   const app = express();
   app.use(cors());
@@ -142,6 +164,33 @@ export function createApp(
   // Who am I? Returns the signed-in person's profile (verified server-side).
   app.get('/api/me', auth, (req, res) => {
     res.json((req as AuthedRequest).auth);
+  });
+
+  // A baker reads their own notification preferences (opt-in + which areas /
+  // dietary needs / kashrut levels they can make). Baker-only, and always keyed
+  // to their own verified id — a baker can never read anyone else's.
+  app.get('/api/me/notifications', auth, requireRole('baker'), async (req, res) => {
+    const me = (req as AuthedRequest).auth;
+    try {
+      res.json(await profilesStore.getNotificationSettings(me.id));
+    } catch {
+      res.status(500).json({ error: 'Could not load your notification settings' });
+    }
+  });
+
+  // A baker saves their own notification preferences.
+  app.put('/api/me/notifications', auth, requireRole('baker'), async (req, res) => {
+    const prefs = parseNotificationPrefs(req.body);
+    if (!prefs) {
+      res.status(400).json({ error: 'Invalid notification settings' });
+      return;
+    }
+    const me = (req as AuthedRequest).auth;
+    try {
+      res.json(await profilesStore.setNotificationSettings(me.id, prefs));
+    } catch {
+      res.status(500).json({ error: 'Could not save your notification settings' });
+    }
   });
 
   app.get('/api/requests', optAuth, async (req, res) => {
@@ -201,24 +250,8 @@ export function createApp(
         },
         ownerId,
       );
-      // Best-effort: alert verified bakers there's a new cake to make (no
-      // requester contact — that stays private until a baker commits). A mail
-      // failure never affects saving the request.
-      try {
-        const bakerEmails = await profilesStore.getVerifiedBakerEmails();
-        if (bakerEmails.length > 0) {
-          await notifier.sendNewRequestAlert(bakerEmails, {
-            recipient: saved.recipient,
-            occasion: saved.occasion,
-            neededBy: saved.neededBy,
-            dietary: saved.dietary,
-            location: saved.location,
-            requestId: saved.id,
-          });
-        }
-      } catch {
-        // swallow — the request was saved
-      }
+      // Verified bakers discover new relevant requests in-app via the 🔔 bell
+      // (their notification settings drive the match) — no email is sent.
       res.status(201).json(saved);
     } catch {
       res.status(500).json({ error: 'Could not save request' });

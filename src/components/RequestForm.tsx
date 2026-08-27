@@ -108,7 +108,7 @@ export default function RequestForm({ t, onAdd }: Props) {
         </select>
       </label>
 
-      <fieldset className="dietary-fieldset">
+      <fieldset className="options-fieldset">
         <legend>{t.form.dietaryLabel}</legend>
         {DIETARY_OPTIONS.map((option) => (
           <label key={option} className="checkbox-option">

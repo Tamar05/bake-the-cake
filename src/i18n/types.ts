@@ -106,7 +106,22 @@ export type Dictionary = {
     attention: string; // admin's needs-attention screen
     dashboard: string; // admin's stats dashboard
     gallery: string; // the public inspiration gallery
+    notifications: string; // baker's notification settings
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+  };
+  notifications: {
+    heading: string;
+    intro: string; // short explainer under the heading
+    loading: string;
+    loadError: string;
+    enableLabel: string; // "Notify me about new requests"
+    areasLabel: string; // "Areas you deliver to"
+    dietaryLabel: string; // "Dietary needs you can make"
+    kashrutLabel: string; // "Kashrut levels you cook with"
+    save: string;
+    saving: string; // busy label while saving
+    saved: string; // confirmation after a save
+    saveError: string; // shown when saving fails
   };
   gallery: {
     heading: string;
