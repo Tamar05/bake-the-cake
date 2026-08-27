@@ -317,12 +317,20 @@ export function createSupabaseStore(): RequestsStore {
         // Moderation: an admin pulls it from the gallery entirely.
         update.shared_by_owner = false;
         update.shared_by_baker = false;
-      } else if (userId === row.owner_id) {
-        update.shared_by_owner = share;
-      } else if (userId === row.reserved_by_user_id) {
-        update.shared_by_baker = share;
       } else {
-        throw new Error(NOT_OWNER);
+        // Set every consent this person can give — if they are BOTH the owner
+        // and the baker (e.g. an admin who posted and baked it), one action
+        // counts for both.
+        let matched = false;
+        if (userId === row.owner_id) {
+          update.shared_by_owner = share;
+          matched = true;
+        }
+        if (userId === row.reserved_by_user_id) {
+          update.shared_by_baker = share;
+          matched = true;
+        }
+        if (!matched) throw new Error(NOT_OWNER);
       }
       const { data, error } = await supabase
         .from('cake_requests')

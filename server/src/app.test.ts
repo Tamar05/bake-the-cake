@@ -136,12 +136,17 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (isAdmin && !share) {
         item.sharedByOwner = false;
         item.sharedByBaker = false;
-      } else if (item.ownerId === userId) {
-        item.sharedByOwner = share;
-      } else if (item.reservedByUserId === userId) {
-        item.sharedByBaker = share;
       } else {
-        throw new Error(NOT_OWNER);
+        let matched = false;
+        if (item.ownerId === userId) {
+          item.sharedByOwner = share;
+          matched = true;
+        }
+        if (item.reservedByUserId === userId) {
+          item.sharedByBaker = share;
+          matched = true;
+        }
+        if (!matched) throw new Error(NOT_OWNER);
       }
       return item;
     },
@@ -294,7 +299,7 @@ const validDraft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
-  contactPhone: '555-0100',
+  contactPhone: '+972501234567', // already canonical, so it survives normalization unchanged
 };
 
 describe('requests API', () => {
@@ -342,6 +347,23 @@ describe('requests API', () => {
       .set('Authorization', 'Bearer req')
       .send({ recipient: '', occasion: '', neededBy: '', dietary: '', location: '' });
     expect(res.status).toBe(400);
+  });
+
+  it('a request with an invalid contact phone is rejected (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, contactPhone: 'not-a-number' });
+    expect(res.status).toBe(400);
+  });
+
+  it('a local Israeli contact phone is accepted and stored as +972 E.164', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, contactPhone: '050-123-4567' });
+    expect(res.status).toBe(201);
+    expect(res.body.contactPhone).toBe('+972501234567');
   });
 });
 
@@ -1283,6 +1305,14 @@ describe('gallery API', () => {
     await share(app, 'g1', 'req', { share: true, caption: 'A rainbow cake 🌈' });
     const res = await gallery(app);
     expect(res.body[0].caption).toBe('A rainbow cake 🌈');
+  });
+
+  it('when one account is BOTH the owner and the baker, its agreement counts for both', async () => {
+    // e.g. an admin who posted a request and baked it themselves.
+    const app = appWith([receivedCake({ ownerId: 'user-adm', reservedByUserId: 'user-adm' })]);
+    await share(app, 'g1', 'adm', { share: true });
+    const res = await gallery(app);
+    expect(res.body).toHaveLength(1); // both flags set by the single action
   });
 
   it('an admin can pull a cake from the gallery (moderation)', async () => {
