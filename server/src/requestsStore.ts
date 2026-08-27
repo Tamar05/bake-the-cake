@@ -105,6 +105,8 @@ export function createSupabaseStore(): RequestsStore {
           needed_by: draft.neededBy,
           dietary: draft.dietary,
           location: draft.location,
+          kashrut: draft.kashrut,
+          about_recipient: draft.aboutRecipient,
           contact_phone: draft.contactPhone,
           owner_id: ownerId,
         })

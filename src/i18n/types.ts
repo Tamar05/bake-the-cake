@@ -1,3 +1,5 @@
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+
 // The shape every language dictionary must fill in. If a new piece of text
 // is added here, both en.ts and he.ts must provide it (the test enforces this).
 export type Dictionary = {
@@ -9,8 +11,12 @@ export type Dictionary = {
     recipientLabel: string;
     occasionLabel: string;
     neededByLabel: string;
-    dietaryLabel: string;
-    locationLabel: string;
+    dietaryLabel: string; // "Dietary needs (choose any)" — the multi-select heading
+    locationLabel: string; // "Area" — the delivery-area dropdown
+    kashrutLabel: string; // "Kashrut needed" — the kashrut dropdown
+    aboutRecipientLabel: string; // "About the recipient (optional)"
+    aboutRecipientHint: string; // why the note helps the baker
+    selectPlaceholder: string; // the empty "Choose…" option in a dropdown
     contactPhoneLabel: string; // phone the baker uses to reach the requester
     contactPhoneHint: string; // why the phone is needed
     submit: string;
@@ -24,6 +30,8 @@ export type Dictionary = {
     neededByPrefix: string;
     dietaryPrefix: string;
     locationPrefix: string;
+    kashrutPrefix: string; // precedes the required kashrut on a card
+    aboutRecipientPrefix: string; // precedes the recipient note on a card
     loading: string; // shown while requests are being fetched
     loadError: string; // shown when the server can't be reached
     translate: string; // Translate button label
@@ -181,5 +189,14 @@ export type Dictionary = {
     working: string; // busy label while signing in/up
     notConfigured: string; // shown when Supabase keys are missing
     genericError: string; // fallback when sign-in/up fails
+  };
+  // Per-language display labels for the shared option values (the DB stores the
+  // canonical value; these translate it for the reader). Typed against the
+  // option lists themselves, so the compiler requires every value be translated
+  // in both languages — a missing label won't build.
+  options: {
+    area: Record<(typeof AREAS)[number], string>;
+    dietary: Record<(typeof DIETARY_OPTIONS)[number], string>;
+    kashrut: Record<(typeof KASHRUT_OPTIONS)[number], string>;
   };
 };

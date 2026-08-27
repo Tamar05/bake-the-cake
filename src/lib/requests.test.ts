@@ -8,6 +8,8 @@ const fullDraft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
+  kashrut: 'Rabbanut',
+  aboutRecipient: '',
   contactPhone: '050-1234567',
 };
 
@@ -21,8 +23,13 @@ describe('findMissingFields', () => {
     expect(findMissingFields(draft).sort()).toEqual(['location', 'recipient']);
   });
 
-  it('does not require the dietary field', () => {
-    const draft: RequestDraft = { ...fullDraft, dietary: '' };
+  it('does not require the dietary or aboutRecipient fields', () => {
+    const draft: RequestDraft = { ...fullDraft, dietary: '', aboutRecipient: '' };
     expect(findMissingFields(draft)).toEqual([]);
+  });
+
+  it('requires the kashrut field', () => {
+    const draft: RequestDraft = { ...fullDraft, kashrut: '' };
+    expect(findMissingFields(draft)).toEqual(['kashrut']);
   });
 });

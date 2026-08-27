@@ -9,6 +9,8 @@ export type CakeRequestRow = {
   needed_by: string;
   dietary: string;
   location: string;
+  kashrut: string | null; // required kashrut level; null on legacy rows
+  about_recipient: string | null; // optional note about the recipient; null when none
   contact_phone: string | null; // requester's delivery contact; null for legacy rows
   created_at: string; // ISO timestamp from Postgres
   owner_id: string | null; // the requester who posted it; null for legacy rows
@@ -38,6 +40,8 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     neededBy: row.needed_by,
     dietary: row.dietary,
     location: row.location,
+    kashrut: row.kashrut ?? '', // '' for legacy rows with no kashrut
+    aboutRecipient: row.about_recipient ?? '', // '' when none
     contactPhone: row.contact_phone ?? '', // '' for legacy rows with no phone
     createdAt: new Date(row.created_at).getTime(),
     ownerId: row.owner_id,

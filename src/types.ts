@@ -3,8 +3,10 @@ export type RequestDraft = {
   recipient: string; // who the cake is for
   occasion: string; // occasion / theme, e.g. "8th birthday, dinosaurs"
   neededBy: string; // date the cake is needed, as yyyy-mm-dd
-  dietary: string; // dietary needs (optional; '' when none)
-  location: string; // rough location, e.g. town or postcode
+  dietary: string; // chosen dietary needs, joined with ", " (see lib/options); '' when none
+  location: string; // the chosen delivery area (a value from AREAS); free text on legacy rows
+  kashrut: string; // the one required kashrut level (a value from KASHRUT_OPTIONS)
+  aboutRecipient: string; // optional note about who the cake is for; '' when none
   contactPhone: string; // phone the baker uses to reach the requester for delivery
 };
 

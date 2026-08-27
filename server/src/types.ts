@@ -3,8 +3,10 @@ export type RequestDraft = {
   recipient: string;
   occasion: string;
   neededBy: string;
-  dietary: string;
-  location: string;
+  dietary: string; // chosen dietary needs, joined with ", " (see options.ts); '' when none
+  location: string; // the chosen delivery area (a value from AREAS); free text on legacy rows
+  kashrut: string; // the one required kashrut level (a value from KASHRUT_OPTIONS)
+  aboutRecipient: string; // optional note about who the cake is for; '' when none
   contactPhone: string; // how the baker reaches the requester to arrange delivery
 };
 

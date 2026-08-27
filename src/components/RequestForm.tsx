@@ -3,6 +3,14 @@ import type { Dictionary } from '../i18n/types';
 import type { RequestDraft } from '../types';
 import { findMissingFields } from '../lib/requests';
 import { isValidPhone } from '../lib/phone';
+import {
+  AREAS,
+  DIETARY_OPTIONS,
+  KASHRUT_OPTIONS,
+  joinDietary,
+  parseDietary,
+} from '../lib/options';
+import { optionLabel } from '../lib/optionLabels';
 
 const EMPTY_DRAFT: RequestDraft = {
   recipient: '',
@@ -10,6 +18,8 @@ const EMPTY_DRAFT: RequestDraft = {
   neededBy: '',
   dietary: '',
   location: '',
+  kashrut: '',
+  aboutRecipient: '',
   contactPhone: '',
 };
 
@@ -27,6 +37,16 @@ export default function RequestForm({ t, onAdd }: Props) {
 
   function update(field: keyof RequestDraft, value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }));
+  }
+
+  // Dietary is a multi-select stored as one joined string; toggle a value in or
+  // out and re-join, so the rest of the app sees the same encoding.
+  const chosenDietary = parseDietary(draft.dietary);
+  function toggleDietary(option: string) {
+    const next = chosenDietary.includes(option)
+      ? chosenDietary.filter((d) => d !== option)
+      : [...chosenDietary, option];
+    update('dietary', joinDietary(next));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -65,13 +85,52 @@ export default function RequestForm({ t, onAdd }: Props) {
       </label>
 
       <label>
-        {t.form.dietaryLabel}
-        <input value={draft.dietary} onChange={(e) => update('dietary', e.target.value)} />
+        {t.form.locationLabel}
+        <select value={draft.location} onChange={(e) => update('location', e.target.value)}>
+          <option value="">{t.form.selectPlaceholder}</option>
+          {AREAS.map((area) => (
+            <option key={area} value={area}>
+              {optionLabel(t.options.area, area)}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>
-        {t.form.locationLabel}
-        <input value={draft.location} onChange={(e) => update('location', e.target.value)} />
+        {t.form.kashrutLabel}
+        <select value={draft.kashrut} onChange={(e) => update('kashrut', e.target.value)}>
+          <option value="">{t.form.selectPlaceholder}</option>
+          {KASHRUT_OPTIONS.map((level) => (
+            <option key={level} value={level}>
+              {optionLabel(t.options.kashrut, level)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <fieldset className="dietary-fieldset">
+        <legend>{t.form.dietaryLabel}</legend>
+        {DIETARY_OPTIONS.map((option) => (
+          <label key={option} className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={chosenDietary.includes(option)}
+              onChange={() => toggleDietary(option)}
+            />
+            {optionLabel(t.options.dietary, option)}
+          </label>
+        ))}
+      </fieldset>
+
+      <label>
+        {t.form.aboutRecipientLabel}
+        <textarea
+          value={draft.aboutRecipient}
+          maxLength={500}
+          rows={3}
+          onChange={(e) => update('aboutRecipient', e.target.value)}
+        />
+        <small>{t.form.aboutRecipientHint}</small>
       </label>
 
       <label>

@@ -312,6 +312,8 @@ const validDraft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
+  kashrut: 'Rabbanut',
+  aboutRecipient: '',
   contactPhone: '+972501234567', // already canonical, so it survives normalization unchanged
 };
 
@@ -397,6 +399,69 @@ describe('requests API', () => {
       .send({ ...validDraft, contactPhone: '050-123-4567' });
     expect(res.status).toBe(201);
     expect(res.body.contactPhone).toBe('+972501234567');
+  });
+
+  it('a request without a kashrut level is rejected (400)', async () => {
+    const { kashrut, ...noKashrut } = validDraft;
+    void kashrut;
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(noKashrut);
+    expect(res.status).toBe(400);
+  });
+
+  it('an area that is not in the shared list is rejected (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, location: 'Atlantis' });
+    expect(res.status).toBe(400);
+  });
+
+  it('a kashrut level that is not in the shared list is rejected (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, kashrut: 'made up' });
+    expect(res.status).toBe(400);
+  });
+
+  it('stores the kashrut level, dietary needs and recipient note', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({
+        ...validDraft,
+        kashrut: 'Badatz Eda Haredit',
+        dietary: 'nut-free, vegan',
+        aboutRecipient: 'A shy six-year-old who loves dinosaurs.',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.kashrut).toBe('Badatz Eda Haredit');
+    expect(res.body.dietary).toBe('nut-free, vegan');
+    expect(res.body.aboutRecipient).toBe('A shy six-year-old who loves dinosaurs.');
+  });
+
+  it('shows the owner the full recipient note but non-holders only a preview', async () => {
+    const longNote =
+      'This cake is for Noa, who has been in hospital for three weeks and is finally ' +
+      'coming home. She adores butterflies and the colour purple, and her favourite ' +
+      'flavour is strawberry. Please make it cheerful.';
+    const app = makeApp();
+    await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, aboutRecipient: longNote });
+
+    // The owner (req) sees the whole note…
+    const asOwner = await request(app).get('/api/requests').set('Authorization', 'Bearer req');
+    expect(asOwner.body[0].aboutRecipient).toBe(longNote);
+
+    // …a browsing baker sees a shorter, ellipsised preview.
+    const asBaker = await request(app).get('/api/requests').set('Authorization', 'Bearer bak');
+    expect(asBaker.body[0].aboutRecipient.length).toBeLessThan(longNote.length);
+    expect(asBaker.body[0].aboutRecipient.endsWith('…')).toBe(true);
   });
 });
 
@@ -1213,6 +1278,8 @@ describe('attention API', () => {
     neededBy: '2999-01-01',
     dietary: '',
     location: 'Haifa',
+    kashrut: 'Rabbanut',
+    aboutRecipient: '',
     contactPhone: '555-0100',
     createdAt: Date.now(),
     ownerId: 'user-req',
@@ -1271,6 +1338,8 @@ describe('gallery API', () => {
     neededBy: '2026-09-01',
     dietary: '',
     location: 'Haifa',
+    kashrut: 'Rabbanut',
+    aboutRecipient: '',
     contactPhone: '555-0100',
     createdAt: Date.now(),
     ownerId: 'user-req',

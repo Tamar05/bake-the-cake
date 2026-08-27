@@ -1,11 +1,12 @@
 import type { RequestDraft } from '../types';
 
-// dietary is intentionally NOT in this list — it is optional.
+// dietary and aboutRecipient are intentionally NOT in this list — both optional.
 const REQUIRED_FIELDS: Array<keyof RequestDraft> = [
   'recipient',
   'occasion',
   'neededBy',
   'location',
+  'kashrut',
   'contactPhone',
 ];
 

@@ -11,6 +11,8 @@ const base: CakeRequest = {
   neededBy: '2026-09-10', // comfortably in the future
   dietary: '',
   location: 'Haifa',
+  kashrut: 'Rabbanut',
+  aboutRecipient: '',
   contactPhone: '555-0100',
   createdAt: now, // just created
   ownerId: 'user-req',

@@ -15,6 +15,8 @@ import {
   setGalleryShare,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
+import { parseDietary } from '../lib/options';
+import { optionLabel } from '../lib/optionLabels';
 import { useAuth } from '../auth/AuthProvider';
 import Timeline from './Timeline';
 
@@ -30,14 +32,15 @@ type Mode = 'original' | 'translated';
 type TranslateStatus = 'idle' | 'loading' | 'error';
 type ActionStatus = 'idle' | 'saving' | 'error';
 
-// The four typed-in text fields we may translate (the date is never translated).
+// The free-text fields we may machine-translate. Area, dietary and kashrut are
+// no longer here: they're chosen from shared lists and shown via per-language
+// labels, so they never need the translation service.
 type Translated = {
   recipient: string;
   occasion: string;
-  dietary: string;
-  location: string;
+  aboutRecipient: string;
 };
-const TEXT_FIELDS = ['recipient', 'occasion', 'dietary', 'location'] as const;
+const TEXT_FIELDS = ['recipient', 'occasion', 'aboutRecipient'] as const;
 
 export default function RequestCard({ t, language, request, onUpdated, onDeleted }: Props) {
   const { profile, session } = useAuth();
@@ -152,8 +155,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     const next: Translated = {
       recipient: request.recipient,
       occasion: request.occasion,
-      dietary: request.dietary,
-      location: request.location,
+      aboutRecipient: request.aboutRecipient,
     };
     try {
       await Promise.all(
@@ -306,11 +308,24 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
         {t.list.neededByPrefix} {request.neededBy}
       </p>
       <p>
-        {t.list.locationPrefix} {shown.location}
+        {t.list.locationPrefix} {optionLabel(t.options.area, request.location)}
       </p>
+      {request.kashrut && (
+        <p>
+          {t.list.kashrutPrefix} {optionLabel(t.options.kashrut, request.kashrut)}
+        </p>
+      )}
       {request.dietary && (
         <p>
-          {t.list.dietaryPrefix} {shown.dietary}
+          {t.list.dietaryPrefix}{' '}
+          {parseDietary(request.dietary)
+            .map((need) => optionLabel(t.options.dietary, need))
+            .join(', ')}
+        </p>
+      )}
+      {request.aboutRecipient && (
+        <p>
+          {t.list.aboutRecipientPrefix} {shown.aboutRecipient}
         </p>
       )}
 

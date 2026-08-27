@@ -17,6 +17,7 @@ import {
   type ProfilesStore,
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinDietary, parseDietary } from './options';
 import { normalizePhone } from './phone';
 import { createResendNotifier, type Notifier } from './emailer';
 import {
@@ -30,15 +31,31 @@ import {
   type AuthedProfile,
 } from './auth';
 
-// The required fields a new request must include.
+// The required fields a new request must include. Dietary and the recipient
+// note are optional; everything else (including the kashrut level) is required.
 function isMissingRequired(draft: Partial<RequestDraft>): boolean {
   return (
     !draft.recipient ||
     !draft.occasion ||
     !draft.neededBy ||
     !draft.location ||
+    !draft.kashrut ||
     !draft.contactPhone
   );
+}
+
+// The "about the recipient" note: everyone browsing sees a short preview; the
+// assigned baker (and owner/admin) sees the whole note alongside the contact
+// details. Plain truncation at a word boundary — not an AI summary.
+const ABOUT_RECIPIENT_MAX = 500; // most a requester can store
+const ABOUT_PREVIEW_MAX = 140; // most a non-holder sees
+
+function previewText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const lastSpace = slice.lastIndexOf(' ');
+  const cut = lastSpace > max * 0.6 ? slice.slice(0, lastSpace) : slice;
+  return cut.trimEnd() + '…';
 }
 
 // Trims private details a viewer isn't allowed to see. Only the owner (the
@@ -54,8 +71,14 @@ function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined)
   if (maySee) return request;
 
   let result = request;
-  // The requester's phone is private — reached only via the baker's commit email.
+  // The requester's phone is private — the assigned baker sees it in-app.
   if (request.contactPhone) result = { ...result, contactPhone: '' };
+  // The recipient note is shown to everyone, but non-holders get only a short
+  // preview; the assigned baker sees the whole thing with the contact details.
+  if (request.aboutRecipient) {
+    const preview = previewText(request.aboutRecipient, ABOUT_PREVIEW_MAX);
+    if (preview !== request.aboutRecipient) result = { ...result, aboutRecipient: preview };
+  }
   // The gallery caption is only public through the gallery endpoint, once shared.
   if (request.galleryCaption) result = { ...result, galleryCaption: '' };
   // Hide who's baking it AND that a (private) photo exists.
@@ -145,6 +168,23 @@ export function createApp(
       res.status(400).json({ error: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.' });
       return;
     }
+    // Area, kashrut and dietary must be values from the shared lists — the
+    // dropdowns constrain an honest browser, but this is the authoritative gate
+    // and keeps junk out of the columns relevance matching relies on.
+    if (!(AREAS as readonly string[]).includes(draft.location!)) {
+      res.status(400).json({ error: 'Please choose a delivery area from the list.' });
+      return;
+    }
+    if (!(KASHRUT_OPTIONS as readonly string[]).includes(draft.kashrut!)) {
+      res.status(400).json({ error: 'Please choose a kashrut level from the list.' });
+      return;
+    }
+    const dietaryParts = parseDietary(draft.dietary ?? '');
+    if (dietaryParts.some((part) => !(DIETARY_OPTIONS as readonly string[]).includes(part))) {
+      res.status(400).json({ error: 'Please choose dietary needs from the list.' });
+      return;
+    }
+    const aboutRecipient = (draft.aboutRecipient ?? '').slice(0, ABOUT_RECIPIENT_MAX).trim();
     try {
       // The owner is the verified signed-in user, never taken from the body.
       const ownerId = (req as AuthedRequest).auth.id;
@@ -153,8 +193,10 @@ export function createApp(
           recipient: draft.recipient!,
           occasion: draft.occasion!,
           neededBy: draft.neededBy!,
-          dietary: draft.dietary ?? '',
+          dietary: joinDietary(dietaryParts), // normalize the stored spacing
           location: draft.location!,
+          kashrut: draft.kashrut!,
+          aboutRecipient,
           contactPhone,
         },
         ownerId,

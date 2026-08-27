@@ -8,6 +8,8 @@ const draft: RequestDraft = {
   neededBy: '2026-09-01',
   dietary: '',
   location: 'Haifa',
+  kashrut: 'Rabbanut',
+  aboutRecipient: '',
   contactPhone: '050-1234567',
 };
 
