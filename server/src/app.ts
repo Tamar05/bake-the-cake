@@ -17,6 +17,7 @@ import {
   type ProfilesStore,
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
+import { normalizePhone } from './phone';
 import { createResendNotifier, type Notifier } from './emailer';
 import {
   createSupabaseAuthenticator,
@@ -136,6 +137,14 @@ export function createApp(
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
+    // The contact phone must be a real number. Local Israeli numbers are accepted
+    // and stored in canonical +972… form; a number that already carries its own
+    // country code keeps it. Anything that isn't a valid number is refused.
+    const contactPhone = normalizePhone(draft.contactPhone!);
+    if (contactPhone === null) {
+      res.status(400).json({ error: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.' });
+      return;
+    }
     try {
       // The owner is the verified signed-in user, never taken from the body.
       const ownerId = (req as AuthedRequest).auth.id;
@@ -146,7 +155,7 @@ export function createApp(
           neededBy: draft.neededBy!,
           dietary: draft.dietary ?? '',
           location: draft.location!,
-          contactPhone: draft.contactPhone!,
+          contactPhone,
         },
         ownerId,
       );

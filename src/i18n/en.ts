@@ -15,6 +15,7 @@ export const en: Dictionary = {
     contactPhoneHint: 'So the baker can reach you to arrange delivery.',
     submit: 'Submit request',
     missingFields: 'Please fill in the required fields before submitting.',
+    invalidPhone: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.',
     signInToPost: 'Sign in as a requester to post a cake request.',
   },
   list: {

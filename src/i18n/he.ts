@@ -15,6 +15,7 @@ export const he: Dictionary = {
     contactPhoneHint: 'כדי שהאופה יוכל ליצור קשר לתיאום מסירה.',
     submit: 'שליחת בקשה',
     missingFields: 'אנא מלאו את שדות החובה לפני השליחה.',
+    invalidPhone: 'אנא הזינו מספר טלפון תקין, למשל 050-123-4567 או 972-50-123-4567+.',
     signInToPost: 'התחברו כמבקש כדי לפרסם בקשת עוגה.',
   },
   list: {

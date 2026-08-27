@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
 import type { RequestDraft } from '../types';
 import { findMissingFields } from '../lib/requests';
+import { isValidPhone } from '../lib/phone';
 
 const EMPTY_DRAFT: RequestDraft = {
   recipient: '',
@@ -17,9 +18,12 @@ type Props = {
   onAdd: (draft: RequestDraft) => void;
 };
 
+// Which validation message (if any) to show under the form.
+type FormError = null | 'missing' | 'phone';
+
 export default function RequestForm({ t, onAdd }: Props) {
   const [draft, setDraft] = useState<RequestDraft>(EMPTY_DRAFT);
-  const [showError, setShowError] = useState(false);
+  const [error, setError] = useState<FormError>(null);
 
   function update(field: keyof RequestDraft, value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }));
@@ -27,13 +31,18 @@ export default function RequestForm({ t, onAdd }: Props) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    // Blank required fields first, then the phone must be a real number.
     if (findMissingFields(draft).length > 0) {
-      setShowError(true);
+      setError('missing');
+      return;
+    }
+    if (!isValidPhone(draft.contactPhone)) {
+      setError('phone');
       return;
     }
     onAdd(draft);
     setDraft(EMPTY_DRAFT);
-    setShowError(false);
+    setError(null);
   }
 
   return (
@@ -69,13 +78,15 @@ export default function RequestForm({ t, onAdd }: Props) {
         {t.form.contactPhoneLabel}
         <input
           type="tel"
+          inputMode="tel"
           value={draft.contactPhone}
           onChange={(e) => update('contactPhone', e.target.value)}
         />
         <small>{t.form.contactPhoneHint}</small>
       </label>
 
-      {showError && <p className="form-error">{t.form.missingFields}</p>}
+      {error === 'missing' && <p className="form-error">{t.form.missingFields}</p>}
+      {error === 'phone' && <p className="form-error">{t.form.invalidPhone}</p>}
 
       <button type="submit">{t.form.submit}</button>
     </form>

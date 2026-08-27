@@ -15,6 +15,7 @@ export type Dictionary = {
     contactPhoneHint: string; // why the phone is needed
     submit: string;
     missingFields: string; // gentle message when required fields are blank
+    invalidPhone: string; // shown when the contact phone isn't a real number
     signInToPost: string; // shown instead of the form when you can't post
   };
   list: {
