@@ -72,6 +72,7 @@ export type Dictionary = {
     reserveMissing: string; // shown when name/contact are blank
     reservedByPrefix: string; // precedes the baker's name
     reservedContactPrefix: string; // precedes the baker's contact
+    deliveryPhonePrefix: string; // precedes the requester's delivery phone (shown to the baker once committed)
     timeLeftPrefix: string; // precedes the countdown
     release: string; // cancel a reservation
     releasing: string; // busy label while releasing

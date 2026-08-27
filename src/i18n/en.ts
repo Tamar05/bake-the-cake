@@ -70,6 +70,7 @@ export const en: Dictionary = {
     reserveMissing: 'Please add your name and contact.',
     reservedByPrefix: 'Reserved by:',
     reservedContactPrefix: 'Contact:',
+    deliveryPhonePrefix: 'Requester’s phone:',
     timeLeftPrefix: 'Time left:',
     release: 'Release (cancel)',
     releasing: 'Releasing…',

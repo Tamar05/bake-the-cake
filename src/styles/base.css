@@ -623,6 +623,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The requester's delivery phone, shown to the baker once they've committed. */
+.reserved-box .delivery-phone {
+  font-weight: 600;
+  color: #7a4a00;
+}
+
 .reserve-error {
   color: #c0392b;
   font-size: 0.9rem;

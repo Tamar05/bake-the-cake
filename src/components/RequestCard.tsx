@@ -358,6 +358,13 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               {t.list.reservedContactPrefix} {request.reservedContact}
             </p>
           )}
+          {/* Once a baker commits, they see the requester's delivery phone here
+              (the server only sends it to the assigned baker / owner / admin). */}
+          {(committed || delivered || received) && request.contactPhone && (
+            <p className="delivery-phone">
+              {t.list.deliveryPhonePrefix} {request.contactPhone}
+            </p>
+          )}
           {reservedActive && (
             <p className="countdown">
               {t.list.timeLeftPrefix} {minsLeft}m {secsLeft}s

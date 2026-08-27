@@ -11,7 +11,7 @@ import {
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
 import { BAKER_NOT_FOUND, type ProfilesStore, type BakerSummary } from './profilesStore';
-import type { Notifier, BakeEmailDetails, NewRequestAlert } from './emailer';
+import type { Notifier, NewRequestAlert } from './emailer';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -277,21 +277,15 @@ function makeFakeProfilesStore(): ProfilesStore {
 // A notifier that records what it was asked to send, so tests can inspect it.
 function makeFakeNotifier(): {
   notifier: Notifier;
-  sent: { to: string; details: BakeEmailDetails }[];
   alerts: { recipients: string[]; details: NewRequestAlert }[];
 } {
-  const sent: { to: string; details: BakeEmailDetails }[] = [];
   const alerts: { recipients: string[]; details: NewRequestAlert }[] = [];
   return {
     notifier: {
-      async sendBakeConfirmation(to, details) {
-        sent.push({ to, details });
-      },
       async sendNewRequestAlert(recipients, details) {
         alerts.push({ recipients, details });
       },
     },
-    sent,
     alerts,
   };
 }
@@ -662,47 +656,15 @@ describe('commit API', () => {
     expect(res.body.committedAt).toBeNull();
   });
 
-  it('emails the baker the request details (location + requester contact) on commit', async () => {
-    const { notifier, sent } = makeFakeNotifier();
-    const app = createApp(
-      makeFakeStore(),
-      makeFakeTranslator(),
-      makeFakeAuthenticator(),
-      makeFakeProfilesStore(),
-      notifier,
-    );
-    const id = await addOne(app); // posted by 'req' (owner user-req)
-    await reserve(app, id, 'bak');
-    await commit(app, id, 'bak');
-    expect(sent).toHaveLength(1);
-    expect(sent[0].to).toBe('baz.baker@example.com'); // the baker's login email
-    expect(sent[0].details.location).toBe(validDraft.location);
-    expect(sent[0].details.recipient).toBe(validDraft.recipient);
-    // The phone the requester gave on the request itself is what the baker sees.
-    expect(sent[0].details.requesterContact).toBe(validDraft.contactPhone);
-  });
-
-  it('a failed notification does not break the commit', async () => {
-    const throwing: Notifier = {
-      async sendBakeConfirmation() {
-        throw new Error('mail server down');
-      },
-      async sendNewRequestAlert() {
-        throw new Error('mail server down');
-      },
-    };
-    const app = createApp(
-      makeFakeStore(),
-      makeFakeTranslator(),
-      makeFakeAuthenticator(),
-      makeFakeProfilesStore(),
-      throwing,
-    );
-    const id = await addOne(app);
+  it('committing returns the requester delivery phone to the assigned baker', async () => {
+    // The commit no longer emails; the baker gets the requester's phone in-app,
+    // returned unredacted to them on the request (redaction is covered elsewhere).
+    const app = makeApp();
+    const id = await addOne(app); // posted by 'req' with validDraft.contactPhone
     await reserve(app, id, 'bak');
     const res = await commit(app, id, 'bak');
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('committed');
+    expect(res.body.contactPhone).toBe(validDraft.contactPhone);
   });
 });
 

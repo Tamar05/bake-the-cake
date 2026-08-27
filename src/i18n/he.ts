@@ -70,6 +70,7 @@ export const he: Dictionary = {
     reserveMissing: 'אנא הוסיפו שם ופרטי קשר.',
     reservedByPrefix: 'נשמרה על ידי:',
     reservedContactPrefix: 'ליצירת קשר:',
+    deliveryPhonePrefix: 'טלפון המבקש:',
     timeLeftPrefix: 'זמן שנותר:',
     release: 'ביטול השמירה',
     releasing: 'מבטלים…',

@@ -256,32 +256,8 @@ export function createApp(
     const me = (req as AuthedRequest).auth;
     try {
       const updated = await store.commitRequest(req.params.id, me.id, me.role === 'admin');
-      // Email the baker the request details (location + requester contact) so
-      // they can bake and deliver. Best-effort: a mail failure never breaks the
-      // commit. We look up the requester's contact from their profile.
-      if (me.email) {
-        try {
-          // Prefer the phone the requester gave on the request itself; fall back
-          // to their profile contact (e.g. older requests without a phone).
-          let requesterContact: string | null = updated.contactPhone || null;
-          if (!requesterContact && updated.ownerId) {
-            const contacts = await profilesStore.getContacts([updated.ownerId]);
-            requesterContact = contacts[updated.ownerId] ?? null;
-          }
-          await notifier.sendBakeConfirmation(me.email, {
-            bakerName: me.displayName,
-            recipient: updated.recipient,
-            occasion: updated.occasion,
-            neededBy: updated.neededBy,
-            dietary: updated.dietary,
-            location: updated.location,
-            requesterContact,
-            requestId: updated.id,
-          });
-        } catch {
-          // swallow — the commit already succeeded
-        }
-      }
+      // The baker now sees the requester's delivery phone in-app on this cake's
+      // card (returned unredacted to the assigned baker) — no email is sent.
       res.status(200).json(updated);
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
