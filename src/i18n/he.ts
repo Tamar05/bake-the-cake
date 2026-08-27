@@ -165,6 +165,8 @@ export const he: Dictionary = {
     signUpHeading: 'יצירת חשבון',
     emailLabel: 'אימייל',
     passwordLabel: 'סיסמה',
+    showPassword: 'הצגת הסיסמה',
+    hidePassword: 'הסתרת הסיסמה',
     nameLabel: 'השם שלכם',
     roleLabel: 'אני רוצה…',
     roleRequester: 'לבקש עוגה',

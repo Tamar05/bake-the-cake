@@ -164,6 +164,8 @@ export type Dictionary = {
     signUpHeading: string;
     emailLabel: string;
     passwordLabel: string;
+    showPassword: string; // accessible label for the reveal-password toggle
+    hidePassword: string; // accessible label when the password is visible
     nameLabel: string;
     roleLabel: string;
     roleRequester: string; // "I need a cake"

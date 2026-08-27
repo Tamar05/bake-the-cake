@@ -165,6 +165,8 @@ export const en: Dictionary = {
     signUpHeading: 'Create an account',
     emailLabel: 'Email',
     passwordLabel: 'Password',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     nameLabel: 'Your name',
     roleLabel: 'I want to…',
     roleRequester: 'Ask for a cake',
