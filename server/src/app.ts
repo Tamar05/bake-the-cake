@@ -159,6 +159,24 @@ export function createApp(
         },
         ownerId,
       );
+      // Best-effort: alert verified bakers there's a new cake to make (no
+      // requester contact — that stays private until a baker commits). A mail
+      // failure never affects saving the request.
+      try {
+        const bakerEmails = await profilesStore.getVerifiedBakerEmails();
+        if (bakerEmails.length > 0) {
+          await notifier.sendNewRequestAlert(bakerEmails, {
+            recipient: saved.recipient,
+            occasion: saved.occasion,
+            neededBy: saved.neededBy,
+            dietary: saved.dietary,
+            location: saved.location,
+            requestId: saved.id,
+          });
+        }
+      } catch {
+        // swallow — the request was saved
+      }
       res.status(201).json(saved);
     } catch {
       res.status(500).json({ error: 'Could not save request' });

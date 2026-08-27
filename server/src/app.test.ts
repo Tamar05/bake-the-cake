@@ -11,7 +11,7 @@ import {
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
 import { BAKER_NOT_FOUND, type ProfilesStore, type BakerSummary } from './profilesStore';
-import type { Notifier, BakeEmailDetails } from './emailer';
+import type { Notifier, BakeEmailDetails, NewRequestAlert } from './emailer';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -267,19 +267,32 @@ function makeFakeProfilesStore(): ProfilesStore {
       for (const id of ids) if (id in known) map[id] = known[id];
       return map;
     },
+    async getVerifiedBakerEmails() {
+      // bak and bak2 are verified; bakU is not.
+      return ['baz.baker@example.com', 'bex.baker@example.com'];
+    },
   };
 }
 
 // A notifier that records what it was asked to send, so tests can inspect it.
-function makeFakeNotifier(): { notifier: Notifier; sent: { to: string; details: BakeEmailDetails }[] } {
+function makeFakeNotifier(): {
+  notifier: Notifier;
+  sent: { to: string; details: BakeEmailDetails }[];
+  alerts: { recipients: string[]; details: NewRequestAlert }[];
+} {
   const sent: { to: string; details: BakeEmailDetails }[] = [];
+  const alerts: { recipients: string[]; details: NewRequestAlert }[] = [];
   return {
     notifier: {
       async sendBakeConfirmation(to, details) {
         sent.push({ to, details });
       },
+      async sendNewRequestAlert(recipients, details) {
+        alerts.push({ recipients, details });
+      },
     },
     sent,
+    alerts,
   };
 }
 
@@ -318,6 +331,26 @@ describe('requests API', () => {
     expect(res.body.recipient).toBe('Maya');
     expect(res.body.id).toBeTruthy();
     expect(res.body.ownerId).toBe('user-req');
+  });
+
+  it('alerts verified bakers when a new request is posted (no requester contact)', async () => {
+    const { notifier, alerts } = makeFakeNotifier();
+    const app = createApp(
+      makeFakeStore(),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(),
+      makeFakeProfilesStore(),
+      notifier,
+    );
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send(validDraft);
+    expect(res.status).toBe(201);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].recipients).toEqual(['baz.baker@example.com', 'bex.baker@example.com']);
+    expect(alerts[0].details.location).toBe(validDraft.location);
+    expect(alerts[0].details).not.toHaveProperty('contactPhone'); // stays private
   });
 
   it('a saved request then appears in the list', async () => {
@@ -587,6 +620,9 @@ describe('commit API', () => {
   it('a failed notification does not break the commit', async () => {
     const throwing: Notifier = {
       async sendBakeConfirmation() {
+        throw new Error('mail server down');
+      },
+      async sendNewRequestAlert() {
         throw new Error('mail server down');
       },
     };

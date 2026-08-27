@@ -20,6 +20,9 @@ export type ProfilesStore = {
   // Contact details for the given profile ids, as an id → contact map. Used to
   // show an admin how to reach the requester behind a stuck request.
   getContacts(ids: string[]): Promise<Record<string, string | null>>;
+  // The login emails of every verified baker — used to alert them when a new
+  // cake is requested.
+  getVerifiedBakerEmails(): Promise<string[]>;
 };
 
 type ProfileRow = {
@@ -84,6 +87,23 @@ export function createSupabaseProfilesStore(): ProfilesStore {
         map[row.id] = row.contact;
       }
       return map;
+    },
+
+    async getVerifiedBakerEmails(): Promise<string[]> {
+      const { data: bakers, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'baker')
+        .not('verified_at', 'is', null);
+      if (error) throw new Error(error.message);
+      const ids = new Set((bakers as { id: string }[]).map((b) => b.id));
+      if (ids.size === 0) return [];
+      // The email lives on the auth user, not the profile row.
+      const { data, error: usersError } = await supabase.auth.admin.listUsers();
+      if (usersError) throw new Error(usersError.message);
+      return data.users
+        .filter((u) => ids.has(u.id) && u.email)
+        .map((u) => u.email as string);
     },
   };
 }
