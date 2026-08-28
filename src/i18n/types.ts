@@ -204,7 +204,8 @@ export type Dictionary = {
     roleBaker: string; // "I want to bake"
     contactLabel: string;
     contactHint: string; // why bakers give a contact
-    bakerCapabilitiesNote: string; // note above the area/kashrut pickers at sign-up
+    bakerCapabilitiesHeading: string; // prompt above the baker capability pickers at sign-up
+    bakerCapabilitiesNote: string; // smaller sub-note: you can change these later
     signInButton: string;
     signUpButton: string;
     needAccount: string; // switch to the sign-up form

@@ -22,6 +22,7 @@ type AuthContextValue = {
     contact: string,
     notifyAreas?: string[], // bakers pick their areas at sign-up
     notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
+    notifyDietary?: string[], // bakers pick which dietary needs they can bake for
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     contact: string,
     notifyAreas: string[] = [],
     notifyKashrut: string[] = [],
+    notifyDietary: string[] = [],
   ): Promise<void> {
     if (!supabase) throw new Error('Auth not configured');
     const { data, error } = await supabase.auth.signUp({
@@ -103,14 +105,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { display_name: displayName, role, contact } },
     });
     if (error) throw error;
-    // A baker who picked areas/kashrut at sign-up: save them and opt them in.
-    // The profile row already exists (the on-signup trigger created it), and with
+    // A baker who picked capabilities at sign-up: save them and opt them in. The
+    // profile row already exists (the on-signup trigger created it), and with
     // email confirmation off signUp returns a session. Best-effort — a failure
     // here never blocks the account; they can adjust it later in Settings.
-    if (role === 'baker' && data.session && (notifyAreas.length > 0 || notifyKashrut.length > 0)) {
+    const chose = notifyAreas.length > 0 || notifyKashrut.length > 0 || notifyDietary.length > 0;
+    if (role === 'baker' && data.session && chose) {
       try {
         await saveNotificationSettings(
-          { notifyNewRequests: true, areas: notifyAreas, dietary: [], kashrut: notifyKashrut },
+          {
+            notifyNewRequests: true,
+            areas: notifyAreas,
+            dietary: notifyDietary,
+            kashrut: notifyKashrut,
+          },
           data.session.access_token,
         );
       } catch {

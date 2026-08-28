@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
-import { AREAS, KASHRUT_OPTIONS } from '../lib/options';
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
 import CapabilityGroup from '../components/CapabilityGroup';
 import { useAuth, type SignUpRole } from './AuthProvider';
 
@@ -17,6 +17,7 @@ export default function AuthPanel({ t }: Props) {
   const [contact, setContact] = useState('');
   const [notifyAreas, setNotifyAreas] = useState<string[]>([]);
   const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
+  const [notifyDietary, setNotifyDietary] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,17 @@ export default function AuthPanel({ t }: Props) {
     setError(null);
     try {
       if (mode === 'signIn') await signIn(email, password);
-      else await signUp(email, password, name, role, contact, notifyAreas, notifyKashrut);
+      else
+        await signUp(
+          email,
+          password,
+          name,
+          role,
+          contact,
+          notifyAreas,
+          notifyKashrut,
+          notifyDietary,
+        );
     } catch (err) {
       // Show the real reason (e.g. "Email not confirmed") — it's more useful
       // than a generic line while learning; fall back if there's no message.
@@ -103,8 +114,9 @@ export default function AuthPanel({ t }: Props) {
             <small>{t.auth.contactHint}</small>
           </label>
           {role === 'baker' && (
-            <>
-              <p className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</p>
+            <div className="baker-caps">
+              <p className="baker-caps-heading">{t.auth.bakerCapabilitiesHeading}</p>
+              <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
               <CapabilityGroup
                 legend={t.notifications.areasLabel}
                 options={AREAS}
@@ -119,7 +131,14 @@ export default function AuthPanel({ t }: Props) {
                 selected={notifyKashrut}
                 onToggle={(v) => toggle(notifyKashrut, setNotifyKashrut, v)}
               />
-            </>
+              <CapabilityGroup
+                legend={t.notifications.dietaryLabel}
+                options={DIETARY_OPTIONS}
+                labels={t.options.dietary}
+                selected={notifyDietary}
+                onToggle={(v) => toggle(notifyDietary, setNotifyDietary, v)}
+              />
+            </div>
           )}
         </>
       )}
