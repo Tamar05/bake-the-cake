@@ -80,7 +80,8 @@ body {
   padding: 0 0.4rem;
 }
 
-.request-form .checkbox-option {
+.request-form .checkbox-option,
+.auth-panel .checkbox-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -89,11 +90,24 @@ body {
 }
 
 /* Checkboxes are inline ticks, not the full-width block inputs above. */
-.request-form .checkbox-option input[type='checkbox'] {
+.request-form .checkbox-option input[type='checkbox'],
+.auth-panel .checkbox-option input[type='checkbox'] {
   display: inline-block;
   width: auto;
   margin: 0;
   accent-color: #ff6f91;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.baker-caps-note {
+  margin: 0.75rem 0 0.25rem;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .notifications-intro {

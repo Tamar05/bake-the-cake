@@ -3,13 +3,7 @@ import type { Dictionary } from '../i18n/types';
 import type { RequestDraft } from '../types';
 import { findMissingFields } from '../lib/requests';
 import { isValidPhone } from '../lib/phone';
-import {
-  AREAS,
-  DIETARY_OPTIONS,
-  KASHRUT_OPTIONS,
-  joinDietary,
-  parseDietary,
-} from '../lib/options';
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from '../lib/options';
 import { optionLabel } from '../lib/optionLabels';
 
 const EMPTY_DRAFT: RequestDraft = {
@@ -25,28 +19,38 @@ const EMPTY_DRAFT: RequestDraft = {
 
 type Props = {
   t: Dictionary;
-  onAdd: (draft: RequestDraft) => void;
+  onSubmit: (draft: RequestDraft) => void;
+  initial?: RequestDraft; // pre-fill for editing; omitted → a blank create form
+  submitLabel?: string; // defaults to the "Submit request" label
+  onCancel?: () => void; // when set (edit mode), shows a Cancel button + hides the heading
 };
 
 // Which validation message (if any) to show under the form.
 type FormError = null | 'missing' | 'phone';
 
-export default function RequestForm({ t, onAdd }: Props) {
-  const [draft, setDraft] = useState<RequestDraft>(EMPTY_DRAFT);
+// Used for creating a new request, and — pre-filled via `initial` — for editing
+// an existing one. In edit mode (`onCancel` set) it hides the big heading and
+// shows a Cancel button, and it does not blank itself after submitting.
+export default function RequestForm({ t, onSubmit, initial, submitLabel, onCancel }: Props) {
+  const [draft, setDraft] = useState<RequestDraft>(initial ?? EMPTY_DRAFT);
   const [error, setError] = useState<FormError>(null);
+  const isEditing = onCancel != null;
 
   function update(field: keyof RequestDraft, value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Dietary is a multi-select stored as one joined string; toggle a value in or
-  // out and re-join, so the rest of the app sees the same encoding.
-  const chosenDietary = parseDietary(draft.dietary);
-  function toggleDietary(option: string) {
-    const next = chosenDietary.includes(option)
-      ? chosenDietary.filter((d) => d !== option)
-      : [...chosenDietary, option];
-    update('dietary', joinDietary(next));
+  // Dietary needs and acceptable kashrut levels are both multi-select, each
+  // stored as one joined string; toggle a value in or out and re-join so the
+  // rest of the app sees the same encoding.
+  const chosenDietary = parseList(draft.dietary);
+  const chosenKashrut = parseList(draft.kashrut);
+  function toggleListValue(field: 'dietary' | 'kashrut', option: string) {
+    const current = parseList(draft[field]);
+    const next = current.includes(option)
+      ? current.filter((v) => v !== option)
+      : [...current, option];
+    update(field, joinList(next));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -60,14 +64,14 @@ export default function RequestForm({ t, onAdd }: Props) {
       setError('phone');
       return;
     }
-    onAdd(draft);
-    setDraft(EMPTY_DRAFT);
+    onSubmit(draft);
+    if (!isEditing) setDraft(EMPTY_DRAFT); // create mode clears; edit mode is unmounted by its parent
     setError(null);
   }
 
   return (
     <form className="request-form" onSubmit={handleSubmit}>
-      <h2>{t.form.heading}</h2>
+      {!isEditing && <h2>{t.form.heading}</h2>}
 
       <label>
         {t.form.recipientLabel}
@@ -96,17 +100,19 @@ export default function RequestForm({ t, onAdd }: Props) {
         </select>
       </label>
 
-      <label>
-        {t.form.kashrutLabel}
-        <select value={draft.kashrut} onChange={(e) => update('kashrut', e.target.value)}>
-          <option value="">{t.form.selectPlaceholder}</option>
-          {KASHRUT_OPTIONS.map((level) => (
-            <option key={level} value={level}>
-              {optionLabel(t.options.kashrut, level)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <fieldset className="options-fieldset">
+        <legend>{t.form.kashrutLabel}</legend>
+        {KASHRUT_OPTIONS.map((level) => (
+          <label key={level} className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={chosenKashrut.includes(level)}
+              onChange={() => toggleListValue('kashrut', level)}
+            />
+            {optionLabel(t.options.kashrut, level)}
+          </label>
+        ))}
+      </fieldset>
 
       <fieldset className="options-fieldset">
         <legend>{t.form.dietaryLabel}</legend>
@@ -115,7 +121,7 @@ export default function RequestForm({ t, onAdd }: Props) {
             <input
               type="checkbox"
               checked={chosenDietary.includes(option)}
-              onChange={() => toggleDietary(option)}
+              onChange={() => toggleListValue('dietary', option)}
             />
             {optionLabel(t.options.dietary, option)}
           </label>
@@ -147,7 +153,14 @@ export default function RequestForm({ t, onAdd }: Props) {
       {error === 'missing' && <p className="form-error">{t.form.missingFields}</p>}
       {error === 'phone' && <p className="form-error">{t.form.invalidPhone}</p>}
 
-      <button type="submit">{t.form.submit}</button>
+      <div className="form-actions">
+        <button type="submit">{submitLabel ?? t.form.submit}</button>
+        {onCancel && (
+          <button type="button" className="auth-link" onClick={onCancel}>
+            {t.form.cancelEdit}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

@@ -20,6 +20,8 @@ export type Dictionary = {
     contactPhoneLabel: string; // phone the baker uses to reach the requester
     contactPhoneHint: string; // why the phone is needed
     submit: string;
+    saveChanges: string; // submit label when editing an existing request
+    cancelEdit: string; // cancels an in-progress edit
     missingFields: string; // gentle message when required fields are blank
     invalidPhone: string; // shown when the contact phone isn't a real number
     signInToPost: string; // shown instead of the form when you can't post
@@ -81,6 +83,8 @@ export type Dictionary = {
     filterOpen: string; // browse filter: only open requests
     filterReserved: string; // browse filter: only reserved requests
     filterEmpty: string; // shown when no request matches the chosen filter
+    editRequest: string; // owner action: edit your own still-open request
+    editError: string; // shown when saving an edit fails
     cancelRequest: string; // owner action: withdraw your own request
     deleteRequest: string; // admin action: remove any request
     deleting: string; // busy label while deleting
@@ -200,6 +204,7 @@ export type Dictionary = {
     roleBaker: string; // "I want to bake"
     contactLabel: string;
     contactHint: string; // why bakers give a contact
+    bakerCapabilitiesNote: string; // note above the area/kashrut pickers at sign-up
     signInButton: string;
     signUpButton: string;
     needAccount: string; // switch to the sign-up form

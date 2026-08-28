@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { fetchMe, type Profile } from '../lib/authApi';
+import { saveNotificationSettings } from '../lib/notificationsApi';
 
 // A person can only sign themselves up as requester or baker; admin is granted
 // by hand in the database (the server never lets the browser self-assign it).
@@ -19,6 +20,8 @@ type AuthContextValue = {
     displayName: string,
     role: SignUpRole,
     contact: string,
+    notifyAreas?: string[], // bakers pick their areas at sign-up
+    notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -90,14 +93,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName: string,
     role: SignUpRole,
     contact: string,
+    notifyAreas: string[] = [],
+    notifyKashrut: string[] = [],
   ): Promise<void> {
     if (!supabase) throw new Error('Auth not configured');
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName, role, contact } },
     });
     if (error) throw error;
+    // A baker who picked areas/kashrut at sign-up: save them and opt them in.
+    // The profile row already exists (the on-signup trigger created it), and with
+    // email confirmation off signUp returns a session. Best-effort — a failure
+    // here never blocks the account; they can adjust it later in Settings.
+    if (role === 'baker' && data.session && (notifyAreas.length > 0 || notifyKashrut.length > 0)) {
+      try {
+        await saveNotificationSettings(
+          { notifyNewRequests: true, areas: notifyAreas, dietary: [], kashrut: notifyKashrut },
+          data.session.access_token,
+        );
+      } catch {
+        // ignore — the baker can set these in the Notifications screen
+      }
+    }
   }
 
   async function signIn(email: string, password: string): Promise<void> {

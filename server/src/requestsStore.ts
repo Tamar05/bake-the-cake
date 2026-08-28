@@ -39,6 +39,14 @@ export type GalleryItem = { id: string; photoUrl: string; caption: string };
 export type RequestsStore = {
   listRequests(): Promise<CakeRequest[]>;
   addRequest(draft: RequestDraft, ownerId: string): Promise<CakeRequest>;
+  // The owner (or an admin) edits a request's details, but only while it is
+  // still open — once a baker has taken it, it's locked (INVALID_TRANSITION).
+  updateRequest(
+    id: string,
+    userId: string,
+    isAdmin: boolean,
+    draft: RequestDraft,
+  ): Promise<CakeRequest>;
   reserveRequest(
     id: string,
     userId: string,
@@ -110,6 +118,39 @@ export function createSupabaseStore(): RequestsStore {
           contact_phone: draft.contactPhone,
           owner_id: ownerId,
         })
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return rowToRequest(data as CakeRequestRow);
+    },
+
+    async updateRequest(
+      id: string,
+      userId: string,
+      isAdmin: boolean,
+      draft: RequestDraft,
+    ): Promise<CakeRequest> {
+      const current = await supabase.from('cake_requests').select('*').eq('id', id).maybeSingle();
+      if (current.error) throw new Error(current.error.message);
+      if (!current.data) throw new Error(NOT_FOUND);
+      const row = current.data as CakeRequestRow;
+      // Ownership first (a legacy no-owner row is admin-only), then state: only an
+      // open request may be edited — once a baker has it, the details are locked.
+      if (!isAdmin && row.owner_id !== userId) throw new Error(NOT_OWNER);
+      if (rowToRequest(row).status !== 'open') throw new Error(INVALID_TRANSITION);
+      const { data, error } = await supabase
+        .from('cake_requests')
+        .update({
+          recipient: draft.recipient,
+          occasion: draft.occasion,
+          needed_by: draft.neededBy,
+          dietary: draft.dietary,
+          location: draft.location,
+          kashrut: draft.kashrut,
+          about_recipient: draft.aboutRecipient,
+          contact_phone: draft.contactPhone,
+        })
+        .eq('id', id)
         .select('*')
         .single();
       if (error) throw new Error(error.message);

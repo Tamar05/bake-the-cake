@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
+import { AREAS, KASHRUT_OPTIONS } from '../lib/options';
+import CapabilityGroup from '../components/CapabilityGroup';
 import { useAuth, type SignUpRole } from './AuthProvider';
 
 type Props = { t: Dictionary };
@@ -13,9 +15,15 @@ export default function AuthPanel({ t }: Props) {
   const [name, setName] = useState('');
   const [role, setRole] = useState<SignUpRole>('requester');
   const [contact, setContact] = useState('');
+  const [notifyAreas, setNotifyAreas] = useState<string[]>([]);
+  const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggle(list: string[], setList: (v: string[]) => void, value: string) {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
 
   if (!configured) return <p className="auth-note">{t.auth.notConfigured}</p>;
   if (loading) return null;
@@ -39,7 +47,7 @@ export default function AuthPanel({ t }: Props) {
     setError(null);
     try {
       if (mode === 'signIn') await signIn(email, password);
-      else await signUp(email, password, name, role, contact);
+      else await signUp(email, password, name, role, contact, notifyAreas, notifyKashrut);
     } catch (err) {
       // Show the real reason (e.g. "Email not confirmed") — it's more useful
       // than a generic line while learning; fall back if there's no message.
@@ -94,6 +102,25 @@ export default function AuthPanel({ t }: Props) {
             <input value={contact} onChange={(e) => setContact(e.target.value)} />
             <small>{t.auth.contactHint}</small>
           </label>
+          {role === 'baker' && (
+            <>
+              <p className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</p>
+              <CapabilityGroup
+                legend={t.notifications.areasLabel}
+                options={AREAS}
+                labels={t.options.area}
+                selected={notifyAreas}
+                onToggle={(v) => toggle(notifyAreas, setNotifyAreas, v)}
+              />
+              <CapabilityGroup
+                legend={t.notifications.kashrutLabel}
+                options={KASHRUT_OPTIONS}
+                labels={t.options.kashrut}
+                selected={notifyKashrut}
+                onToggle={(v) => toggle(notifyKashrut, setNotifyKashrut, v)}
+              />
+            </>
+          )}
         </>
       )}
       {error && <p className="auth-error">{error}</p>}

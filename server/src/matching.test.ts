@@ -45,8 +45,14 @@ describe('matchesCapabilities', () => {
     expect(matchesCapabilities(request, { ...fullMatch, areas: ['Tel Aviv'] })).toBe(false);
   });
 
-  it('does not match when the required kashrut is not provided', () => {
+  it('does not match when none of the acceptable kashrut levels are provided', () => {
     expect(matchesCapabilities(request, { ...fullMatch, kashrut: ['Rabbanut'] })).toBe(false);
+  });
+
+  it('matches when the baker provides ANY one of several acceptable kashrut levels', () => {
+    // The request would accept Rabbanut OR Badatz; the baker only does Rabbanut.
+    const multi = { ...request, kashrut: 'Rabbanut, Badatz Eda Haredit' };
+    expect(matchesCapabilities(multi, { ...fullMatch, kashrut: ['Rabbanut'] })).toBe(true);
   });
 
   it('does not match when a dietary need is beyond what the baker can do', () => {

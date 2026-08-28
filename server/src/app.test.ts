@@ -52,6 +52,14 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       items.push(saved);
       return saved;
     },
+    async updateRequest(id, userId, isAdmin, draft) {
+      const item = find(id);
+      if (!item) throw new Error(NOT_FOUND);
+      if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
+      if (item.status !== 'open') throw new Error(INVALID_TRANSITION);
+      Object.assign(item, draft);
+      return item;
+    },
     async reserveRequest(id, userId, name, contact) {
       const item = find(id);
       if (!item) throw new Error('not found');
@@ -410,12 +418,12 @@ describe('requests API', () => {
       .set('Authorization', 'Bearer req')
       .send({
         ...validDraft,
-        kashrut: 'Badatz Eda Haredit',
+        kashrut: 'Rabbanut, Badatz Eda Haredit', // several acceptable levels
         dietary: 'nut-free, vegan',
         aboutRecipient: 'A shy six-year-old who loves dinosaurs.',
       });
     expect(res.status).toBe(201);
-    expect(res.body.kashrut).toBe('Badatz Eda Haredit');
+    expect(res.body.kashrut).toBe('Rabbanut, Badatz Eda Haredit');
     expect(res.body.dietary).toBe('nut-free, vegan');
     expect(res.body.aboutRecipient).toBe('A shy six-year-old who loves dinosaurs.');
   });
@@ -553,6 +561,59 @@ describe('notification bell API', () => {
     const id = await addOne(app);
     await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
     expect((await bell(app)).body.count).toBe(0);
+  });
+});
+
+describe('edit request API', () => {
+  const addOne = (app: ReturnType<typeof createApp>, over: object = {}) =>
+    request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, ...over })
+      .then((r) => r.body.id as string);
+  const edit = (app: ReturnType<typeof createApp>, id: string, token: string, body: object) =>
+    request(app).patch(`/api/requests/${id}`).set('Authorization', `Bearer ${token}`).send(body);
+
+  it('the owner edits their still-open request', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const res = await edit(app, id, 'req', {
+      ...validDraft,
+      occasion: 'graduation',
+      kashrut: 'Rabbanut, Badatz Beit Yosef',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.occasion).toBe('graduation');
+    expect(res.body.kashrut).toBe('Rabbanut, Badatz Beit Yosef');
+  });
+
+  it('editing requires signing in (401)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await request(app).patch(`/api/requests/${id}`).send(validDraft)).status).toBe(401);
+  });
+
+  it('a different requester cannot edit someone else’s request (403)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await edit(app, id, 'req2', validDraft)).status).toBe(403);
+  });
+
+  it('an invalid edit is rejected (400)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await edit(app, id, 'req', { ...validDraft, location: 'Atlantis' })).status).toBe(400);
+  });
+
+  it('a request a baker has reserved can no longer be edited (409)', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
+    expect((await edit(app, id, 'req', { ...validDraft, occasion: 'too late' })).status).toBe(409);
+  });
+
+  it('editing an unknown request returns 404', async () => {
+    expect((await edit(makeApp(), 'nope', 'req', validDraft)).status).toBe(404);
   });
 });
 

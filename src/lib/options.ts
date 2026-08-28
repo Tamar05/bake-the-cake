@@ -59,19 +59,20 @@ export const KASHRUT_OPTIONS = [
   'Not required',
 ] as const;
 
-// A request's chosen dietary needs are stored as ONE string joined with this
-// separator, keeping the existing `dietary text` column (no schema change for
-// dietary). Always go through joinDietary/parseDietary so the form, the card,
-// and the relevance matcher agree on the encoding.
-export const DIETARY_SEPARATOR = ', ';
+// The multi-value request fields (dietary needs, and the acceptable kashrut
+// levels) are each stored as ONE string joined with this separator, keeping the
+// existing `dietary` / `kashrut` text columns (no schema change). Always go
+// through joinList/parseList so the form, the card, and the relevance matcher
+// agree on the encoding.
+export const LIST_SEPARATOR = ', ';
 
-export function joinDietary(values: readonly string[]): string {
-  return values.join(DIETARY_SEPARATOR);
+export function joinList(values: readonly string[]): string {
+  return values.join(LIST_SEPARATOR);
 }
 
-// Splits a stored dietary string back into its parts. Tolerates any spacing and
+// Splits a stored joined string back into its parts. Tolerates any spacing and
 // drops blanks, so legacy free-text values survive too.
-export function parseDietary(value: string): string[] {
+export function parseList(value: string): string[] {
   return value
     .split(',')
     .map((part) => part.trim())

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
-import type { CakeRequest } from '../types';
+import type { CakeRequest, RequestDraft } from '../types';
 import { translateText } from '../lib/translationApi';
 import {
   reserveRequest,
@@ -10,14 +10,16 @@ import {
   deliverRequest,
   receiveRequest,
   deleteRequest,
+  updateRequest,
   getPhotoUrl,
   removePhoto,
   setGalleryShare,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
-import { parseDietary } from '../lib/options';
+import { parseList } from '../lib/options';
 import { optionLabel } from '../lib/optionLabels';
 import { useAuth } from '../auth/AuthProvider';
+import RequestForm from './RequestForm';
 import Timeline from './Timeline';
 
 type Props = {
@@ -61,6 +63,8 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [removePhotoStatus, setRemovePhotoStatus] = useState<ActionStatus>('idle');
   const [caption, setCaption] = useState(request.galleryCaption); // gallery message
   const [galleryStatus, setGalleryStatus] = useState<ActionStatus>('idle');
+  const [editing, setEditing] = useState(false); // owner is editing this request
+  const [editError, setEditError] = useState(false);
 
   // A once-a-second clock, running only while this request is reserved, so the
   // countdown ticks and the card flips back to Open on its own when it expires.
@@ -105,6 +109,9 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // An admin can remove anything; a requester can cancel their own request only
   // until it's delivered — once a cake is on its way, it's no longer cancellable.
   const canDelete = isAdmin || (isOwner && !delivered && !received);
+  // The owner (or an admin) may edit the details, but only while the request is
+  // still open — once a baker has taken it, it's locked (the server agrees).
+  const canEdit = (isOwner || isAdmin) && request.status === 'open';
 
   // The finished-cake photo is private: only the owner, the baker who made it, or
   // an admin may see it. If allowed, we fetch a short-lived signed URL below.
@@ -268,6 +275,50 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
+  // Saving an edit: PATCH the whole draft, swap in the updated request, close the
+  // editor. A 409 (a baker grabbed it first) or any error surfaces inline.
+  async function handleEditSubmit(next: RequestDraft) {
+    if (!token) return;
+    setEditError(false);
+    try {
+      const updated = await updateRequest(request.id, next, token);
+      onUpdated(updated);
+      setEditing(false);
+    } catch {
+      setEditError(true);
+    }
+  }
+
+  // The request's editable fields, pre-filled into the form when editing.
+  const editDraft: RequestDraft = {
+    recipient: request.recipient,
+    occasion: request.occasion,
+    neededBy: request.neededBy,
+    dietary: request.dietary,
+    location: request.location,
+    kashrut: request.kashrut,
+    aboutRecipient: request.aboutRecipient,
+    contactPhone: request.contactPhone,
+  };
+
+  if (editing) {
+    return (
+      <li className="request-card">
+        <RequestForm
+          t={t}
+          initial={editDraft}
+          submitLabel={t.form.saveChanges}
+          onSubmit={handleEditSubmit}
+          onCancel={() => {
+            setEditing(false);
+            setEditError(false);
+          }}
+        />
+        {editError && <p className="reserve-error">{t.list.editError}</p>}
+      </li>
+    );
+  }
+
   const shown = mode === 'translated' && translated ? translated : request;
   const translateLabel =
     translateStatus === 'loading'
@@ -312,13 +363,16 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
       </p>
       {request.kashrut && (
         <p>
-          {t.list.kashrutPrefix} {optionLabel(t.options.kashrut, request.kashrut)}
+          {t.list.kashrutPrefix}{' '}
+          {parseList(request.kashrut)
+            .map((level) => optionLabel(t.options.kashrut, level))
+            .join(', ')}
         </p>
       )}
       {request.dietary && (
         <p>
           {t.list.dietaryPrefix}{' '}
-          {parseDietary(request.dietary)
+          {parseList(request.dietary)
             .map((need) => optionLabel(t.options.dietary, need))
             .join(', ')}
         </p>
@@ -503,20 +557,27 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
 
       {request.committedAt != null && <Timeline t={t} language={language} request={request} />}
 
-      {canDelete && (
+      {(canEdit || canDelete) && (
         <div className="card-actions">
-          <button
-            type="button"
-            className="delete-button"
-            onClick={handleDelete}
-            disabled={deleteStatus === 'saving'}
-          >
-            {deleteStatus === 'saving'
-              ? t.list.deleting
-              : isOwner
-                ? t.list.cancelRequest
-                : t.list.deleteRequest}
-          </button>
+          {canEdit && (
+            <button type="button" onClick={() => setEditing(true)}>
+              {t.list.editRequest}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="delete-button"
+              onClick={handleDelete}
+              disabled={deleteStatus === 'saving'}
+            >
+              {deleteStatus === 'saving'
+                ? t.list.deleting
+                : isOwner
+                  ? t.list.cancelRequest
+                  : t.list.deleteRequest}
+            </button>
+          )}
           {deleteStatus === 'error' && <p className="reserve-error">{t.list.deleteError}</p>}
         </div>
       )}

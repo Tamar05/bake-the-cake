@@ -19,7 +19,7 @@ import {
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
 import { matchesCapabilities } from './matching';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinDietary, parseDietary } from './options';
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
 import { normalizePhone } from './phone';
 import {
   createSupabaseAuthenticator,
@@ -80,6 +80,45 @@ function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
   const kashrut = asList(b.kashrut, KASHRUT_OPTIONS);
   if (areas === null || dietary === null || kashrut === null) return null;
   return { notifyNewRequests: b.notifyNewRequests, areas, dietary, kashrut };
+}
+
+// Validates and normalizes a submitted request body (shared by create and edit).
+// Returns a clean RequestDraft, or a message to send back as a 400. The area,
+// kashrut and dietary values must all come from the shared lists; a request may
+// name several acceptable kashrut levels (at least one), and dietary needs are
+// optional. The contact phone is validated and canonicalized.
+function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft } | { error: string } {
+  if (isMissingRequired(body)) return { error: 'Missing required fields' };
+  const contactPhone = normalizePhone(body.contactPhone!);
+  if (contactPhone === null) {
+    return { error: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.' };
+  }
+  if (!(AREAS as readonly string[]).includes(body.location!)) {
+    return { error: 'Please choose a delivery area from the list.' };
+  }
+  const kashrutParts = parseList(body.kashrut ?? '');
+  if (
+    kashrutParts.length === 0 ||
+    kashrutParts.some((part) => !(KASHRUT_OPTIONS as readonly string[]).includes(part))
+  ) {
+    return { error: 'Please choose the kashrut level(s) from the list.' };
+  }
+  const dietaryParts = parseList(body.dietary ?? '');
+  if (dietaryParts.some((part) => !(DIETARY_OPTIONS as readonly string[]).includes(part))) {
+    return { error: 'Please choose dietary needs from the list.' };
+  }
+  return {
+    draft: {
+      recipient: body.recipient!,
+      occasion: body.occasion!,
+      neededBy: body.neededBy!,
+      dietary: joinList(dietaryParts), // normalize the stored spacing
+      location: body.location!,
+      kashrut: joinList(kashrutParts),
+      aboutRecipient: (body.aboutRecipient ?? '').slice(0, ABOUT_RECIPIENT_MAX).trim(),
+      contactPhone,
+    },
+  };
 }
 
 // Trims private details a viewer isn't allowed to see. Only the owner (the
@@ -242,57 +281,55 @@ export function createApp(
   });
 
   app.post('/api/requests', auth, requireRole('requester', 'admin'), async (req, res) => {
-    const draft = (req.body ?? {}) as Partial<RequestDraft>;
-    if (isMissingRequired(draft)) {
-      res.status(400).json({ error: 'Missing required fields' });
+    const result = buildRequestDraft((req.body ?? {}) as Partial<RequestDraft>);
+    if ('error' in result) {
+      res.status(400).json({ error: result.error });
       return;
     }
-    // The contact phone must be a real number. Local Israeli numbers are accepted
-    // and stored in canonical +972… form; a number that already carries its own
-    // country code keeps it. Anything that isn't a valid number is refused.
-    const contactPhone = normalizePhone(draft.contactPhone!);
-    if (contactPhone === null) {
-      res.status(400).json({ error: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.' });
-      return;
-    }
-    // Area, kashrut and dietary must be values from the shared lists — the
-    // dropdowns constrain an honest browser, but this is the authoritative gate
-    // and keeps junk out of the columns relevance matching relies on.
-    if (!(AREAS as readonly string[]).includes(draft.location!)) {
-      res.status(400).json({ error: 'Please choose a delivery area from the list.' });
-      return;
-    }
-    if (!(KASHRUT_OPTIONS as readonly string[]).includes(draft.kashrut!)) {
-      res.status(400).json({ error: 'Please choose a kashrut level from the list.' });
-      return;
-    }
-    const dietaryParts = parseDietary(draft.dietary ?? '');
-    if (dietaryParts.some((part) => !(DIETARY_OPTIONS as readonly string[]).includes(part))) {
-      res.status(400).json({ error: 'Please choose dietary needs from the list.' });
-      return;
-    }
-    const aboutRecipient = (draft.aboutRecipient ?? '').slice(0, ABOUT_RECIPIENT_MAX).trim();
     try {
       // The owner is the verified signed-in user, never taken from the body.
       const ownerId = (req as AuthedRequest).auth.id;
-      const saved = await store.addRequest(
-        {
-          recipient: draft.recipient!,
-          occasion: draft.occasion!,
-          neededBy: draft.neededBy!,
-          dietary: joinDietary(dietaryParts), // normalize the stored spacing
-          location: draft.location!,
-          kashrut: draft.kashrut!,
-          aboutRecipient,
-          contactPhone,
-        },
-        ownerId,
-      );
+      const saved = await store.addRequest(result.draft, ownerId);
       // Verified bakers discover new relevant requests in-app via the 🔔 bell
       // (their notification settings drive the match) — no email is sent.
       res.status(201).json(saved);
     } catch {
       res.status(500).json({ error: 'Could not save request' });
+    }
+  });
+
+  // The owner (or an admin) edits their request — same validation as creating,
+  // but only allowed while the request is still open (once a baker has taken it,
+  // the store answers 409). Authorized by ownership, not role.
+  app.patch('/api/requests/:id', auth, async (req, res) => {
+    const result = buildRequestDraft((req.body ?? {}) as Partial<RequestDraft>);
+    if ('error' in result) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const me = (req as AuthedRequest).auth;
+    try {
+      const updated = await store.updateRequest(
+        req.params.id,
+        me.id,
+        me.role === 'admin',
+        result.draft,
+      );
+      res.status(200).json(updated);
+    } catch (err) {
+      if (err instanceof Error && err.message === NOT_FOUND) {
+        res.status(404).json({ error: 'Request not found' });
+        return;
+      }
+      if (err instanceof Error && err.message === NOT_OWNER) {
+        res.status(403).json({ error: 'You can only edit your own request' });
+        return;
+      }
+      if (err instanceof Error && err.message === INVALID_TRANSITION) {
+        res.status(409).json({ error: 'This request can no longer be edited — a baker has taken it' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not update this request' });
     }
   });
 

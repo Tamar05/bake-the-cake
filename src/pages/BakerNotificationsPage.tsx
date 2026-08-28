@@ -2,43 +2,11 @@ import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
-import { optionLabel } from '../lib/optionLabels';
 import { getNotificationSettings, saveNotificationSettings } from '../lib/notificationsApi';
+import CapabilityGroup from '../components/CapabilityGroup';
 
 type Status = 'loading' | 'ready' | 'error';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-
-// A bordered group of checkboxes for one capability list (areas / dietary /
-// kashrut). Selecting a value toggles it in the chosen set.
-function CapabilityGroup({
-  legend,
-  options,
-  labels,
-  selected,
-  onToggle,
-}: {
-  legend: string;
-  options: readonly string[];
-  labels: Record<string, string>;
-  selected: string[];
-  onToggle: (value: string) => void;
-}) {
-  return (
-    <fieldset className="options-fieldset">
-      <legend>{legend}</legend>
-      {options.map((option) => (
-        <label key={option} className="checkbox-option">
-          <input
-            type="checkbox"
-            checked={selected.includes(option)}
-            onChange={() => onToggle(option)}
-          />
-          {optionLabel(labels, option)}
-        </label>
-      ))}
-    </fieldset>
-  );
-}
 
 // Baker-only screen: opt in to new-request notifications and choose which areas,
 // dietary needs and kashrut levels you can make. The 🔔 bell only counts a new

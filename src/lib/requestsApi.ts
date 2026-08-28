@@ -32,6 +32,22 @@ export async function saveRequest(draft: RequestDraft, token: string): Promise<C
   return (await res.json()) as CakeRequest;
 }
 
+// Edits a request the signed-in person owns (or an admin). The server allows it
+// only while the request is still open; once a baker has taken it, it's locked.
+export async function updateRequest(
+  id: string,
+  draft: RequestDraft,
+  token: string,
+): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(draft),
+  });
+  if (!res.ok) throw new Error(`Could not update request (HTTP ${res.status})`);
+  return (await res.json()) as CakeRequest;
+}
+
 // Reserves a request for the signed-in baker. Their name + contact come from
 // their account on the server, so no details are sent here — just the token.
 export async function reserveRequest(id: string, token: string): Promise<CakeRequest> {

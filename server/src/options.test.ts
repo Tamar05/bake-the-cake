@@ -18,22 +18,22 @@ describe('option lists parity (client ⇄ server)', () => {
     expect([...client.KASHRUT_OPTIONS]).toEqual([...server.KASHRUT_OPTIONS]);
   });
 
-  it('dietary separator matches', () => {
-    expect(client.DIETARY_SEPARATOR).toBe(server.DIETARY_SEPARATOR);
+  it('list separator matches', () => {
+    expect(client.LIST_SEPARATOR).toBe(server.LIST_SEPARATOR);
   });
 });
 
-describe('dietary join/parse', () => {
+describe('list join/parse', () => {
   it('round-trips a multi-select selection', () => {
     const chosen = ['nut-free', 'vegan'];
-    expect(server.parseDietary(server.joinDietary(chosen))).toEqual(chosen);
+    expect(server.parseList(server.joinList(chosen))).toEqual(chosen);
   });
 
   it('parses tolerantly and drops blanks', () => {
-    expect(server.parseDietary('nut-free ,  vegan , ')).toEqual(['nut-free', 'vegan']);
+    expect(server.parseList('nut-free ,  vegan , ')).toEqual(['nut-free', 'vegan']);
   });
 
-  it('treats an empty string as no needs', () => {
-    expect(server.parseDietary('')).toEqual([]);
+  it('treats an empty string as no values', () => {
+    expect(server.parseList('')).toEqual([]);
   });
 });

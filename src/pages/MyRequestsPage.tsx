@@ -21,7 +21,7 @@ export default function MyRequestsPage({
   const mine = requests.filter((r) => r.ownerId === profile?.id);
   return (
     <>
-      <RequestForm t={t} onAdd={onAdd} />
+      <RequestForm t={t} onSubmit={onAdd} />
       <RequestList
         t={t}
         language={language}
