@@ -993,3 +993,30 @@ body {
   background: #fff0f0;
   border-color: #d88;
 }
+
+/* --- Small screens (phones): tighten the desktop spacing and scale down the
+   large headings/numbers. The layout is already a fluid single column; this is
+   the mobile-first breakpoint it was missing. --- */
+@media (max-width: 480px) {
+  .app {
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .request-form,
+  .request-list {
+    padding: 1.1rem;
+  }
+
+  .stat-value {
+    font-size: 1.6rem;
+  }
+
+  /* Give the notification panel a little more of the (small) viewport. */
+  .notif-panel {
+    width: min(20rem, 92vw);
+  }
+}
