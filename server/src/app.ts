@@ -182,7 +182,14 @@ export function createApp(
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
 ) {
   const app = express();
-  app.use(cors());
+  // In production, restrict which sites' browsers may call this API to the
+  // frontend origin(s) listed in CORS_ORIGIN (comma-separated). When it's unset
+  // — local dev and tests — any origin is allowed, exactly as before.
+  const corsOrigins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : {}));
   app.use(express.json());
   const auth = requireAuth(authenticator);
   const optAuth = optionalAuth(authenticator);
