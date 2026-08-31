@@ -1,6 +1,5 @@
 import express, { type RequestHandler } from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import {
   ALREADY_RESERVED,
