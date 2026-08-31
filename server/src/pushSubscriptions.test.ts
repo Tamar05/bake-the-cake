@@ -61,6 +61,9 @@ function makeFakePushStore() {
       const i = rows.findIndex((r) => r.endpoint === endpoint && r.userId === userId);
       if (i >= 0) rows.splice(i, 1);
     },
+    async getSubscriptionsForUsers(userIds) {
+      return rows.filter((r) => userIds.includes(r.userId));
+    },
   };
   return store;
 }
@@ -139,6 +142,7 @@ describe('push subscriptions API', () => {
       const failing: PushStore = {
         async saveSubscription() { throw new Error('db down'); },
         async removeSubscription() {},
+        async getSubscriptionsForUsers() { return []; },
       };
       expect((await subscribe(makeApp(failing), 'bak')).status).toBe(500);
     });
@@ -185,6 +189,7 @@ describe('push subscriptions API', () => {
       const failing: PushStore = {
         async saveSubscription() {},
         async removeSubscription() { throw new Error('db down'); },
+        async getSubscriptionsForUsers() { return []; },
       };
       expect((await unsubscribe(makeApp(failing), 'bak', { endpoint: validSub.endpoint })).status).toBe(500);
     });

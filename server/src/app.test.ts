@@ -296,6 +296,14 @@ function makeFakeProfilesStore(): ProfilesStore {
       settings.set(userId, { ...current, seenAt });
       return seenAt;
     },
+    async listNotifiableBakers() {
+      // Verified bakers who opted in, with their capabilities (mirrors the query).
+      return bakers
+        .filter((b) => b.verified)
+        .map((b) => ({ id: b.id, s: settings.get(b.id) }))
+        .filter((x): x is { id: string; s: NotificationSettings } => !!x.s?.notifyNewRequests)
+        .map((x) => ({ id: x.id, areas: x.s.areas, dietary: x.s.dietary, kashrut: x.s.kashrut }));
+    },
   };
 }
 

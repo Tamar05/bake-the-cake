@@ -26,6 +26,15 @@ export type NotificationPrefs = Pick<
   'notifyNewRequests' | 'areas' | 'dietary' | 'kashrut'
 >;
 
+// A verified, opted-in baker with the capabilities the push fan-out matches a
+// new request against (Phase 2). Only these bakers are ever considered.
+export type NotifiableBaker = {
+  id: string;
+  areas: string[];
+  dietary: string[];
+  kashrut: string[];
+};
+
 // Thrown by setVerified when no baker has the given id.
 export const BAKER_NOT_FOUND = 'BAKER_NOT_FOUND';
 
@@ -44,6 +53,10 @@ export type ProfilesStore = {
   // Records that the baker just looked at the bell, clearing the "new since last
   // seen" count. Returns the new seen timestamp (ms since 1970).
   markNotificationsSeen(userId: string): Promise<number>;
+  // Every verified baker who has opted in to new-request notifications, with
+  // their capabilities. The Phase 2 push fan-out matches a new request against
+  // these (verification + opt-in are already applied here).
+  listNotifiableBakers(): Promise<NotifiableBaker[]>;
 };
 
 type ProfileRow = {
@@ -169,6 +182,24 @@ export function createSupabaseProfilesStore(): ProfilesStore {
         .eq('id', userId);
       if (error) throw new Error(error.message);
       return new Date(seenAt).getTime();
+    },
+
+    async listNotifiableBakers(): Promise<NotifiableBaker[]> {
+      // Verified (verified_at set) bakers who opted in — the audience the fan-out
+      // then narrows by capability match.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, notify_areas, notify_dietary, notify_kashrut')
+        .eq('role', 'baker')
+        .not('verified_at', 'is', null)
+        .eq('notify_new_requests', true);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        areas: (row.notify_areas as string[] | null) ?? [],
+        dietary: (row.notify_dietary as string[] | null) ?? [],
+        kashrut: (row.notify_kashrut as string[] | null) ?? [],
+      }));
     },
   };
 }

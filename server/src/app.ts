@@ -23,6 +23,8 @@ import { matchesCapabilities } from './matching';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
 import { normalizePhone } from './phone';
 import { createSupabasePushStore, type PushStore, type PushSubscriptionInput } from './pushStore';
+import { createWebPushSender, type PushSender } from './pushSender';
+import { notifyMatchingBakers } from './pushNotify';
 import {
   createSupabaseAuthenticator,
   requireAuth,
@@ -197,6 +199,7 @@ export function createApp(
   authenticator: Authenticator = createSupabaseAuthenticator(),
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
   pushStore: PushStore = createSupabasePushStore(),
+  pushSender: PushSender = createWebPushSender(),
 ) {
   const app = express();
   // In production, restrict which sites' browsers may call this API to the
@@ -350,9 +353,13 @@ export function createApp(
       // The owner is the verified signed-in user, never taken from the body.
       const ownerId = (req as AuthedRequest).auth.id;
       const saved = await store.addRequest(result.draft, ownerId);
-      // Verified bakers discover new relevant requests in-app via the 🔔 bell
-      // (their notification settings drive the match) — no email is sent.
+      // Answer the requester first — they must never wait on notifications going
+      // out to other people…
       res.status(201).json(saved);
+      // …then push it to every verified, opted-in baker whose capabilities match
+      // (the 🔔 bell still shows it too). Fire-and-forget + best-effort: a push
+      // failure can never affect the request that was just created.
+      void notifyMatchingBakers(saved, { profilesStore, pushStore, pushSender }).catch(() => {});
     } catch {
       res.status(500).json({ error: 'Could not save request' });
     }
