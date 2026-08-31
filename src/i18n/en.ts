@@ -11,9 +11,10 @@ export const en: Dictionary = {
     neededByLabel: 'Date needed',
     dietaryLabel: 'Dietary needs (choose any)',
     locationLabel: 'Area',
-    kashrutLabel: 'Kashrut needed (choose any that work)',
+    kashrutLabel: 'Kashrut needed (the cake must meet all you choose)',
     aboutRecipientLabel: 'About the recipient (optional)',
-    aboutRecipientHint: 'A little about who the cake is for, so the baker can make it special.',
+    aboutRecipientHint:
+      'A little about who the cake is for, so the baker can make it special — e.g. their favourite colour, character, or hobby.',
     selectPlaceholder: 'Choose…',
     contactPhoneLabel: 'Contact phone',
     contactPhoneHint: 'So the baker can reach you to arrange delivery.',

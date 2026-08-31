@@ -2,9 +2,11 @@ import { NavLink } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
 
-// The row of view links under the header. Everyone sees "Open requests"; each
-// role also gets the one extra link that belongs to it. The active link is
-// highlighted so you always know which view you're on.
+// The row of view links under the header. Bakers, admins and signed-out
+// visitors get "Open requests" (the public shop window); a requester does not —
+// their world is their own requests, not everyone else's. Each role also gets
+// the one extra link that belongs to it. The active link is highlighted so you
+// always know which view you're on.
 export default function AppNav({ t }: { t: Dictionary }) {
   const { profile } = useAuth();
   const role = profile?.role;
@@ -12,9 +14,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
 
   return (
     <nav className="app-nav" aria-label={t.nav.browse}>
-      <NavLink to="/browse" className={linkClass}>
-        {t.nav.browse}
-      </NavLink>
+      {role !== 'requester' && (
+        <NavLink to="/browse" className={linkClass}>
+          {t.nav.browse}
+        </NavLink>
+      )}
       <NavLink to="/gallery" className={linkClass}>
         {t.nav.gallery}
       </NavLink>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LanguageToggle from './components/LanguageToggle';
 import NotificationBell from './components/NotificationBell';
@@ -101,7 +101,14 @@ export default function App() {
       {status === 'ready' && (
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
-          <Route path="/browse" element={<BrowsePage {...listProps} />} />
+          <Route
+            path="/browse"
+            element={
+              <HideFromRequester>
+                <BrowsePage {...listProps} />
+              </HideFromRequester>
+            }
+          />
           <Route path="/gallery" element={<GalleryPage t={t} />} />
           <Route
             path="/my"
@@ -175,4 +182,15 @@ function HomeRedirect() {
   if (profile?.role === 'requester') return <Navigate to="/my" replace />;
   if (profile?.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/browse" replace />;
+}
+
+// Guards the public browse view against requesters: bakers, admins, and signed-
+// out visitors may see other people's open requests, but a requester should not
+// — a direct visit sends them to their own requests instead. The nav hides the
+// link for them too; this is the matching route-level gate.
+function HideFromRequester({ children }: { children: ReactNode }) {
+  const { loading, profileLoading, profile } = useAuth();
+  if (loading || profileLoading) return <p className="list-status" aria-hidden />;
+  if (profile?.role === 'requester') return <Navigate to="/my" replace />;
+  return <>{children}</>;
 }

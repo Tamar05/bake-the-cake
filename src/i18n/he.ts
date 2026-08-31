@@ -11,9 +11,10 @@ export const he: Dictionary = {
     neededByLabel: 'תאריך נדרש',
     dietaryLabel: 'צרכים תזונתיים (בחרו כל מה שרלוונטי)',
     locationLabel: 'אזור',
-    kashrutLabel: 'כשרות נדרשת (בחרו כל מה שמתאים)',
+    kashrutLabel: 'כשרות נדרשת (העוגה חייבת לעמוד בכל מה שתבחרו)',
     aboutRecipientLabel: 'על מקבל/ת העוגה (רשות)',
-    aboutRecipientHint: 'קצת על מי שהעוגה מיועדת עבורו, כדי שהאופה יוכל להכין אותה במיוחד.',
+    aboutRecipientHint:
+      'קצת על מי שהעוגה מיועדת עבורו, כדי שהאופה יוכל להכין אותה במיוחד — למשל הצבע האהוב, דמות אהובה או תחביב.',
     selectPlaceholder: 'בחרו…',
     contactPhoneLabel: 'טלפון ליצירת קשר',
     contactPhoneHint: 'כדי שהאופה יוכל ליצור קשר לתיאום מסירה.',
