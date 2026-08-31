@@ -99,7 +99,10 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const isUnverifiedBaker = profile?.role === 'baker' && !profile.verified;
   const canCommit = reservedActive && isHolder;
   const canDeliver = committed && isHolder;
-  const canRelease = isHolder && (reservedActive || committed);
+  // Reserving is a casual hold a baker may drop, so the holder can release while
+  // it's still reserved. Committing is a promise: once a baker has committed,
+  // only an admin can hand the cake back to open (the server enforces the same).
+  const canRelease = (isHolder && reservedActive) || (isAdmin && committed);
   const canReceive = delivered && profile != null && (request.ownerId === profile.id || isAdmin);
 
   // Who can remove this request: the requester who owns it (cancel their own) or

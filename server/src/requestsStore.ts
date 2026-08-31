@@ -10,6 +10,12 @@ export const ALREADY_RESERVED = 'ALREADY_RESERVED';
 // nor an admin, so the endpoint can answer 403.
 export const NOT_RESERVER = 'NOT_RESERVER';
 
+// Thrown by releaseRequest when a baker tries to release a request they've
+// already committed to. Reserving is a casual hold they may drop; committing is
+// a promise, so only an admin can hand a committed cake back to open. The
+// endpoint answers 403.
+export const COMMITTED_LOCKED = 'COMMITTED_LOCKED';
+
 // Thrown by deleteRequest when the caller is neither the request's owner nor an
 // admin, so the endpoint can answer 403. Legacy anonymous rows (owner_id null)
 // have no owner, so only an admin ever clears this check.
@@ -186,12 +192,15 @@ export function createSupabaseStore(): RequestsStore {
 
     async releaseRequest(id: string, userId: string, isAdmin: boolean): Promise<CakeRequest> {
       // Only the baker who reserved it (or an admin) may release it, and only
-      // while it's still reserved or committed — a delivered cake is done.
+      // while it's still reserved — a delivered cake is done, and once a baker
+      // has committed, only an admin can hand it back to open (a commitment is a
+      // promise the baker can't quietly back out of).
       const current = await supabase.from('cake_requests').select('*').eq('id', id).single();
       if (current.error) throw new Error(current.error.message);
       const row = current.data as CakeRequestRow;
       const status = rowToRequest(row).status;
       if (status === 'delivered' || status === 'received') throw new Error(INVALID_TRANSITION);
+      if (status === 'committed' && !isAdmin) throw new Error(COMMITTED_LOCKED);
       if (!isAdmin && row.reserved_by_user_id !== userId) {
         throw new Error(NOT_RESERVER);
       }

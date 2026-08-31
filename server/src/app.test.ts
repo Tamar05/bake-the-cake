@@ -7,6 +7,7 @@ import {
   NOT_OWNER,
   NOT_FOUND,
   INVALID_TRANSITION,
+  COMMITTED_LOCKED,
   type RequestsStore,
 } from './requestsStore';
 import type { Authenticator, AuthedProfile } from './auth';
@@ -83,6 +84,7 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (item.status === 'delivered' || item.status === 'received') {
         throw new Error(INVALID_TRANSITION);
       }
+      if (item.status === 'committed' && !isAdmin) throw new Error(COMMITTED_LOCKED);
       if (!isAdmin && item.reservedByUserId !== userId) throw new Error(NOT_RESERVER);
       Object.assign(item, {
         status: 'open',
@@ -800,7 +802,9 @@ describe('commit API', () => {
     expect((await commit(app, id, 'adm')).status).toBe(200);
   });
 
-  it('a committed request can be released back to open', async () => {
+  it('a baker cannot release a request once they have committed to it (403)', async () => {
+    // Reserving is a casual hold a baker can drop, but committing is a promise:
+    // once made, only an admin can hand the cake back to open.
     const app = makeApp();
     const id = await addOne(app);
     await reserve(app, id, 'bak');
@@ -808,6 +812,18 @@ describe('commit API', () => {
     const res = await request(app)
       .post(`/api/requests/${id}/release`)
       .set('Authorization', 'Bearer bak')
+      .send();
+    expect(res.status).toBe(403);
+  });
+
+  it('an admin can still release a committed request back to open', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    await reserve(app, id, 'bak');
+    await commit(app, id, 'bak');
+    const res = await request(app)
+      .post(`/api/requests/${id}/release`)
+      .set('Authorization', 'Bearer adm')
       .send();
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('open');

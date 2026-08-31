@@ -1,5 +1,6 @@
 import express, { type RequestHandler } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import {
   ALREADY_RESERVED,
@@ -7,6 +8,7 @@ import {
   NOT_OWNER,
   NOT_FOUND,
   INVALID_TRANSITION,
+  COMMITTED_LOCKED,
   type RequestsStore,
 } from './requestsStore';
 import type { Translator } from './translator';
@@ -530,6 +532,13 @@ export function createApp(
       const updated = await store.releaseRequest(req.params.id, me.id, me.role === 'admin');
       res.status(200).json(updated);
     } catch (err) {
+      if (err instanceof Error && err.message === COMMITTED_LOCKED) {
+        res.status(403).json({
+          error:
+            'Once you commit to bake a cake, only an admin can release it. Please contact an admin if you can’t fulfil it.',
+        });
+        return;
+      }
       if (err instanceof Error && err.message === NOT_RESERVER) {
         res.status(403).json({ error: 'Only the baker who reserved it can release it' });
         return;
