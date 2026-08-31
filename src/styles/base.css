@@ -83,6 +83,8 @@ body {
 .request-form .checkbox-option,
 .auth-panel .checkbox-option {
   display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
   align-items: center;
   gap: 0.5rem;
   margin: 0.35rem 0;
@@ -909,6 +911,13 @@ body {
 .auth-error {
   color: #c0392b;
   font-size: 0.9rem;
+}
+
+/* Live, per-field validation message shown under a single input (password /
+   contact). Red instead of the muted grey of a normal hint. */
+.auth-panel small.field-error {
+  color: #c0392b;
+  font-weight: 600;
 }
 
 .auth-note {

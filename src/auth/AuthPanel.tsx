@@ -1,11 +1,28 @@
 import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+import { isValidPhone } from '../lib/phone';
 import CapabilityGroup from '../components/CapabilityGroup';
 import { useAuth, type SignUpRole } from './AuthProvider';
 
 type Props = { t: Dictionary };
 type Mode = 'signIn' | 'signUp';
+
+// The Supabase project's password policy: at least 8 characters, and at least
+// one lowercase letter, one uppercase letter, and one digit. We check it on the
+// client so the user sees a friendly hint instead of the raw server error.
+function isStrongPassword(pw: string): boolean {
+  return pw.length >= 8 && /[a-z]/.test(pw) && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// The sign-up contact may be a phone number OR an email. Empty is allowed
+// (the field is optional); anything present must be a valid one or the other.
+function isValidContact(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === '' || isValidPhone(trimmed) || EMAIL_RE.test(trimmed);
+}
 
 export default function AuthPanel({ t }: Props) {
   const { configured, loading, profile, signIn, signUp, signOut } = useAuth();
@@ -44,6 +61,10 @@ export default function AuthPanel({ t }: Props) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    // Block sign-up while the password or contact is invalid — the inline hints
+    // under each field already explain what needs fixing, so we don't send a
+    // request that the server would only bounce back.
+    if (mode === 'signUp' && (!isStrongPassword(password) || !isValidContact(contact))) return;
     setBusy(true);
     setError(null);
     try {
@@ -67,6 +88,11 @@ export default function AuthPanel({ t }: Props) {
       setBusy(false);
     }
   }
+
+  // Live validity, shown as the user types (only once a field has content, so an
+  // untouched empty field never shows a red error).
+  const passwordInvalid = mode === 'signUp' && password.length > 0 && !isStrongPassword(password);
+  const contactInvalid = mode === 'signUp' && contact.trim() !== '' && !isValidContact(contact);
 
   return (
     <form className="auth-panel" onSubmit={handleSubmit}>
@@ -94,6 +120,9 @@ export default function AuthPanel({ t }: Props) {
             <EyeIcon off={showPassword} />
           </button>
         </div>
+        {mode === 'signUp' && (
+          <small className={passwordInvalid ? 'field-error' : undefined}>{t.auth.passwordHint}</small>
+        )}
       </label>
       {mode === 'signUp' && (
         <>
@@ -112,6 +141,7 @@ export default function AuthPanel({ t }: Props) {
             {t.auth.contactLabel}
             <input value={contact} onChange={(e) => setContact(e.target.value)} />
             <small>{t.auth.contactHint}</small>
+            {contactInvalid && <small className="field-error">{t.auth.contactInvalid}</small>}
           </label>
           {role === 'baker' && (
             <div className="baker-caps">

@@ -197,6 +197,7 @@ export type Dictionary = {
     emailLabel: string;
     passwordLabel: string;
     showPassword: string; // accessible label for the reveal-password toggle
+    passwordHint: string; // grey helper under the password box at sign-up; turns red when invalid
     hidePassword: string; // accessible label when the password is visible
     nameLabel: string;
     roleLabel: string;
@@ -204,6 +205,7 @@ export type Dictionary = {
     roleBaker: string; // "I want to bake"
     contactLabel: string;
     contactHint: string; // why bakers give a contact
+    contactInvalid: string; // live error when the contact is neither a valid phone nor email
     bakerCapabilitiesHeading: string; // prompt above the baker capability pickers at sign-up
     bakerCapabilitiesNote: string; // smaller sub-note: you can change these later
     signInButton: string;
