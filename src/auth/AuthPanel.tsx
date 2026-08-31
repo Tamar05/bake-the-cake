@@ -36,6 +36,8 @@ export default function AuthPanel({ t }: Props) {
   const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
   const [notifyDietary, setNotifyDietary] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [contactTouched, setContactTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,10 +63,14 @@ export default function AuthPanel({ t }: Props) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    // Block sign-up while the password or contact is invalid — the inline hints
-    // under each field already explain what needs fixing, so we don't send a
-    // request that the server would only bounce back.
-    if (mode === 'signUp' && (!isStrongPassword(password) || !isValidContact(contact))) return;
+    // Block sign-up while the password or contact is invalid. Reveal both fields'
+    // messages (as if they'd been left) so someone who jumps straight to the
+    // button still sees exactly what needs fixing, rather than a bounced request.
+    if (mode === 'signUp' && (!isStrongPassword(password) || !isValidContact(contact))) {
+      setPasswordTouched(true);
+      setContactTouched(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -89,8 +95,9 @@ export default function AuthPanel({ t }: Props) {
     }
   }
 
-  // Live validity, shown as the user types (only once a field has content, so an
-  // untouched empty field never shows a red error).
+  // Whether each field currently fails its rule. The red message is only shown
+  // once the field has been left (its `touched` flag) — see the JSX below — so we
+  // never nag mid-typing; an empty field is never counted as failing.
   const passwordInvalid = mode === 'signUp' && password.length > 0 && !isStrongPassword(password);
   const contactInvalid = mode === 'signUp' && contact.trim() !== '' && !isValidContact(contact);
 
@@ -108,6 +115,7 @@ export default function AuthPanel({ t }: Props) {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
             required
           />
           <button
@@ -121,7 +129,9 @@ export default function AuthPanel({ t }: Props) {
           </button>
         </div>
         {mode === 'signUp' && (
-          <small className={passwordInvalid ? 'field-error' : undefined}>{t.auth.passwordHint}</small>
+          <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
+            {t.auth.passwordHint}
+          </small>
         )}
       </label>
       {mode === 'signUp' && (
@@ -139,9 +149,15 @@ export default function AuthPanel({ t }: Props) {
           </label>
           <label>
             {t.auth.contactLabel}
-            <input value={contact} onChange={(e) => setContact(e.target.value)} />
+            <input
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              onBlur={() => setContactTouched(true)}
+            />
             <small>{t.auth.contactHint}</small>
-            {contactInvalid && <small className="field-error">{t.auth.contactInvalid}</small>}
+            {contactTouched && contactInvalid && (
+              <small className="field-error">{t.auth.contactInvalid}</small>
+            )}
           </label>
           {role === 'baker' && (
             <div className="baker-caps">
@@ -183,6 +199,8 @@ export default function AuthPanel({ t }: Props) {
           onClick={() => {
             setMode(mode === 'signIn' ? 'signUp' : 'signIn');
             setError(null);
+            setPasswordTouched(false);
+            setContactTouched(false);
           }}
         >
           {mode === 'signIn' ? t.auth.needAccount : t.auth.haveAccount}
