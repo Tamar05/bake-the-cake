@@ -22,6 +22,7 @@ import { attentionReason, type AttentionReason } from './attention';
 import { matchesCapabilities } from './matching';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
 import { normalizePhone } from './phone';
+import { createSupabasePushStore, type PushStore, type PushSubscriptionInput } from './pushStore';
 import {
   createSupabaseAuthenticator,
   requireAuth,
@@ -81,6 +82,20 @@ function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
   const kashrut = asList(b.kashrut, KASHRUT_OPTIONS);
   if (areas === null || dietary === null || kashrut === null) return null;
   return { notifyNewRequests: b.notifyNewRequests, areas, dietary, kashrut };
+}
+
+// Validates a browser push subscription from the request body. The browser hands
+// us PushSubscription.toJSON() — { endpoint, keys: { p256dh, auth } } — and we
+// need all three as non-empty strings. Returns the flattened input, or null.
+function parsePushSubscription(body: unknown): PushSubscriptionInput | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as { endpoint?: unknown; keys?: unknown };
+  if (typeof b.endpoint !== 'string' || b.endpoint.trim() === '') return null;
+  if (typeof b.keys !== 'object' || b.keys === null) return null;
+  const keys = b.keys as { p256dh?: unknown; auth?: unknown };
+  if (typeof keys.p256dh !== 'string' || keys.p256dh === '') return null;
+  if (typeof keys.auth !== 'string' || keys.auth === '') return null;
+  return { endpoint: b.endpoint, p256dh: keys.p256dh, auth: keys.auth };
 }
 
 // Validates and normalizes a submitted request body (shared by create and edit).
@@ -181,6 +196,7 @@ export function createApp(
   translator: Translator,
   authenticator: Authenticator = createSupabaseAuthenticator(),
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
+  pushStore: PushStore = createSupabasePushStore(),
 ) {
   const app = express();
   // In production, restrict which sites' browsers may call this API to the
@@ -275,6 +291,42 @@ export function createApp(
       res.json({ seenAt });
     } catch {
       res.status(500).json({ error: 'Could not update your notifications' });
+    }
+  });
+
+  // A baker turns on web push for the device they're using: the browser hands
+  // over a push subscription (endpoint + keys) that we store, keyed to them.
+  // Baker-only and keyed to their verified id — no baker can subscribe on
+  // another's behalf. Idempotent: re-enabling the same device updates its row.
+  app.post('/api/me/push-subscriptions', auth, requireRole('baker'), async (req, res) => {
+    const sub = parsePushSubscription(req.body);
+    if (!sub) {
+      res.status(400).json({ error: 'Invalid push subscription' });
+      return;
+    }
+    const me = (req as AuthedRequest).auth;
+    try {
+      await pushStore.saveSubscription(me.id, sub);
+      res.status(201).json({ ok: true });
+    } catch {
+      res.status(500).json({ error: 'Could not save your push subscription' });
+    }
+  });
+
+  // A baker turns web push off for this device (identified by its endpoint).
+  // Scoped to their own id, and idempotent — clearing one already gone is fine.
+  app.delete('/api/me/push-subscriptions', auth, requireRole('baker'), async (req, res) => {
+    const { endpoint } = (req.body ?? {}) as { endpoint?: unknown };
+    if (typeof endpoint !== 'string' || endpoint.trim() === '') {
+      res.status(400).json({ error: 'Missing endpoint' });
+      return;
+    }
+    const me = (req as AuthedRequest).auth;
+    try {
+      await pushStore.removeSubscription(me.id, endpoint);
+      res.status(204).end();
+    } catch {
+      res.status(500).json({ error: 'Could not remove your push subscription' });
     }
   });
 
