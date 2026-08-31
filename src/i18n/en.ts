@@ -238,7 +238,8 @@ export const en: Dictionary = {
       'Rama C': 'Rama C',
       'Rama D': 'Rama D',
       Mishkafayim: 'Mishkafayim',
-      'Neve Shamir Ramat Avraham': 'Neve Shamir Ramat Avraham',
+      'Neve Shamir': 'Neve Shamir',
+      'Ramat Avraham': 'Ramat Avraham',
       Other: 'Other',
     },
     dietary: {

@@ -22,7 +22,8 @@ export const AREAS = [
   'Rama C',
   'Rama D',
   'Mishkafayim',
-  'Neve Shamir Ramat Avraham',
+  'Neve Shamir',
+  'Ramat Avraham',
   'Other',
 ] as const;
 

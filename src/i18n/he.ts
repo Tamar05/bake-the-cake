@@ -237,7 +237,8 @@ export const he: Dictionary = {
       'Rama C': 'רמה ג',
       'Rama D': 'רמה ד',
       Mishkafayim: 'משקפיים',
-      'Neve Shamir Ramat Avraham': 'נווה שמיר רמת אברהם',
+      'Neve Shamir': 'נווה שמיר',
+      'Ramat Avraham': 'רמת אברהם',
       Other: 'אחר',
     },
     dietary: {
