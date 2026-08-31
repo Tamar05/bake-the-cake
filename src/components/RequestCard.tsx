@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import type { CakeRequest, RequestDraft } from '../types';
@@ -47,6 +48,7 @@ const TEXT_FIELDS = ['recipient', 'occasion', 'aboutRecipient'] as const;
 export default function RequestCard({ t, language, request, onUpdated, onDeleted }: Props) {
   const { profile, session } = useAuth();
   const token = session?.access_token;
+  const navigate = useNavigate();
 
   const [mode, setMode] = useState<Mode>('original');
   const [translateStatus, setTranslateStatus] = useState<TranslateStatus>('idle');
@@ -109,12 +111,17 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // an admin (remove anything). Legacy rows have no owner, so only an admin. The
   // owner sees "Cancel request"; an admin acting on someone else's sees "Delete".
   const isOwner = profile != null && request.ownerId != null && request.ownerId === profile.id;
-  // An admin can remove anything; a requester can cancel their own request only
+  // Editing and cancelling belong to the REQUESTER who posted it (or an admin) —
+  // never a baker, even one whose own account happens to own the request (as can
+  // happen with a single role-flipping test account). A baker bakes; they don't
+  // change or withdraw a request that's already been made.
+  const isRequesterOwner = isOwner && profile?.role === 'requester';
+  // An admin can remove anything; the requester can cancel their own request only
   // until it's delivered — once a cake is on its way, it's no longer cancellable.
-  const canDelete = isAdmin || (isOwner && !delivered && !received);
-  // The owner (or an admin) may edit the details, but only while the request is
-  // still open — once a baker has taken it, it's locked (the server agrees).
-  const canEdit = (isOwner || isAdmin) && request.status === 'open';
+  const canDelete = isAdmin || (isRequesterOwner && !delivered && !received);
+  // The requester (or an admin) may edit the details, but only while the request
+  // is still open — once a baker has taken it, it's locked (the server agrees).
+  const canEdit = (isRequesterOwner || isAdmin) && request.status === 'open';
 
   // The finished-cake photo is private: only the owner, the baker who made it, or
   // an admin may see it. If allowed, we fetch a short-lived signed URL below.
@@ -211,6 +218,10 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     try {
       onUpdated(await commitRequest(request.id, token));
       setCommitStatus('idle');
+      // Committing hides the cake from Browse and moves it into the baker's own
+      // list — take them straight there so they see what they just took on. (Only
+      // bakers have that page; an admin who commits stays put.)
+      if (profile?.role === 'baker') navigate('/reservations');
     } catch {
       setCommitStatus('error');
     }
