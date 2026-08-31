@@ -11,26 +11,18 @@
 // identical and their equality is enforced by options.test.ts. This file must
 // stay a pure constants module: never add an import to it.
 
-// Delivery areas. The request form's old free-text location becomes this
-// dropdown; the requester still gives a phone for the exact address.
+// Delivery areas — the Beit Shemesh neighborhoods this app serves. The request
+// form's old free-text location is this dropdown; the requester still gives a
+// phone for the exact address. The value is a stable English identifier; the
+// Hebrew/English display label lives in the i18n `options.area` maps.
 export const AREAS = [
-  'Jerusalem',
-  'Tel Aviv',
-  'Haifa',
-  'Rishon LeZion',
-  'Petah Tikva',
-  'Ashdod',
-  'Netanya',
-  'Beer Sheva',
-  'Holon',
-  'Ramat Gan',
-  'Bnei Brak',
-  'Rehovot',
-  'Beit Shemesh',
-  'Herzliya',
-  'Kfar Saba',
-  'Modiin',
-  'Nazareth',
+  'Old Beit Shemesh',
+  'Rama A',
+  'Rama B',
+  'Rama C',
+  'Rama D',
+  'Mishkafayim',
+  'Neve Shamir Ramat Avraham',
   'Other',
 ] as const;
 

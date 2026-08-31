@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './auth/AuthProvider';
+import { registerServiceWorker } from './lib/registerServiceWorker';
 import './styles/base.css';
 
 const root = document.getElementById('root');
@@ -16,3 +17,6 @@ createRoot(root).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+// Make the app installable + offline-capable (no-op in dev; see the module).
+registerServiceWorker();

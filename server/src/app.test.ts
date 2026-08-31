@@ -326,7 +326,7 @@ const validDraft: RequestDraft = {
   occasion: '8th birthday',
   neededBy: '2026-09-01',
   dietary: '',
-  location: 'Haifa',
+  location: 'Rama A',
   kashrut: 'Rabbanut',
   aboutRecipient: '',
   contactPhone: '+972501234567', // already canonical, so it survives normalization unchanged
@@ -490,13 +490,13 @@ describe('notification settings API', () => {
     const app = makeApp();
     const saved = await put(app, 'bak', {
       notifyNewRequests: true,
-      areas: ['Haifa', 'Tel Aviv'],
+      areas: ['Rama A', 'Rama B'],
       dietary: ['nut-free'],
       kashrut: ['Rabbanut', 'Badatz Eda Haredit'],
     });
     expect(saved.status).toBe(200);
     expect(saved.body.notifyNewRequests).toBe(true);
-    expect(saved.body.areas).toEqual(['Haifa', 'Tel Aviv']);
+    expect(saved.body.areas).toEqual(['Rama A', 'Rama B']);
     const reread = await get(app, 'bak');
     expect(reread.body.kashrut).toEqual(['Rabbanut', 'Badatz Eda Haredit']);
   });
@@ -529,32 +529,32 @@ describe('notification bell API', () => {
 
   it('counts a new open request that matches the baker’s capabilities', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     const res = await bell(app);
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
     expect(res.body.items[0].occasion).toBe(validDraft.occasion);
-    expect(res.body.items[0].area).toBe('Haifa');
+    expect(res.body.items[0].area).toBe('Rama A');
   });
 
   it('ignores requests outside the baker’s capabilities', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Tel Aviv'], dietary: [], kashrut: ['Rabbanut'] });
-    await addOne(app); // Haifa → not one of this baker's areas
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama B'], dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app); // Rama A → not one of this baker's areas
     expect((await bell(app)).body.count).toBe(0);
   });
 
   it('returns nothing when notifications are switched off', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: false, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: false, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     expect((await bell(app)).body.count).toBe(0);
   });
 
   it('marking seen clears the count', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     expect((await bell(app)).body.count).toBe(1);
     const seen = await request(app)
@@ -567,7 +567,7 @@ describe('notification bell API', () => {
 
   it('a request that has been reserved is no longer counted', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
     const id = await addOne(app);
     await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
     expect((await bell(app)).body.count).toBe(0);
@@ -1421,7 +1421,7 @@ describe('attention API', () => {
     occasion: 'birthday',
     neededBy: '2999-01-01',
     dietary: '',
-    location: 'Haifa',
+    location: 'Rama A',
     kashrut: 'Rabbanut',
     aboutRecipient: '',
     contactPhone: '555-0100',
@@ -1481,7 +1481,7 @@ describe('gallery API', () => {
     occasion: 'birthday',
     neededBy: '2026-09-01',
     dietary: '',
-    location: 'Haifa',
+    location: 'Rama A',
     kashrut: 'Rabbanut',
     aboutRecipient: '',
     contactPhone: '555-0100',
