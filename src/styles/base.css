@@ -135,6 +135,16 @@ body {
   font-weight: 600;
 }
 
+.push-section {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #ffe3ec;
+}
+
+.push-section h3 {
+  margin: 0 0 0.25rem;
+}
+
 .request-form .checkbox-option.enable-toggle {
   font-weight: 600;
   margin-bottom: 1rem;

@@ -130,6 +130,17 @@ export const en: Dictionary = {
     bellHeading: 'New requests for you',
     bellEmpty: 'No new requests right now.',
     bellSettingsHint: 'Choose what you can make →',
+    push: {
+      heading: 'On this device',
+      intro: 'Get a heads-up on your phone or computer even when Bake the Cake is closed.',
+      enable: 'Enable on this device',
+      disable: 'Turn off on this device',
+      working: 'Working…',
+      enabled: 'On for this device ✓',
+      unsupported: 'This browser can’t show notifications.',
+      denied: 'Notifications are blocked. Turn them on in your browser settings, then try again.',
+      error: 'Could not update notifications. Please try again.',
+    },
   },
   gallery: {
     heading: 'Inspiration gallery',

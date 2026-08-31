@@ -130,6 +130,18 @@ export type Dictionary = {
     bellHeading: string; // heading at the top of the bell panel
     bellEmpty: string; // shown in the panel when there are no new requests
     bellSettingsHint: string; // link in the panel to the notification settings
+    // Per-device web push (get notified when the app is closed).
+    push: {
+      heading: string; // section heading for the on-this-device toggle
+      intro: string; // one line explaining what push does
+      enable: string; // button: turn push on for this device
+      disable: string; // button: turn push off for this device
+      working: string; // busy label while enabling/disabling
+      enabled: string; // shown when this device is subscribed
+      unsupported: string; // this browser can't do push
+      denied: string; // the browser blocked notifications
+      error: string; // generic failure enabling/disabling
+    };
   };
   gallery: {
     heading: string;
