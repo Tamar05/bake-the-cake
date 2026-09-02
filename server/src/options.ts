@@ -63,6 +63,16 @@ export function joinList(values: readonly string[]): string {
   return values.join(LIST_SEPARATOR);
 }
 
+// Keeps only the values still present in a current option list, preserving the
+// input order. Used when loading a baker's saved capabilities: a value from an
+// option that has since been removed (e.g. an old delivery area) is dropped
+// rather than kept and silently re-submitted — where the server's strict
+// validation would otherwise reject the whole save. This keeps the settings
+// form self-healing across any future change to these lists.
+export function knownOnly(values: readonly string[], allowed: readonly string[]): string[] {
+  return values.filter((value) => allowed.includes(value));
+}
+
 // Splits a stored joined string back into its parts. Tolerates any spacing and
 // drops blanks, so legacy free-text values survive too.
 export function parseList(value: string): string[] {

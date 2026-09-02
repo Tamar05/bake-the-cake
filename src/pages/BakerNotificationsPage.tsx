@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, knownOnly } from '../lib/options';
 import { getNotificationSettings, saveNotificationSettings } from '../lib/notificationsApi';
 import {
   isPushSupported,
@@ -41,9 +41,13 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
     getNotificationSettings(token)
       .then((s) => {
         setNotifyNewRequests(s.notifyNewRequests);
-        setAreas(s.areas);
-        setDietary(s.dietary);
-        setKashrut(s.kashrut);
+        // Drop any stored value that's no longer an offered option (e.g. a
+        // delivery area that was renamed or removed). Otherwise it stays in the
+        // form invisibly — no checkbox to untick — and gets re-submitted on every
+        // save, which the server rejects, blocking the baker from saving at all.
+        setAreas(knownOnly(s.areas, AREAS));
+        setDietary(knownOnly(s.dietary, DIETARY_OPTIONS));
+        setKashrut(knownOnly(s.kashrut, KASHRUT_OPTIONS));
         setStatus('ready');
       })
       .catch(() => setStatus('error'));
