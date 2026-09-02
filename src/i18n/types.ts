@@ -249,6 +249,7 @@ export type Dictionary = {
     iosStep1: string;
     iosStep2: string;
     iosStep3: string;
+    iosStep4: string;
     androidStep1: string;
     androidStep2: string;
     safariNotice: string; // iOS in a non-Safari browser

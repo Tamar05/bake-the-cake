@@ -52,7 +52,7 @@ export default function InstallGate({ children }: { children: ReactNode }) {
 
   const steps =
     env.platform === 'ios'
-      ? [t.iosStep1, t.iosStep2, t.iosStep3]
+      ? [t.iosStep1, t.iosStep2, t.iosStep3, t.iosStep4]
       : [t.androidStep1, t.androidStep2];
 
   return (
