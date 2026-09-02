@@ -239,4 +239,20 @@ export type Dictionary = {
     dietary: Record<(typeof DIETARY_OPTIONS)[number], string>;
     kashrut: Record<(typeof KASHRUT_OPTIONS)[number], string>;
   };
+  // The "install the app to continue" screen shown to phone visitors who open the
+  // site in a browser instead of the installed app.
+  install: {
+    title: string;
+    lead: string; // one line on why to install
+    installButton: string; // one-tap install (Android/desktop Chrome)
+    stepsHeading: string; // "How to install:"
+    iosStep1: string;
+    iosStep2: string;
+    iosStep3: string;
+    androidStep1: string;
+    androidStep2: string;
+    safariNotice: string; // iOS in a non-Safari browser
+    inAppNotice: string; // opened inside another app's browser
+    alreadyInstalled: string; // reassurance for those who've installed already
+  };
 };

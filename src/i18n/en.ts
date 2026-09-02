@@ -262,4 +262,19 @@ export const en: Dictionary = {
       'Not required': 'Not required',
     },
   },
+  install: {
+    title: 'Install the app',
+    lead: 'To use Bake the Cake, add it to your home screen — it opens just like a real app.',
+    installButton: 'Install app',
+    stepsHeading: 'How to install:',
+    iosStep1: 'Tap the Share button ⬆️ at the bottom of the browser',
+    iosStep2: 'Choose “Add to Home Screen”',
+    iosStep3: 'Tap “Add”',
+    androidStep1: 'Tap the ⋮ menu at the top',
+    androidStep2: 'Choose “Install app” (or “Add to Home screen”)',
+    safariNotice: 'On iPhone, installing only works in Safari. Open this page in Safari to continue.',
+    inAppNotice:
+      'You opened this inside another app. Tap its menu (⋯) and choose “Open in browser”, then install.',
+    alreadyInstalled: 'Already installed? Open Bake the Cake from your home screen.',
+  },
 };
