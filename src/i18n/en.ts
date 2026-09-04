@@ -263,9 +263,11 @@ export const en: Dictionary = {
     },
   },
   install: {
-    title: 'Install the app',
-    lead: 'To use Bake the Cake, add it to your home screen — it opens just like a real app.',
+    title: 'Get the app?',
+    lead: 'Install Bake the Cake to get notified of new requests and open it like a real app — or continue in your browser.',
     installButton: 'Install app',
+    continueInBrowser: 'Continue in browser',
+    continueNote: 'Note: in the browser you won’t get notifications about new requests (especially on iPhone).',
     stepsHeading: 'How to install:',
     iosStep1: 'Tap the ••• menu in the address bar',
     iosStep2: 'Tap “Share”',

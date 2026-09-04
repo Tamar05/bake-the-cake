@@ -245,6 +245,8 @@ export type Dictionary = {
     title: string;
     lead: string; // one line on why to install
     installButton: string; // one-tap install (Android/desktop Chrome)
+    continueInBrowser: string; // dismiss the nudge and use the site in the browser
+    continueNote: string; // reminder that browser users miss push notifications
     stepsHeading: string; // "How to install:"
     iosStep1: string;
     iosStep2: string;

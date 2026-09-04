@@ -9,16 +9,30 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
-// Requires phone visitors to install the app before using it: in a phone browser
-// this shows an "install to continue" screen instead of the app. The installed
-// app (running standalone) and any desktop browser pass straight through — the
-// community shares the link and opens it on phones, and some desktop browsers
-// can't install at all, so we don't trap them. In-app browsers (WhatsApp etc.)
-// and iOS-outside-Safari get tailored guidance rather than a dead end.
+// Where a visitor's "continue in browser" choice is remembered, so they aren't
+// re-nudged on every visit.
+const SKIP_KEY = 'btc-skip-install';
+
+function readSkip(): boolean {
+  try {
+    return localStorage.getItem(SKIP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+// Nudges phone visitors to install the app: in a phone browser this shows a
+// "get the app" screen offering install OR "continue in browser" (their choice
+// is remembered). The installed app (running standalone) and any desktop browser
+// pass straight through. In-app browsers (WhatsApp etc.) and iOS-outside-Safari
+// get tailored guidance rather than a dead end. Installing matters mainly for
+// bakers: push notifications need the installed app (iOS allows push only for
+// home-screen web apps), so browser users won't get pinged about new requests.
 export default function InstallGate({ children }: { children: ReactNode }) {
   const [env] = useState(() => getInstallEnv(window));
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
+  const [skipped, setSkipped] = useState(readSkip);
   const t = dictionaries[language].install;
 
   useEffect(() => {
@@ -35,8 +49,9 @@ export default function InstallGate({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
 
-  // Installed app, or any desktop browser → run the real app.
-  if (env.standalone || !env.mobile) return <>{children}</>;
+  // Installed app, any desktop browser, or a visitor who chose the browser → run
+  // the real app.
+  if (env.standalone || !env.mobile || skipped) return <>{children}</>;
 
   const switchLanguage = () => {
     const next: Language = language === 'he' ? 'en' : 'he';
@@ -48,6 +63,15 @@ export default function InstallGate({ children }: { children: ReactNode }) {
     if (!prompt) return;
     await prompt.prompt();
     setPrompt(null);
+  };
+
+  const continueInBrowser = () => {
+    try {
+      localStorage.setItem(SKIP_KEY, '1');
+    } catch {
+      /* private mode — the choice just won't persist across visits */
+    }
+    setSkipped(true);
   };
 
   const steps =
@@ -84,6 +108,13 @@ export default function InstallGate({ children }: { children: ReactNode }) {
             </ol>
           </div>
         )}
+
+        <div className="install-continue-wrap">
+          <button type="button" className="install-continue" onClick={continueInBrowser}>
+            {t.continueInBrowser}
+          </button>
+          <p className="install-continue-note">{t.continueNote}</p>
+        </div>
 
         <p className="install-foot">{t.alreadyInstalled}</p>
       </div>

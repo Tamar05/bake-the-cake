@@ -90,6 +90,27 @@
 .install-steps li {
   margin-bottom: 0.35rem;
 }
+.install-continue-wrap {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #f3dbe3;
+}
+.install-continue {
+  background: none;
+  border: none;
+  color: #c14a6c;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+.install-continue-note {
+  color: #9a8484;
+  font-size: 0.82rem;
+  margin: 0.4rem 0 0;
+  line-height: 1.4;
+}
 .install-foot {
   color: #8a7070;
   font-size: 0.9rem;
