@@ -925,6 +925,47 @@ body {
   border-color: #ff6f91;
 }
 
+/* Coordinator view on "My requests": search box, live tally line, and an
+   overdue/due-soon flag ahead of the card it belongs to. */
+.my-requests-search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #f0c9d6;
+  border-radius: 10px;
+  font-family: inherit;
+  background: #ffffff;
+}
+
+.my-requests-tally {
+  margin: 0 0 0.75rem;
+  color: #8a6d6d;
+  font-size: 0.9rem;
+}
+
+.due-flag {
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.due-flag-overdue {
+  background: #fdecea;
+  color: #c0392b;
+}
+
+.due-flag-soon {
+  background: #fff4e0;
+  color: #7a4a00;
+}
+
 /* --- Accounts / auth panel --- */
 .auth-panel {
   max-width: 360px;

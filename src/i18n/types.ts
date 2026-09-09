@@ -203,6 +203,23 @@ export type Dictionary = {
     myReservationsEmpty: string; // baker has reserved nothing yet
     adminHeading: string; // admin's list of every request
   };
+  // The coordinator view on "My requests": a search box, status tabs with live
+  // counts, and an overdue/due-soon flag — for an owner managing many requests
+  // for different beneficiaries rather than just one.
+  myRequests: {
+    searchLabel: string; // accessible label for the search box
+    searchPlaceholder: string;
+    tabAll: string;
+    tabOpen: string;
+    tabInProgress: string; // reserved, committed, or delivered
+    tabDone: string; // received
+    tallyRequests: string; // e.g. "requests" in "12 requests"
+    tallyOpen: string; // e.g. "open" in "5 open"
+    tallyInProgress: string; // e.g. "in progress" in "4 in progress"
+    tallyDone: string; // e.g. "delivered" in "3 delivered"
+    dueOverdue: string; // flag: past its needed-by date
+    dueSoon: string; // flag: needed within the next couple of days
+  };
   auth: {
     signInHeading: string;
     signUpHeading: string;
