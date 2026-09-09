@@ -14,7 +14,9 @@ import AdminPage from './pages/AdminPage';
 import AdminBakersPage from './pages/AdminBakersPage';
 import AdminAttentionPage from './pages/AdminAttentionPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminInviteCodesPage from './pages/AdminInviteCodesPage';
 import GalleryPage from './pages/GalleryPage';
+import JoinPage from './pages/JoinPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -110,6 +112,7 @@ export default function App() {
             }
           />
           <Route path="/gallery" element={<GalleryPage t={t} />} />
+          <Route path="/join" element={<JoinPage t={t} />} />
           <Route
             path="/my"
             element={
@@ -163,6 +166,14 @@ export default function App() {
             element={
               <RequireRole roles={['admin']}>
                 <AdminDashboardPage t={t} />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/invite-codes"
+            element={
+              <RequireRole roles={['admin']}>
+                <AdminInviteCodesPage t={t} />
               </RequireRole>
             }
           />

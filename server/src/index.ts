@@ -6,6 +6,7 @@ import { createMyMemoryTranslator } from './translator';
 import { createSupabaseAuthenticator } from './auth';
 import { createSupabasePushStore } from './pushStore';
 import { createWebPushSender } from './pushSender';
+import { createSupabaseInvitesStore } from './invitesStore';
 
 const port = Number(process.env.PORT ?? 3001);
 const store = createSupabaseStore();
@@ -17,6 +18,7 @@ const app = createApp(
   createSupabaseProfilesStore(),
   createSupabasePushStore(),
   createWebPushSender(),
+  createSupabaseInvitesStore(),
 );
 
 app.listen(port, () => {

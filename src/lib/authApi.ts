@@ -21,3 +21,20 @@ export async function fetchMe(token: string): Promise<Profile> {
   if (!res.ok) throw new Error(`Could not load profile (HTTP ${res.status})`);
   return (await res.json()) as Profile;
 }
+
+// Redeems an invite code, flipping the signed-in account from baker to
+// requester (organization). Throws on any failure — bad code, revoked code,
+// or the account already being a requester/admin — the server never says
+// which, so the caller shows one generic "not valid" message either way.
+export async function joinAsOrganization(
+  code: string,
+  orgName: string,
+  token: string,
+): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code, orgName }),
+  });
+  if (!res.ok) throw new Error('INVALID_CODE');
+}

@@ -112,6 +112,8 @@ export type Dictionary = {
     gallery: string; // the public inspiration gallery
     notifications: string; // baker's notification settings
     signInPrompt: string; // gentle nudge shown to signed-out browsers
+    join: string; // link to the /join page, shown to signed-out visitors
+    inviteCodes: string; // admin's invite-code management screen
   };
   notifications: {
     heading: string;
@@ -229,9 +231,6 @@ export type Dictionary = {
     passwordHint: string; // grey helper under the password box at sign-up; turns red when invalid
     hidePassword: string; // accessible label when the password is visible
     nameLabel: string;
-    roleLabel: string;
-    roleRequester: string; // "I need a cake"
-    roleBaker: string; // "I want to bake"
     contactLabel: string;
     contactHint: string; // why bakers give a contact
     contactInvalid: string; // live error when the contact is neither a valid phone nor email
@@ -246,6 +245,43 @@ export type Dictionary = {
     working: string; // busy label while signing in/up
     notConfigured: string; // shown when Supabase keys are missing
     genericError: string; // fallback when sign-in/up fails
+    joinPrompt: string; // small line under sign-up pointing an organization to /join
+  };
+  // The /join page: an existing invite code turns a fresh account into an
+  // organization ("requester"). Signs up like any baker, then redeems the code.
+  join: {
+    heading: string;
+    intro: string; // explains what this page is for
+    orgNameLabel: string;
+    codeLabel: string;
+    codeHint: string; // where to get a code
+    submit: string;
+    working: string; // busy label
+    signedInIntro: string; // shown instead of the sign-up fields once already signed in
+    success: string; // confirmation after redeeming
+    invalidCode: string; // generic failure message (never distinguishes why)
+    missingFields: string; // org name / code left blank
+  };
+  // Admin-only screen to create, list, and revoke invite codes.
+  inviteCodes: {
+    heading: string;
+    intro: string;
+    loading: string;
+    loadError: string;
+    empty: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    create: string;
+    creating: string;
+    createError: string;
+    codeLabel: string; // precedes the code value on a row
+    createdPrefix: string; // precedes the created date
+    activeLabel: string;
+    revokedLabel: string;
+    revoke: string;
+    revoking: string;
+    revokeError: string;
+    confirmRevoke: string; // confirm prompt before revoking
   };
   // Per-language display labels for the shared option values (the DB stores the
   // canonical value; these translate it for the reader). Typed against the

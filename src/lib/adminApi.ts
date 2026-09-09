@@ -74,3 +74,44 @@ export async function getStats(token: string): Promise<Stats> {
   if (!res.ok) throw new Error(`Could not load stats (HTTP ${res.status})`);
   return (await res.json()) as Stats;
 }
+
+// An invite code, as the admin invite-codes screen sees it. A code can be
+// redeemed by more than one account — revoking is the only way to stop it.
+export type InviteCode = {
+  id: string;
+  code: string;
+  note: string | null;
+  createdAt: number;
+  revokedAt: number | null;
+};
+
+// Lists every invite code (admin only).
+export async function listInviteCodes(token: string): Promise<InviteCode[]> {
+  const res = await fetch(`${apiBase()}/api/admin/invite-codes`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not load invite codes (HTTP ${res.status})`);
+  return (await res.json()) as InviteCode[];
+}
+
+// Creates a new invite code with an optional admin-facing note (admin only).
+// The code value itself is generated server-side.
+export async function createInviteCode(note: string, token: string): Promise<InviteCode> {
+  const res = await fetch(`${apiBase()}/api/admin/invite-codes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) throw new Error(`Could not create an invite code (HTTP ${res.status})`);
+  return (await res.json()) as InviteCode;
+}
+
+// Revokes an invite code so it can no longer be redeemed (admin only).
+export async function revokeInviteCode(id: string, token: string): Promise<InviteCode> {
+  const res = await fetch(`${apiBase()}/api/admin/invite-codes/${id}/revoke`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Could not revoke this code (HTTP ${res.status})`);
+  return (await res.json()) as InviteCode;
+}

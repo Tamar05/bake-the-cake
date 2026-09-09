@@ -22,6 +22,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
       <NavLink to="/gallery" className={linkClass}>
         {t.nav.gallery}
       </NavLink>
+      {(!role || role === 'baker') && (
+        <NavLink to="/join" className={linkClass}>
+          {t.nav.join}
+        </NavLink>
+      )}
       {role === 'requester' && (
         <NavLink to="/my" className={linkClass}>
           {t.nav.myRequests}
@@ -55,6 +60,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
       {role === 'admin' && (
         <NavLink to="/admin/attention" className={linkClass}>
           {t.nav.attention}
+        </NavLink>
+      )}
+      {role === 'admin' && (
+        <NavLink to="/admin/invite-codes" className={linkClass}>
+          {t.nav.inviteCodes}
         </NavLink>
       )}
     </nav>

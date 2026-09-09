@@ -4,21 +4,20 @@ import { supabase } from '../lib/supabaseClient';
 import { fetchMe, type Profile } from '../lib/authApi';
 import { saveNotificationSettings } from '../lib/notificationsApi';
 
-// A person can only sign themselves up as requester or baker; admin is granted
-// by hand in the database (the server never lets the browser self-assign it).
-export type SignUpRole = 'requester' | 'baker';
-
 type AuthContextValue = {
   configured: boolean; // is Supabase set up in .env
   loading: boolean; // still checking for an existing session
   profileLoading: boolean; // have a session, still fetching the role/profile
   session: Session | null;
   profile: Profile | null;
+  // Public sign-up always creates a baker — the DB trigger enforces this
+  // server-side regardless of what's sent, so there's no role to pick here.
+  // Becoming a requester (an organization) happens separately, by redeeming
+  // an invite code on the /join page (see joinAsOrganization in authApi.ts).
   signUp: (
     email: string,
     password: string,
     displayName: string,
-    role: SignUpRole,
     contact: string,
     notifyAreas?: string[], // bakers pick their areas at sign-up
     notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
@@ -92,25 +91,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     displayName: string,
-    role: SignUpRole,
     contact: string,
     notifyAreas: string[] = [],
     notifyKashrut: string[] = [],
     notifyDietary: string[] = [],
   ): Promise<void> {
     if (!supabase) throw new Error('Auth not configured');
+    // No role is sent — the server-side signup trigger always makes a baker,
+    // regardless of what a client claims (see AuthContextValue's comment).
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName, role, contact } },
+      options: { data: { display_name: displayName, contact } },
     });
     if (error) throw error;
-    // A baker who picked capabilities at sign-up: save them and opt them in. The
-    // profile row already exists (the on-signup trigger created it), and with
-    // email confirmation off signUp returns a session. Best-effort — a failure
-    // here never blocks the account; they can adjust it later in Settings.
+    // Save any capabilities picked at sign-up and opt in. The profile row
+    // already exists (the on-signup trigger created it), and with email
+    // confirmation off signUp returns a session. Best-effort — a failure here
+    // never blocks the account; they can adjust it later in Settings.
     const chose = notifyAreas.length > 0 || notifyKashrut.length > 0 || notifyDietary.length > 0;
-    if (role === 'baker' && data.session && chose) {
+    if (data.session && chose) {
       try {
         await saveNotificationSettings(
           {

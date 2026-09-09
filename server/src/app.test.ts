@@ -17,6 +17,7 @@ import {
   type BakerSummary,
   type NotificationSettings,
 } from './profilesStore';
+import { CODE_NOT_FOUND, type InvitesStore, type InviteCode } from './invitesStore';
 import type { Translator } from './translator';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
@@ -247,12 +248,21 @@ const PROFILES: Record<string, AuthedProfile> = {
     email: 'ada.admin@example.com',
   },
 };
-function makeFakeAuthenticator(): Authenticator {
+// Defaults to the shared PROFILES map (fine for tests that never mutate a
+// role); a test that redeems an invite code passes its own clone instead, so
+// the flip doesn't leak into other tests.
+function makeFakeAuthenticator(profiles: Record<string, AuthedProfile> = PROFILES): Authenticator {
   return {
     async verify(token: string) {
-      return PROFILES[token] ?? null;
+      return profiles[token] ?? null;
     },
   };
+}
+
+// A fresh, independent copy of PROFILES (shallow-cloned per entry) so a test
+// that flips a role via invite redemption can't affect any other test.
+function cloneProfiles(): Record<string, AuthedProfile> {
+  return Object.fromEntries(Object.entries(PROFILES).map(([token, p]) => [token, { ...p }]));
 }
 
 // An in-memory stand-in for the profiles store, seeded with the fake bakers.
@@ -312,12 +322,58 @@ function emptySettings(): NotificationSettings {
   return { notifyNewRequests: false, areas: [], dietary: [], kashrut: [], seenAt: null };
 }
 
+// An in-memory stand-in for the invites store. Mirrors the real store's
+// contract: redeemCode only succeeds for a currently-'baker' profile with a
+// matching, unrevoked code, and reports success/failure without saying why.
+// `profilesByToken` must be the SAME clone handed to makeFakeAuthenticator, so
+// a role flip here is visible on that profile's next request too (same object
+// references, keyed here by id instead of by token).
+function makeFakeInvitesStore(profilesByToken: Record<string, AuthedProfile>): InvitesStore {
+  const byId = new Map(Object.values(profilesByToken).map((p) => [p.id, p]));
+  const codes: InviteCode[] = [];
+  let nextId = 1;
+  return {
+    async listCodes() {
+      return codes.map((c) => ({ ...c }));
+    },
+    async createCode(note, _createdBy) {
+      const created: InviteCode = {
+        id: `code-${nextId++}`,
+        code: `CODE${nextId}`,
+        note: note || null,
+        createdAt: Date.now(),
+        revokedAt: null,
+      };
+      codes.push(created);
+      return { ...created };
+    },
+    async revokeCode(id) {
+      const found = codes.find((c) => c.id === id);
+      if (!found) throw new Error(CODE_NOT_FOUND);
+      found.revokedAt = Date.now();
+      return { ...found };
+    },
+    async redeemCode(code, profileId, _orgName) {
+      const profile = byId.get(profileId);
+      if (!profile || profile.role !== 'baker') return false;
+      const active = codes.find((c) => c.code === code && c.revokedAt === null);
+      if (!active) return false;
+      profile.role = 'requester';
+      return true;
+    },
+  };
+}
+
 function makeApp() {
+  const profiles = cloneProfiles();
   return createApp(
     makeFakeStore(),
     makeFakeTranslator(),
-    makeFakeAuthenticator(),
+    makeFakeAuthenticator(profiles),
     makeFakeProfilesStore(),
+    undefined,
+    undefined,
+    makeFakeInvitesStore(profiles),
   );
 }
 
@@ -1613,5 +1669,114 @@ describe('translate API', () => {
       .post('/api/translate')
       .send({ text: 'hello', to: 'he' });
     expect(res.status).toBe(500);
+  });
+});
+
+// Phase 1: invite-gated organization ("requester") sign-up. A baker becomes a
+// requester only by redeeming a valid code via /api/join; admins manage codes.
+describe('invite codes / join API', () => {
+  const createCode = (app: ReturnType<typeof createApp>, note = '') =>
+    request(app).post('/api/admin/invite-codes').set('Authorization', 'Bearer adm').send({ note });
+
+  it('an admin can create, list, and revoke an invite code', async () => {
+    const app = makeApp();
+    const created = await createCode(app, 'For the food bank');
+    expect(created.status).toBe(201);
+    expect(created.body.code).toBeTruthy();
+    expect(created.body.revokedAt).toBeNull();
+
+    const list = await request(app).get('/api/admin/invite-codes').set('Authorization', 'Bearer adm');
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(1);
+
+    const revoked = await request(app)
+      .post(`/api/admin/invite-codes/${created.body.id}/revoke`)
+      .set('Authorization', 'Bearer adm');
+    expect(revoked.status).toBe(200);
+    expect(revoked.body.revokedAt).toBeTruthy();
+  });
+
+  it('a non-admin cannot manage invite codes (403)', async () => {
+    const app = makeApp();
+    expect((await createCode(app).set('Authorization', 'Bearer bak')).status).toBe(403);
+    expect((await request(app).get('/api/admin/invite-codes').set('Authorization', 'Bearer bak')).status).toBe(403);
+  });
+
+  it('a baker redeeming a valid code becomes a requester', async () => {
+    const app = makeApp();
+    const created = await createCode(app, 'Org X');
+    const join = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer bak')
+      .send({ code: created.body.code, orgName: 'Org X Shelter' });
+    expect(join.status).toBe(200);
+
+    const me = await request(app).get('/api/me').set('Authorization', 'Bearer bak');
+    expect(me.body.role).toBe('requester');
+  });
+
+  it('a bad code is rejected with a generic message (400), and does not change the role', async () => {
+    const app = makeApp();
+    const join = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer bak')
+      .send({ code: 'NOTREAL', orgName: 'Org X' });
+    expect(join.status).toBe(400);
+    const me = await request(app).get('/api/me').set('Authorization', 'Bearer bak');
+    expect(me.body.role).toBe('baker');
+  });
+
+  it('a revoked code cannot be redeemed, even though it once existed', async () => {
+    const app = makeApp();
+    const created = await createCode(app);
+    await request(app).post(`/api/admin/invite-codes/${created.body.id}/revoke`).set('Authorization', 'Bearer adm');
+    const join = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer bak')
+      .send({ code: created.body.code, orgName: 'Org X' });
+    expect(join.status).toBe(400);
+  });
+
+  it('an account that is already a requester or admin cannot "join" (self-demotion guard)', async () => {
+    const app = makeApp();
+    const created = await createCode(app);
+    const asRequester = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer req')
+      .send({ code: created.body.code, orgName: 'Org X' });
+    expect(asRequester.status).toBe(400);
+    const asAdmin = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer adm')
+      .send({ code: created.body.code, orgName: 'Org X' });
+    expect(asAdmin.status).toBe(400);
+  });
+
+  it('a code can be reused by more than one account', async () => {
+    const app = makeApp();
+    const created = await createCode(app);
+    const first = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer bak')
+      .send({ code: created.body.code, orgName: 'Org X' });
+    expect(first.status).toBe(200);
+    const second = await request(app)
+      .post('/api/join')
+      .set('Authorization', 'Bearer bak2')
+      .send({ code: created.body.code, orgName: 'Org X' });
+    expect(second.status).toBe(200);
+  });
+
+  it('/api/join requires sign-in (401) and a non-empty code and org name (400)', async () => {
+    expect((await request(makeApp()).post('/api/join').send({ code: 'X', orgName: 'Y' })).status).toBe(401);
+    const app = makeApp();
+    expect(
+      (await request(app).post('/api/join').set('Authorization', 'Bearer bak').send({ code: '', orgName: 'Y' }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await request(app).post('/api/join').set('Authorization', 'Bearer bak').send({ code: 'X', orgName: '' }))
+        .status,
+    ).toBe(400);
   });
 });

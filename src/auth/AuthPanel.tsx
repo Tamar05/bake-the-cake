@@ -1,28 +1,13 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
-import { isValidPhone } from '../lib/phone';
+import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import CapabilityGroup from '../components/CapabilityGroup';
-import { useAuth, type SignUpRole } from './AuthProvider';
+import { useAuth } from './AuthProvider';
 
 type Props = { t: Dictionary };
 type Mode = 'signIn' | 'signUp';
-
-// The Supabase project's password policy: at least 8 characters, and at least
-// one lowercase letter, one uppercase letter, and one digit. We check it on the
-// client so the user sees a friendly hint instead of the raw server error.
-function isStrongPassword(pw: string): boolean {
-  return pw.length >= 8 && /[a-z]/.test(pw) && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// The sign-up contact may be a phone number OR an email. Empty is allowed
-// (the field is optional); anything present must be a valid one or the other.
-function isValidContact(value: string): boolean {
-  const trimmed = value.trim();
-  return trimmed === '' || isValidPhone(trimmed) || EMAIL_RE.test(trimmed);
-}
 
 export default function AuthPanel({ t }: Props) {
   const { configured, loading, profile, signIn, signUp, signOut } = useAuth();
@@ -30,7 +15,6 @@ export default function AuthPanel({ t }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<SignUpRole>('requester');
   const [contact, setContact] = useState('');
   const [notifyAreas, setNotifyAreas] = useState<string[]>([]);
   const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
@@ -75,17 +59,7 @@ export default function AuthPanel({ t }: Props) {
     setError(null);
     try {
       if (mode === 'signIn') await signIn(email, password);
-      else
-        await signUp(
-          email,
-          password,
-          name,
-          role,
-          contact,
-          notifyAreas,
-          notifyKashrut,
-          notifyDietary,
-        );
+      else await signUp(email, password, name, contact, notifyAreas, notifyKashrut, notifyDietary);
     } catch (err) {
       // Show the real reason (e.g. "Email not confirmed") — it's more useful
       // than a generic line while learning; fall back if there's no message.
@@ -141,13 +115,6 @@ export default function AuthPanel({ t }: Props) {
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           <label>
-            {t.auth.roleLabel}
-            <select value={role} onChange={(e) => setRole(e.target.value as SignUpRole)}>
-              <option value="requester">{t.auth.roleRequester}</option>
-              <option value="baker">{t.auth.roleBaker}</option>
-            </select>
-          </label>
-          <label>
             {t.auth.contactLabel}
             <input
               value={contact}
@@ -159,33 +126,31 @@ export default function AuthPanel({ t }: Props) {
               <small className="field-error">{t.auth.contactInvalid}</small>
             )}
           </label>
-          {role === 'baker' && (
-            <div className="baker-caps">
-              <p className="baker-caps-heading">{t.auth.bakerCapabilitiesHeading}</p>
-              <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
-              <CapabilityGroup
-                legend={t.notifications.areasLabel}
-                options={AREAS}
-                labels={t.options.area}
-                selected={notifyAreas}
-                onToggle={(v) => toggle(notifyAreas, setNotifyAreas, v)}
-              />
-              <CapabilityGroup
-                legend={t.notifications.kashrutLabel}
-                options={KASHRUT_OPTIONS}
-                labels={t.options.kashrut}
-                selected={notifyKashrut}
-                onToggle={(v) => toggle(notifyKashrut, setNotifyKashrut, v)}
-              />
-              <CapabilityGroup
-                legend={t.notifications.dietaryLabel}
-                options={DIETARY_OPTIONS}
-                labels={t.options.dietary}
-                selected={notifyDietary}
-                onToggle={(v) => toggle(notifyDietary, setNotifyDietary, v)}
-              />
-            </div>
-          )}
+          <div className="baker-caps">
+            <p className="baker-caps-heading">{t.auth.bakerCapabilitiesHeading}</p>
+            <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
+            <CapabilityGroup
+              legend={t.notifications.areasLabel}
+              options={AREAS}
+              labels={t.options.area}
+              selected={notifyAreas}
+              onToggle={(v) => toggle(notifyAreas, setNotifyAreas, v)}
+            />
+            <CapabilityGroup
+              legend={t.notifications.kashrutLabel}
+              options={KASHRUT_OPTIONS}
+              labels={t.options.kashrut}
+              selected={notifyKashrut}
+              onToggle={(v) => toggle(notifyKashrut, setNotifyKashrut, v)}
+            />
+            <CapabilityGroup
+              legend={t.notifications.dietaryLabel}
+              options={DIETARY_OPTIONS}
+              labels={t.options.dietary}
+              selected={notifyDietary}
+              onToggle={(v) => toggle(notifyDietary, setNotifyDietary, v)}
+            />
+          </div>
         </>
       )}
       {error && <p className="auth-error">{error}</p>}
@@ -206,6 +171,11 @@ export default function AuthPanel({ t }: Props) {
           {mode === 'signIn' ? t.auth.needAccount : t.auth.haveAccount}
         </button>
       </div>
+      {mode === 'signUp' && (
+        <Link className="auth-link auth-join-link" to="/join">
+          {t.auth.joinPrompt}
+        </Link>
+      )}
     </form>
   );
 }

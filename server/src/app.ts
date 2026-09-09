@@ -35,6 +35,7 @@ import {
   type AuthedRequest,
   type AuthedProfile,
 } from './auth';
+import { createSupabaseInvitesStore, CODE_NOT_FOUND, type InvitesStore } from './invitesStore';
 
 // The required fields a new request must include. Dietary and the recipient
 // note are optional; everything else (including the kashrut level) is required.
@@ -214,6 +215,7 @@ export function createApp(
   profilesStore: ProfilesStore = createSupabaseProfilesStore(),
   pushStore: PushStore = createSupabasePushStore(),
   pushSender: PushSender = createWebPushSender(),
+  invitesStore: InvitesStore = createSupabaseInvitesStore(),
 ) {
   const app = express();
   // In production, restrict which sites' browsers may call this API to the
@@ -344,6 +346,67 @@ export function createApp(
       res.status(204).end();
     } catch {
       res.status(500).json({ error: 'Could not remove your push subscription' });
+    }
+  });
+
+  // A signed-in baker redeems an invite code to become a requester (an
+  // organization). Scoped to the caller's own account only (never a body-
+  // supplied id), and every failure — bad code, revoked code, or the caller
+  // already being a requester/admin — gets the same generic message, so a
+  // signed-in user can't probe which codes exist or are still active.
+  const ORG_NAME_MAX = 80;
+  app.post('/api/join', auth, async (req, res) => {
+    const { code, orgName } = (req.body ?? {}) as { code?: unknown; orgName?: unknown };
+    const cleanOrgName = typeof orgName === 'string' ? orgName.trim().slice(0, ORG_NAME_MAX) : '';
+    if (typeof code !== 'string' || code.trim() === '' || cleanOrgName === '') {
+      res.status(400).json({ error: 'Please enter your organization name and invite code' });
+      return;
+    }
+    const me = (req as AuthedRequest).auth;
+    try {
+      const ok = await invitesStore.redeemCode(code.trim(), me.id, cleanOrgName);
+      if (!ok) {
+        res.status(400).json({ error: "That code isn't valid." });
+        return;
+      }
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ error: "That code isn't valid." });
+    }
+  });
+
+  // Admin: manage invite codes that let an account become a requester (org).
+  app.get('/api/admin/invite-codes', auth, requireRole('admin'), async (_req, res) => {
+    try {
+      res.json(await invitesStore.listCodes());
+    } catch {
+      res.status(500).json({ error: 'Could not load invite codes' });
+    }
+  });
+
+  const NOTE_MAX = 80;
+  app.post('/api/admin/invite-codes', auth, requireRole('admin'), async (req, res) => {
+    const { note } = (req.body ?? {}) as { note?: unknown };
+    const cleanNote = typeof note === 'string' ? note.trim().slice(0, NOTE_MAX) : '';
+    const me = (req as AuthedRequest).auth;
+    try {
+      const created = await invitesStore.createCode(cleanNote, me.id);
+      res.status(201).json(created);
+    } catch {
+      res.status(500).json({ error: 'Could not create an invite code' });
+    }
+  });
+
+  app.post('/api/admin/invite-codes/:id/revoke', auth, requireRole('admin'), async (req, res) => {
+    try {
+      const revoked = await invitesStore.revokeCode(req.params.id);
+      res.json(revoked);
+    } catch (err) {
+      if (err instanceof Error && err.message === CODE_NOT_FOUND) {
+        res.status(404).json({ error: 'No such invite code' });
+        return;
+      }
+      res.status(500).json({ error: 'Could not revoke this code' });
     }
   });
 
