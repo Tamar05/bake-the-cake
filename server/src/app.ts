@@ -63,6 +63,14 @@ function previewText(text: string, max: number): string {
   return cut.trimEnd() + '…';
 }
 
+// The recipient's name: everyone browsing sees only the first name; once a
+// baker commits (or for the owner/admin), the full name shows. Same privacy
+// shape as the phone number and the "about recipient" note above.
+function firstNameOnly(name: string): string {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  return rest.length > 0 ? first : name;
+}
+
 // Validates a baker's notification preferences from the request body: the flag
 // must be a boolean, and every area / dietary / kashrut value must come from the
 // shared lists. Returns clean, de-duplicated prefs, or null when malformed.
@@ -154,6 +162,12 @@ function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined)
   let result = request;
   // The requester's phone is private — the assigned baker sees it in-app.
   if (request.contactPhone) result = { ...result, contactPhone: '' };
+  // The recipient's full name is private until a baker commits — everyone
+  // browsing sees only the first name.
+  if (request.recipient) {
+    const preview = firstNameOnly(request.recipient);
+    if (preview !== request.recipient) result = { ...result, recipient: preview };
+  }
   // The recipient note is shown to everyone, but non-holders get only a short
   // preview; the assigned baker sees the whole thing with the contact details.
   if (request.aboutRecipient) {

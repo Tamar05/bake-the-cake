@@ -458,6 +458,25 @@ describe('requests API', () => {
     expect(asBaker.body[0].aboutRecipient.length).toBeLessThan(longNote.length);
     expect(asBaker.body[0].aboutRecipient.endsWith('…')).toBe(true);
   });
+
+  it('shows the full recipient name only to the owner, the committed baker, and admins', async () => {
+    const app = makeApp();
+    await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, recipient: 'Ruth Cohen' });
+
+    const recipientSeenBy = async (token?: string) => {
+      const call = request(app).get('/api/requests');
+      const res = token ? await call.set('Authorization', `Bearer ${token}`) : await call;
+      return res.body[0].recipient;
+    };
+
+    expect(await recipientSeenBy()).toBe('Ruth'); // anonymous — first name only
+    expect(await recipientSeenBy('bak2')).toBe('Ruth'); // an unrelated baker
+    expect(await recipientSeenBy('req')).toBe('Ruth Cohen'); // the owner
+    expect(await recipientSeenBy('adm')).toBe('Ruth Cohen'); // an admin
+  });
 });
 
 describe('notification settings API', () => {
