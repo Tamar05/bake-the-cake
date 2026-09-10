@@ -1,7 +1,8 @@
 // A baker's in-app notification settings (matches the server's shape).
 export type NotificationSettings = {
   notifyNewRequests: boolean;
-  areas: string[];
+  homeTown: string; // Phase 5 — replaces the old area list
+  travelRadiusKm: number;
   dietary: string[];
   kashrut: string[];
   seenAt: number | null; // ms since 1970, or null if the bell was never opened

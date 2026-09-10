@@ -646,6 +646,11 @@ body {
   color: #a35b00;
 }
 
+.status-badge.attention-unrecognized-town {
+  background: #e6e6fa;
+  color: #4b3f8f;
+}
+
 .attention-contact {
   margin-top: 0.5rem;
   font-weight: 600;

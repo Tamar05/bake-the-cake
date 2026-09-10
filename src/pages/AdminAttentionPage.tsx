@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
 import { listAttention, type AttentionItem } from '../lib/adminApi';
+import { townLabel } from '../lib/optionLabels';
+
+const REASON_LABEL = {
+  overdue: (t: Dictionary) => t.attention.reasonOverdue,
+  unclaimed: (t: Dictionary) => t.attention.reasonUnclaimed,
+  'unrecognized-town': (t: Dictionary) => t.attention.reasonUnrecognizedTown,
+} as const;
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -37,18 +44,14 @@ export default function AdminAttentionPage({ t }: { t: Dictionary }) {
           <ul>
             {items.map((item) => (
               <li key={item.id} className="request-card">
-                <span className={`status-badge attention-${item.reason}`}>
-                  {item.reason === 'overdue'
-                    ? t.attention.reasonOverdue
-                    : t.attention.reasonUnclaimed}
-                </span>
+                <span className={`status-badge attention-${item.reason}`}>{REASON_LABEL[item.reason](t)}</span>
                 <h3>{item.recipient}</h3>
                 <p>{item.occasion}</p>
                 <p>
                   {t.list.neededByPrefix} {item.neededBy}
                 </p>
                 <p>
-                  {t.list.locationPrefix} {item.location}
+                  {t.list.locationPrefix} {townLabel(item.location)}
                 </p>
                 <p className="attention-contact">
                   {t.attention.contactPrefix} {item.ownerContact ?? t.attention.noContact}

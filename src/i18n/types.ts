@@ -1,4 +1,4 @@
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
 
 // The shape every language dictionary must fill in. If a new piece of text
 // is added here, both en.ts and he.ts must provide it (the test enforces this).
@@ -12,11 +12,11 @@ export type Dictionary = {
     occasionLabel: string;
     neededByLabel: string;
     dietaryLabel: string; // "Dietary needs (choose any)" — the multi-select heading
-    locationLabel: string; // "Area" — the delivery-area dropdown
+    locationLabel: string; // "Town" — the searchable town picker (Phase 5)
+    locationHint: string; // tells them to type their town, or any name if it's missing
     kashrutLabel: string; // "Kashrut needed" — the kashrut dropdown
     aboutRecipientLabel: string; // "About the recipient (optional)"
     aboutRecipientHint: string; // why the note helps the baker
-    selectPlaceholder: string; // the empty "Choose…" option in a dropdown
     contactPhoneLabel: string; // phone the baker uses to reach the requester
     contactPhoneHint: string; // why the phone is needed
     submit: string;
@@ -121,7 +121,9 @@ export type Dictionary = {
     loading: string;
     loadError: string;
     enableLabel: string; // "Notify me about new requests"
-    areasLabel: string; // "Areas you deliver to"
+    homeTownLabel: string; // "Your home town" (Phase 5 — replaces areasLabel)
+    homeTownHint: string; // type your town, or any name if it's missing
+    travelRadiusLabel: string; // "How far will you travel? (km)"
     dietaryLabel: string; // "Dietary needs you can make"
     kashrutLabel: string; // "Kashrut levels you cook with"
     save: string;
@@ -182,6 +184,7 @@ export type Dictionary = {
     loadError: string;
     reasonOverdue: string; // badge: past its needed-by date
     reasonUnclaimed: string; // badge: open with no baker too long
+    reasonUnrecognizedTown: string; // badge: the requester's town wasn't in the built-in list
     contactPrefix: string; // precedes the requester's contact
     noContact: string; // shown when the requester left no contact
   };
@@ -287,9 +290,10 @@ export type Dictionary = {
   // Per-language display labels for the shared option values (the DB stores the
   // canonical value; these translate it for the reader). Typed against the
   // option lists themselves, so the compiler requires every value be translated
-  // in both languages — a missing label won't build.
+  // in both languages — a missing label won't build. Town names (Phase 5) have
+  // no such map — they're proper nouns, shown as-is in both languages (see
+  // PLAN_phase5_location_radius.md's "Known limitation").
   options: {
-    area: Record<(typeof AREAS)[number], string>;
     dietary: Record<(typeof DIETARY_OPTIONS)[number], string>;
     kashrut: Record<(typeof KASHRUT_OPTIONS)[number], string>;
   };

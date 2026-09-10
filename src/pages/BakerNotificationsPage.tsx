@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, knownOnly } from '../lib/options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS, knownOnly } from '../lib/options';
 import { getNotificationSettings, saveNotificationSettings } from '../lib/notificationsApi';
 import {
   isPushSupported,
@@ -10,21 +10,24 @@ import {
   disablePushOnThisDevice,
 } from '../lib/pushApi';
 import CapabilityGroup from '../components/CapabilityGroup';
+import TownField from '../components/TownField';
 
 type Status = 'loading' | 'ready' | 'error';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type PushState = 'off' | 'on';
 
-// Baker-only screen: opt in to new-request notifications and choose which areas,
-// dietary needs and kashrut levels you can make. The 🔔 bell only counts a new
-// request as relevant when it matches all three of these (see the matcher).
+// Baker-only screen: opt in to new-request notifications and set your home
+// town + travel radius (Phase 5 — replaces the old area checklist), plus
+// which dietary needs and kashrut levels you can make. The 🔔 bell only
+// counts a new request as relevant when it matches all of these (see matching.ts).
 export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [status, setStatus] = useState<Status>('loading');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [notifyNewRequests, setNotifyNewRequests] = useState(false);
-  const [areas, setAreas] = useState<string[]>([]);
+  const [homeTown, setHomeTown] = useState('');
+  const [travelRadiusKm, setTravelRadiusKm] = useState(15);
   const [dietary, setDietary] = useState<string[]>([]);
   const [kashrut, setKashrut] = useState<string[]>([]);
 
@@ -41,11 +44,12 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
     getNotificationSettings(token)
       .then((s) => {
         setNotifyNewRequests(s.notifyNewRequests);
+        setHomeTown(s.homeTown);
+        setTravelRadiusKm(s.travelRadiusKm || 15);
         // Drop any stored value that's no longer an offered option (e.g. a
-        // delivery area that was renamed or removed). Otherwise it stays in the
+        // dietary need that was renamed or removed). Otherwise it stays in the
         // form invisibly — no checkbox to untick — and gets re-submitted on every
         // save, which the server rejects, blocking the baker from saving at all.
-        setAreas(knownOnly(s.areas, AREAS));
         setDietary(knownOnly(s.dietary, DIETARY_OPTIONS));
         setKashrut(knownOnly(s.kashrut, KASHRUT_OPTIONS));
         setStatus('ready');
@@ -96,7 +100,7 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
     if (!token) return;
     setSaveStatus('saving');
     try {
-      await saveNotificationSettings({ notifyNewRequests, areas, dietary, kashrut }, token);
+      await saveNotificationSettings({ notifyNewRequests, homeTown, travelRadiusKm, dietary, kashrut }, token);
       setSaveStatus('saved');
     } catch {
       setSaveStatus('error');
@@ -124,13 +128,28 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
             {t.notifications.enableLabel}
           </label>
 
-          <CapabilityGroup
-            legend={t.notifications.areasLabel}
-            options={AREAS}
-            labels={t.options.area}
-            selected={areas}
-            onToggle={(v) => toggle(areas, setAreas, v)}
+          <TownField
+            label={t.notifications.homeTownLabel}
+            value={homeTown}
+            onChange={(v) => {
+              setHomeTown(v);
+              setSaveStatus('idle');
+            }}
+            hint={t.notifications.homeTownHint}
           />
+          <label>
+            {t.notifications.travelRadiusLabel}
+            <input
+              type="number"
+              min={1}
+              max={300}
+              value={travelRadiusKm}
+              onChange={(e) => {
+                setTravelRadiusKm(Number(e.target.value));
+                setSaveStatus('idle');
+              }}
+            />
+          </label>
           <CapabilityGroup
             legend={t.notifications.dietaryLabel}
             options={DIETARY_OPTIONS}

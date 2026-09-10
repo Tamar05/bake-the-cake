@@ -29,20 +29,39 @@ const request: CakeRequest = {
   galleryCaption: '',
 };
 
-// A baker who can make exactly this request.
+// A baker who can make exactly this request: based in the same town as the
+// request, with a small-but-nonzero radius (0km would fail on floating point).
 const fullMatch: BakerCapabilities = {
-  areas: ['Haifa', 'Tel Aviv'],
+  homeTown: 'Haifa',
+  travelRadiusKm: 5,
   dietary: ['nut-free', 'vegan', 'dairy-free'],
   kashrut: ['Badatz Eda Haredit', 'Rabbanut'],
 };
 
 describe('matchesCapabilities', () => {
-  it('matches when area, kashrut and every dietary need are covered', () => {
+  it('matches when the town is within radius, kashrut and every dietary need are covered', () => {
     expect(matchesCapabilities(request, fullMatch)).toBe(true);
   });
 
-  it('does not match when the area is not one the baker serves', () => {
-    expect(matchesCapabilities(request, { ...fullMatch, areas: ['Tel Aviv'] })).toBe(false);
+  it('does not match when the request town is outside the baker\'s travel radius', () => {
+    // Tel Aviv is roughly 85km from Haifa — well outside a 5km radius.
+    expect(matchesCapabilities(request, { ...fullMatch, homeTown: 'Tel Aviv' })).toBe(false);
+  });
+
+  it('matches once the radius is widened enough to cover the distance', () => {
+    expect(matchesCapabilities(request, { ...fullMatch, homeTown: 'Tel Aviv', travelRadiusKm: 200 })).toBe(
+      true,
+    );
+  });
+
+  it('never matches when the request location does not resolve to a real town', () => {
+    // Legacy data, or a requester's own "Other: <free text>" entry.
+    const unresolvable = { ...request, location: 'Other: Somewhere' };
+    expect(matchesCapabilities(unresolvable, fullMatch)).toBe(false);
+  });
+
+  it('never matches when the baker\'s home town does not resolve (should not happen, but is not trusted blindly)', () => {
+    expect(matchesCapabilities(request, { ...fullMatch, homeTown: 'Not A Real Town' })).toBe(false);
   });
 
   it('does not match when the required kashrut level is not provided', () => {
@@ -75,6 +94,8 @@ describe('matchesCapabilities', () => {
   });
 
   it('empty capability lists match nothing that requires them', () => {
-    expect(matchesCapabilities(request, { areas: [], dietary: [], kashrut: [] })).toBe(false);
+    expect(matchesCapabilities(request, { homeTown: '', travelRadiusKm: 0, dietary: [], kashrut: [] })).toBe(
+      false,
+    );
   });
 });

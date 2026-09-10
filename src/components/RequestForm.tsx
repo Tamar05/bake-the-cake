@@ -3,8 +3,9 @@ import type { Dictionary } from '../i18n/types';
 import type { RequestDraft } from '../types';
 import { findMissingFields } from '../lib/requests';
 import { isValidPhone } from '../lib/phone';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from '../lib/options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from '../lib/options';
 import { optionLabel } from '../lib/optionLabels';
+import TownField from './TownField';
 
 const EMPTY_DRAFT: RequestDraft = {
   recipient: '',
@@ -88,17 +89,12 @@ export default function RequestForm({ t, onSubmit, initial, submitLabel, onCance
         <input type="date" value={draft.neededBy} onChange={(e) => update('neededBy', e.target.value)} />
       </label>
 
-      <label>
-        {t.form.locationLabel}
-        <select value={draft.location} onChange={(e) => update('location', e.target.value)}>
-          <option value="">{t.form.selectPlaceholder}</option>
-          {AREAS.map((area) => (
-            <option key={area} value={area}>
-              {optionLabel(t.options.area, area)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TownField
+        label={t.form.locationLabel}
+        value={draft.location}
+        onChange={(v) => update('location', v)}
+        hint={t.form.locationHint}
+      />
 
       <fieldset className="options-fieldset">
         <legend>{t.form.kashrutLabel}</legend>

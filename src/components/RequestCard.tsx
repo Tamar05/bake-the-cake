@@ -18,7 +18,7 @@ import {
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { parseList } from '../lib/options';
-import { optionLabel } from '../lib/optionLabels';
+import { optionLabel, townLabel } from '../lib/optionLabels';
 import { useAuth } from '../auth/AuthProvider';
 import RequestForm from './RequestForm';
 import Timeline from './Timeline';
@@ -373,7 +373,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
         {t.list.neededByPrefix} {request.neededBy}
       </p>
       <p>
-        {t.list.locationPrefix} {optionLabel(t.options.area, request.location)}
+        {t.list.locationPrefix} {townLabel(request.location)}
       </p>
       {request.kashrut && (
         <p>

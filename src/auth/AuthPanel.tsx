@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import CapabilityGroup from '../components/CapabilityGroup';
+import TownField from '../components/TownField';
 import { useAuth } from './AuthProvider';
+
+const DEFAULT_TRAVEL_RADIUS_KM = 15;
 
 type Props = { t: Dictionary };
 type Mode = 'signIn' | 'signUp';
@@ -16,7 +19,8 @@ export default function AuthPanel({ t }: Props) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [notifyAreas, setNotifyAreas] = useState<string[]>([]);
+  const [notifyHomeTown, setNotifyHomeTown] = useState('');
+  const [notifyTravelRadiusKm, setNotifyTravelRadiusKm] = useState(DEFAULT_TRAVEL_RADIUS_KM);
   const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
   const [notifyDietary, setNotifyDietary] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
@@ -85,7 +89,8 @@ export default function AuthPanel({ t }: Props) {
           password,
           name,
           contact,
-          notifyAreas,
+          notifyHomeTown,
+          notifyTravelRadiusKm,
           notifyKashrut,
           notifyDietary,
         );
@@ -160,13 +165,22 @@ export default function AuthPanel({ t }: Props) {
           <div className="baker-caps">
             <p className="baker-caps-heading">{t.auth.bakerCapabilitiesHeading}</p>
             <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
-            <CapabilityGroup
-              legend={t.notifications.areasLabel}
-              options={AREAS}
-              labels={t.options.area}
-              selected={notifyAreas}
-              onToggle={(v) => toggle(notifyAreas, setNotifyAreas, v)}
+            <TownField
+              label={t.notifications.homeTownLabel}
+              value={notifyHomeTown}
+              onChange={setNotifyHomeTown}
+              hint={t.notifications.homeTownHint}
             />
+            <label>
+              {t.notifications.travelRadiusLabel}
+              <input
+                type="number"
+                min={1}
+                max={300}
+                value={notifyTravelRadiusKm}
+                onChange={(e) => setNotifyTravelRadiusKm(Number(e.target.value))}
+              />
+            </label>
             <CapabilityGroup
               legend={t.notifications.kashrutLabel}
               options={KASHRUT_OPTIONS}

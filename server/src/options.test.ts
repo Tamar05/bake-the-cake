@@ -6,10 +6,6 @@ import * as server from './options';
 import * as client from '../../src/lib/options';
 
 describe('option lists parity (client ⇄ server)', () => {
-  it('areas match', () => {
-    expect([...client.AREAS]).toEqual([...server.AREAS]);
-  });
-
   it('dietary options match', () => {
     expect([...client.DIETARY_OPTIONS]).toEqual([...server.DIETARY_OPTIONS]);
   });

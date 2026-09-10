@@ -23,7 +23,8 @@ type AuthContextValue = {
     password: string,
     displayName: string,
     contact: string,
-    notifyAreas?: string[], // bakers pick their areas at sign-up
+    notifyHomeTown?: string, // baker's home town at sign-up (Phase 5 — replaces notifyAreas)
+    notifyTravelRadiusKm?: number, // how far they'll travel
     notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
     notifyDietary?: string[], // bakers pick which dietary needs they can bake for
   ) => Promise<{ emailConfirmationRequired: boolean }>;
@@ -96,7 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
     contact: string,
-    notifyAreas: string[] = [],
+    notifyHomeTown = '',
+    notifyTravelRadiusKm = 0,
     notifyKashrut: string[] = [],
     notifyDietary: string[] = [],
   ): Promise<{ emailConfirmationRequired: boolean }> {
@@ -115,13 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // yet, and the caller shows a "check your email" state instead. Best-
     // effort either way — a failure here never blocks the account; they can
     // adjust it later in Settings.
-    const chose = notifyAreas.length > 0 || notifyKashrut.length > 0 || notifyDietary.length > 0;
+    const chose = notifyHomeTown !== '' || notifyKashrut.length > 0 || notifyDietary.length > 0;
     if (data.session && chose) {
       try {
         await saveNotificationSettings(
           {
             notifyNewRequests: true,
-            areas: notifyAreas,
+            homeTown: notifyHomeTown,
+            travelRadiusKm: notifyTravelRadiusKm,
             dietary: notifyDietary,
             kashrut: notifyKashrut,
           },

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import { useAuth } from '../auth/AuthProvider';
-import { optionLabel } from '../lib/optionLabels';
+import { townLabel } from '../lib/optionLabels';
 import { getNewRelevant, markNotificationsSeen, type RelevantRequest } from '../lib/notificationsApi';
 
 // The header 🔔 for bakers: a badge with the number of new open requests that
@@ -80,7 +80,7 @@ export default function NotificationBell({ t }: { t: Dictionary }) {
                 <li key={item.id}>
                   <NavLink to="/browse" onClick={() => setOpen(false)}>
                     <strong>{item.occasion}</strong>
-                    <span className="notif-area">{optionLabel(t.options.area, item.area)}</span>
+                    <span className="notif-area">{townLabel(item.area)}</span>
                   </NavLink>
                 </li>
               ))}

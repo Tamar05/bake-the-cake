@@ -60,4 +60,25 @@ describe('attentionReason', () => {
     expect(attentionReason({ ...base, neededBy: '2026-08-20', status: 'delivered' }, now)).toBeNull();
     expect(attentionReason({ ...base, neededBy: '2026-08-20', status: 'received' }, now)).toBeNull();
   });
+
+  it('flags a request whose town wasn\'t in the built-in list (Phase 5)', () => {
+    const unrecognized = { ...base, location: 'Other: Some Village' };
+    expect(attentionReason(unrecognized, now)).toBe('unrecognized-town');
+  });
+
+  it('overdue and unclaimed both win over unrecognized-town when they also apply', () => {
+    const overdueAndUnrecognized = { ...base, neededBy: '2026-08-20', location: 'Other: Some Village' };
+    expect(attentionReason(overdueAndUnrecognized, now)).toBe('overdue');
+    const unclaimedAndUnrecognized = {
+      ...base,
+      createdAt: now - UNCLAIMED_MS - 1,
+      location: 'Other: Some Village',
+    };
+    expect(attentionReason(unclaimedAndUnrecognized, now)).toBe('unclaimed');
+  });
+
+  it('an unrecognized-town flag clears once delivered/received, same as the others', () => {
+    const delivered = { ...base, location: 'Other: Some Village', status: 'delivered' as const };
+    expect(attentionReason(delivered, now)).toBeNull();
+  });
 });

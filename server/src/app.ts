@@ -20,7 +20,8 @@ import {
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
 import { matchesCapabilities } from './matching';
-import { AREAS, DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
+import { findTown, OTHER_PREFIX } from './towns';
 import { normalizePhone } from './phone';
 import { createSupabasePushStore, type PushStore, type PushSubscriptionInput } from './pushStore';
 import { createWebPushSender, type PushSender } from './pushSender';
@@ -72,13 +73,26 @@ function firstNameOnly(name: string): string {
   return rest.length > 0 ? first : name;
 }
 
+// A baker's travel radius: bounded but generously (matching only affects
+// notification relevance, never Browse visibility or reservation eligibility
+// — see matching.ts — so this clamps rather than rejects an out-of-range value).
+const MIN_TRAVEL_RADIUS_KM = 1;
+const MAX_TRAVEL_RADIUS_KM = 300;
+
 // Validates a baker's notification preferences from the request body: the flag
-// must be a boolean, and every area / dietary / kashrut value must come from the
+// must be a boolean, the home town must be a real, known town, the radius is
+// clamped to a sane range, and every dietary/kashrut value must come from the
 // shared lists. Returns clean, de-duplicated prefs, or null when malformed.
 function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
   if (typeof body !== 'object' || body === null) return null;
   const b = body as Record<string, unknown>;
   if (typeof b.notifyNewRequests !== 'boolean') return null;
+  if (typeof b.homeTown !== 'string' || !findTown(b.homeTown)) return null;
+  if (typeof b.travelRadiusKm !== 'number' || !Number.isFinite(b.travelRadiusKm)) return null;
+  const travelRadiusKm = Math.min(
+    MAX_TRAVEL_RADIUS_KM,
+    Math.max(MIN_TRAVEL_RADIUS_KM, Math.round(b.travelRadiusKm)),
+  );
   const asList = (value: unknown, allowed: readonly string[]): string[] | null => {
     if (!Array.isArray(value)) return null;
     const seen = new Set<string>();
@@ -88,11 +102,10 @@ function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
     }
     return [...seen];
   };
-  const areas = asList(b.areas, AREAS);
   const dietary = asList(b.dietary, DIETARY_OPTIONS);
   const kashrut = asList(b.kashrut, KASHRUT_OPTIONS);
-  if (areas === null || dietary === null || kashrut === null) return null;
-  return { notifyNewRequests: b.notifyNewRequests, areas, dietary, kashrut };
+  if (dietary === null || kashrut === null) return null;
+  return { notifyNewRequests: b.notifyNewRequests, homeTown: b.homeTown, travelRadiusKm, dietary, kashrut };
 }
 
 // Validates a browser push subscription from the request body. The browser hands
@@ -110,9 +123,12 @@ function parsePushSubscription(body: unknown): PushSubscriptionInput | null {
 }
 
 // Validates and normalizes a submitted request body (shared by create and edit).
-// Returns a clean RequestDraft, or a message to send back as a 400. The area,
-// kashrut and dietary values must all come from the shared lists; a request may
-// name several acceptable kashrut levels (at least one), and dietary needs are
+// Returns a clean RequestDraft, or a message to send back as a 400. The
+// location must be either a real, known town, or the "Other: <free text>"
+// escape hatch (Phase 5) for a town that isn't in the list yet — flagged for
+// admin review via attentionReason, but never blocked from posting. Kashrut
+// and dietary values must come from the shared lists; a request may name
+// several acceptable kashrut levels (at least one), and dietary needs are
 // optional. The contact phone is validated and canonicalized.
 function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft } | { error: string } {
   if (isMissingRequired(body)) return { error: 'Missing required fields' };
@@ -120,8 +136,10 @@ function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft }
   if (contactPhone === null) {
     return { error: 'Please enter a valid phone number, e.g. 050-123-4567 or +972 50-123-4567.' };
   }
-  if (!(AREAS as readonly string[]).includes(body.location!)) {
-    return { error: 'Please choose a delivery area from the list.' };
+  const location = body.location!;
+  const isOtherFreeText = location.startsWith(OTHER_PREFIX) && location.length > OTHER_PREFIX.length;
+  if (!findTown(location) && !isOtherFreeText) {
+    return { error: 'Please choose a town from the list.' };
   }
   const kashrutParts = parseList(body.kashrut ?? '');
   if (
@@ -249,9 +267,10 @@ export function createApp(
     res.json((req as AuthedRequest).auth);
   });
 
-  // A baker reads their own notification preferences (opt-in + which areas /
-  // dietary needs / kashrut levels they can make). Baker-only, and always keyed
-  // to their own verified id — a baker can never read anyone else's.
+  // A baker reads their own notification preferences (opt-in + home town/
+  // travel radius + dietary needs/kashrut levels they can make). Baker-only,
+  // and always keyed to their own verified id — a baker can never read anyone
+  // else's.
   app.get('/api/me/notifications', auth, requireRole('baker'), async (req, res) => {
     const me = (req as AuthedRequest).auth;
     try {
@@ -277,9 +296,9 @@ export function createApp(
   });
 
   // The 🔔 bell: open requests relevant to this baker that are new since they
-  // last looked. Relevant = matches their areas/dietary/kashrut and still open;
-  // "new" = created after their last look (all of them the first time). Baker-
-  // only and pull-based (recomputed each call) — no live push.
+  // last looked. Relevant = within travel radius + matches dietary/kashrut and
+  // still open; "new" = created after their last look (all of them the first
+  // time). Baker-only and pull-based (recomputed each call) — no live push.
   app.get('/api/me/notifications/new', auth, requireRole('baker'), async (req, res) => {
     const me = (req as AuthedRequest).auth;
     try {

@@ -4,7 +4,7 @@ export type RequestDraft = {
   occasion: string;
   neededBy: string;
   dietary: string; // chosen dietary needs, joined with ", " (see options.ts); '' when none
-  location: string; // the chosen delivery area (a value from AREAS); free text on legacy rows
+  location: string; // a real town name (see towns.ts), or "Other: <free text>" if not in the list
   kashrut: string; // the one required kashrut level (a value from KASHRUT_OPTIONS)
   aboutRecipient: string; // optional note about who the cake is for; '' when none
   contactPhone: string; // how the baker reaches the requester to arrange delivery

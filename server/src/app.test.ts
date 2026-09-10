@@ -312,14 +312,20 @@ function makeFakeProfilesStore(): ProfilesStore {
         .filter((b) => b.verified)
         .map((b) => ({ id: b.id, s: settings.get(b.id) }))
         .filter((x): x is { id: string; s: NotificationSettings } => !!x.s?.notifyNewRequests)
-        .map((x) => ({ id: x.id, areas: x.s.areas, dietary: x.s.dietary, kashrut: x.s.kashrut }));
+        .map((x) => ({
+          id: x.id,
+          homeTown: x.s.homeTown,
+          travelRadiusKm: x.s.travelRadiusKm,
+          dietary: x.s.dietary,
+          kashrut: x.s.kashrut,
+        }));
     },
   };
 }
 
 // Default notification settings for a baker who has set none.
 function emptySettings(): NotificationSettings {
-  return { notifyNewRequests: false, areas: [], dietary: [], kashrut: [], seenAt: null };
+  return { notifyNewRequests: false, homeTown: '', travelRadiusKm: 0, dietary: [], kashrut: [], seenAt: null };
 }
 
 // An in-memory stand-in for the invites store. Mirrors the real store's
@@ -382,7 +388,7 @@ const validDraft: RequestDraft = {
   occasion: '8th birthday',
   neededBy: '2026-09-01',
   dietary: '',
-  location: 'Rama A',
+  location: 'Haifa',
   kashrut: 'Rabbanut',
   aboutRecipient: '',
   contactPhone: '+972501234567', // already canonical, so it survives normalization unchanged
@@ -432,6 +438,31 @@ describe('requests API', () => {
       .post('/api/requests')
       .set('Authorization', 'Bearer req')
       .send({ recipient: '', occasion: '', neededBy: '', dietary: '', location: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('a request naming a town not in the list, and not "Other: ", is rejected (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, location: 'Rama A' }); // pre-Phase-5 area name, no longer valid
+    expect(res.status).toBe(400);
+  });
+
+  it('a request using the "Other: <town>" escape hatch is accepted', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, location: 'Other: A Small Village' });
+    expect(res.status).toBe(201);
+    expect(res.body.location).toBe('Other: A Small Village');
+  });
+
+  it('"Other: " with nothing after it is rejected (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, location: 'Other: ' });
     expect(res.status).toBe(400);
   });
 
@@ -549,12 +580,13 @@ describe('notification settings API', () => {
     expect((await get(makeApp(), 'req')).status).toBe(403);
   });
 
-  it('defaults to notifications off with empty capability lists', async () => {
+  it('defaults to notifications off with an empty home town', async () => {
     const res = await get(makeApp(), 'bak');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       notifyNewRequests: false,
-      areas: [],
+      homeTown: '',
+      travelRadiusKm: 0,
       dietary: [],
       kashrut: [],
       seenAt: null,
@@ -565,22 +597,62 @@ describe('notification settings API', () => {
     const app = makeApp();
     const saved = await put(app, 'bak', {
       notifyNewRequests: true,
-      areas: ['Rama A', 'Rama B'],
+      homeTown: 'Haifa',
+      travelRadiusKm: 20,
       dietary: ['nut-free'],
       kashrut: ['Rabbanut', 'Badatz Eda Haredit'],
     });
     expect(saved.status).toBe(200);
     expect(saved.body.notifyNewRequests).toBe(true);
-    expect(saved.body.areas).toEqual(['Rama A', 'Rama B']);
+    expect(saved.body.homeTown).toBe('Haifa');
+    expect(saved.body.travelRadiusKm).toBe(20);
     const reread = await get(app, 'bak');
     expect(reread.body.kashrut).toEqual(['Rabbanut', 'Badatz Eda Haredit']);
   });
 
-  it('rejects values that are not in the shared lists (400)', async () => {
+  it('clamps an out-of-range radius instead of rejecting it', async () => {
     const app = makeApp();
-    expect((await put(app, 'bak', { notifyNewRequests: true, areas: ['Atlantis'], dietary: [], kashrut: [] })).status).toBe(400);
-    expect((await put(app, 'bak', { notifyNewRequests: 'yes', areas: [], dietary: [], kashrut: [] })).status).toBe(400);
-    expect((await put(app, 'bak', { notifyNewRequests: true, areas: [], dietary: ['keto'], kashrut: [] })).status).toBe(400);
+    const tooBig = await put(app, 'bak', {
+      notifyNewRequests: true,
+      homeTown: 'Haifa',
+      travelRadiusKm: 99999,
+      dietary: [],
+      kashrut: [],
+    });
+    expect(tooBig.status).toBe(200);
+    expect(tooBig.body.travelRadiusKm).toBe(300);
+    const tooSmall = await put(app, 'bak', {
+      notifyNewRequests: true,
+      homeTown: 'Haifa',
+      travelRadiusKm: -5,
+      dietary: [],
+      kashrut: [],
+    });
+    expect(tooSmall.status).toBe(200);
+    expect(tooSmall.body.travelRadiusKm).toBe(1);
+  });
+
+  it('rejects an unknown home town or an out-of-list dietary/kashrut value (400)', async () => {
+    const app = makeApp();
+    expect(
+      (await put(app, 'bak', { notifyNewRequests: true, homeTown: 'Atlantis', travelRadiusKm: 10, dietary: [], kashrut: [] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await put(app, 'bak', { notifyNewRequests: 'yes', homeTown: 'Haifa', travelRadiusKm: 10, dietary: [], kashrut: [] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await put(app, 'bak', {
+          notifyNewRequests: true,
+          homeTown: 'Haifa',
+          travelRadiusKm: 10,
+          dietary: ['keto'],
+          kashrut: [],
+        })
+      ).status,
+    ).toBe(400);
   });
 });
 
@@ -604,32 +676,34 @@ describe('notification bell API', () => {
 
   it('counts a new open request that matches the baker’s capabilities', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
+    // validDraft's location is Haifa; a baker based right there always matches.
+    await setPrefs(app, { notifyNewRequests: true, homeTown: 'Haifa', travelRadiusKm: 10, dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     const res = await bell(app);
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
     expect(res.body.items[0].occasion).toBe(validDraft.occasion);
-    expect(res.body.items[0].area).toBe('Rama A');
+    expect(res.body.items[0].area).toBe('Haifa');
   });
 
-  it('ignores requests outside the baker’s capabilities', async () => {
+  it('ignores requests outside the baker’s travel radius', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama B'], dietary: [], kashrut: ['Rabbanut'] });
-    await addOne(app); // Rama A → not one of this baker's areas
+    // Tel Aviv is well over 10km from Haifa (validDraft's location).
+    await setPrefs(app, { notifyNewRequests: true, homeTown: 'Tel Aviv', travelRadiusKm: 10, dietary: [], kashrut: ['Rabbanut'] });
+    await addOne(app);
     expect((await bell(app)).body.count).toBe(0);
   });
 
   it('returns nothing when notifications are switched off', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: false, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: false, homeTown: 'Haifa', travelRadiusKm: 10, dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     expect((await bell(app)).body.count).toBe(0);
   });
 
   it('marking seen clears the count', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: true, homeTown: 'Haifa', travelRadiusKm: 10, dietary: [], kashrut: ['Rabbanut'] });
     await addOne(app);
     expect((await bell(app)).body.count).toBe(1);
     const seen = await request(app)
@@ -642,7 +716,7 @@ describe('notification bell API', () => {
 
   it('a request that has been reserved is no longer counted', async () => {
     const app = makeApp();
-    await setPrefs(app, { notifyNewRequests: true, areas: ['Rama A'], dietary: [], kashrut: ['Rabbanut'] });
+    await setPrefs(app, { notifyNewRequests: true, homeTown: 'Haifa', travelRadiusKm: 10, dietary: [], kashrut: ['Rabbanut'] });
     const id = await addOne(app);
     await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak').send();
     expect((await bell(app)).body.count).toBe(0);

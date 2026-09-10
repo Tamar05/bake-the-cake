@@ -9,12 +9,14 @@ export type BakerSummary = {
   createdAt: number; // ms since 1970
 };
 
-// A baker's in-app notification preferences: whether they want to hear about new
-// requests, and which areas / dietary needs / kashrut levels they can make.
+// A baker's in-app notification preferences: whether they want to hear about
+// new requests, their home town + how far they'll travel (Phase 5 — replaces
+// the old area list), and which dietary needs / kashrut levels they can make.
 // seenAt is when they last cleared the bell (ms since 1970, or null if never).
 export type NotificationSettings = {
   notifyNewRequests: boolean;
-  areas: string[];
+  homeTown: string;
+  travelRadiusKm: number;
   dietary: string[];
   kashrut: string[];
   seenAt: number | null;
@@ -23,14 +25,16 @@ export type NotificationSettings = {
 // The subset a baker actually edits (seenAt is managed by opening the bell).
 export type NotificationPrefs = Pick<
   NotificationSettings,
-  'notifyNewRequests' | 'areas' | 'dietary' | 'kashrut'
+  'notifyNewRequests' | 'homeTown' | 'travelRadiusKm' | 'dietary' | 'kashrut'
 >;
 
-// A verified, opted-in baker with the capabilities the push fan-out matches a
-// new request against (Phase 2). Only these bakers are ever considered.
+// A verified, opted-in, not-suspended baker with the capabilities the push
+// fan-out matches a new request against (Phase 2; Phase 5 changed areas to a
+// home town + radius). Only these bakers are ever considered.
 export type NotifiableBaker = {
   id: string;
-  areas: string[];
+  homeTown: string;
+  travelRadiusKm: number;
   dietary: string[];
   kashrut: string[];
 };
@@ -71,19 +75,21 @@ type ProfileRow = {
 // The notification columns as stored on a profile row.
 type NotifyRow = {
   notify_new_requests: boolean | null;
-  notify_areas: string[] | null;
+  home_town: string | null;
+  travel_radius_km: number | null;
   notify_dietary: string[] | null;
   notify_kashrut: string[] | null;
   notifications_seen_at: string | null;
 };
 
 const NOTIFY_COLUMNS =
-  'notify_new_requests, notify_areas, notify_dietary, notify_kashrut, notifications_seen_at';
+  'notify_new_requests, home_town, travel_radius_km, notify_dietary, notify_kashrut, notifications_seen_at';
 
 function rowToNotificationSettings(row: NotifyRow | null): NotificationSettings {
   return {
     notifyNewRequests: row?.notify_new_requests ?? false,
-    areas: row?.notify_areas ?? [],
+    homeTown: row?.home_town ?? '',
+    travelRadiusKm: row?.travel_radius_km ?? 0,
     dietary: row?.notify_dietary ?? [],
     kashrut: row?.notify_kashrut ?? [],
     seenAt: row?.notifications_seen_at ? new Date(row.notifications_seen_at).getTime() : null,
@@ -201,7 +207,8 @@ export function createSupabaseProfilesStore(): ProfilesStore {
         .from('profiles')
         .update({
           notify_new_requests: prefs.notifyNewRequests,
-          notify_areas: prefs.areas,
+          home_town: prefs.homeTown,
+          travel_radius_km: prefs.travelRadiusKm,
           notify_dietary: prefs.dietary,
           notify_kashrut: prefs.kashrut,
         })
@@ -223,18 +230,23 @@ export function createSupabaseProfilesStore(): ProfilesStore {
     },
 
     async listNotifiableBakers(): Promise<NotifiableBaker[]> {
-      // Verified (verified_at set) bakers who opted in — the audience the fan-out
-      // then narrows by capability match.
+      // Verified (verified_at set), NOT suspended, opted-in bakers — the
+      // audience the fan-out then narrows by capability match. The suspended
+      // check was missing before Phase 5 touched this query (a suspended
+      // baker would otherwise still get push for new requests despite being
+      // unable to reserve/bake) — fixed here alongside the area→radius change.
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, notify_areas, notify_dietary, notify_kashrut')
+        .select('id, home_town, travel_radius_km, notify_dietary, notify_kashrut')
         .eq('role', 'baker')
         .not('verified_at', 'is', null)
+        .is('suspended_at', null)
         .eq('notify_new_requests', true);
       if (error) throw new Error(error.message);
       return (data ?? []).map((row) => ({
         id: row.id as string,
-        areas: (row.notify_areas as string[] | null) ?? [],
+        homeTown: (row.home_town as string | null) ?? '',
+        travelRadiusKm: (row.travel_radius_km as number | null) ?? 0,
         dietary: (row.notify_dietary as string[] | null) ?? [],
         kashrut: (row.notify_kashrut as string[] | null) ?? [],
       }));

@@ -40,7 +40,7 @@ export async function setBakerVerified(
 
 // A stuck request the admin should look at, with why and the requester's contact.
 export type AttentionItem = CakeRequest & {
-  reason: 'overdue' | 'unclaimed';
+  reason: 'overdue' | 'unclaimed' | 'unrecognized-town';
   ownerContact: string | null;
 };
 

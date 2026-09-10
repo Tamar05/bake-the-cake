@@ -34,7 +34,7 @@ function makeRequest(over: Partial<CakeRequest> = {}): CakeRequest {
   };
 }
 
-type Recipient = { id: string; areas: string[]; dietary: string[]; kashrut: string[] };
+type Recipient = { id: string; homeTown: string; travelRadiusKm: number; dietary: string[]; kashrut: string[] };
 type Sub = { userId: string; endpoint: string; p256dh: string; auth: string };
 
 // A fake sender that records every send and lets a test decide the result (or
@@ -88,7 +88,13 @@ describe('buildRequestPushPayload', () => {
 });
 
 describe('notifyMatchingBakers', () => {
-  const matchingRecipient: Recipient = { id: 'bak1', areas: ['Haifa'], dietary: [], kashrut: ['Rabbanut'] };
+  const matchingRecipient: Recipient = {
+    id: 'bak1',
+    homeTown: 'Haifa',
+    travelRadiusKm: 5,
+    dietary: [],
+    kashrut: ['Rabbanut'],
+  };
 
   it('sends to a verified, opted-in baker whose capabilities match', async () => {
     const subs: Sub[] = [{ userId: 'bak1', endpoint: 'https://p/1', p256dh: 'x', auth: 'y' }];
@@ -100,7 +106,14 @@ describe('notifyMatchingBakers', () => {
   });
 
   it('does not send to a baker whose capabilities do not match', async () => {
-    const wrongArea: Recipient = { id: 'bak1', areas: ['Tel Aviv'], dietary: [], kashrut: ['Rabbanut'] };
+    // Tel Aviv is well outside a 5km radius of Haifa.
+    const wrongArea: Recipient = {
+      id: 'bak1',
+      homeTown: 'Tel Aviv',
+      travelRadiusKm: 5,
+      dietary: [],
+      kashrut: ['Rabbanut'],
+    };
     const subs: Sub[] = [{ userId: 'bak1', endpoint: 'https://p/1', p256dh: 'x', auth: 'y' }];
     const sender = makeFakeSender();
     await notifyMatchingBakers(makeRequest(), depsWith([wrongArea], subs, sender));
