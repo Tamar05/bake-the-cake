@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { randomInt } from 'node:crypto';
 
 // An invite code as the admin screen sees it.
 export type InviteCode = {
@@ -47,11 +48,14 @@ function rowToCode(row: CodeRow): InviteCode {
 
 // A short, unambiguous code: uppercase letters + digits, no 0/O/1/I, 8 chars —
 // easy to read aloud or type by hand when handing it to an organization.
+// Generated with Node's crypto RNG, not Math.random() — this code grants a
+// real privilege (becoming a requester/organization), so it needs a source
+// that isn't predictable.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateCode(): string {
   let out = '';
   for (let i = 0; i < 8; i++) {
-    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return out;
 }
