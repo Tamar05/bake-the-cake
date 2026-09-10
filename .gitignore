@@ -1,3 +1,11 @@
 node_modules
 dist
 .env
+
+# Orchestration tool bookkeeping (workboard.py) — regenerated per-session,
+# not part of the app.
+WORKBOARD.json
+WORKBOARD.md
+PROGRESS.json
+PROGRESS.md
+.workboard.lock
