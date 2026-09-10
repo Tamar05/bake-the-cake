@@ -411,7 +411,11 @@ export function createApp(
     try {
       const created = await invitesStore.createCode(cleanNote, me.id);
       res.status(201).json(created);
-    } catch {
+    } catch (err) {
+      // Logged (not returned to the client) so the real cause — e.g. the
+      // invite_codes table/redeem_invite_code function missing from the DB —
+      // shows up in the server logs instead of just a generic 500.
+      console.error('POST /api/admin/invite-codes failed:', err);
       res.status(500).json({ error: 'Could not create an invite code' });
     }
   });

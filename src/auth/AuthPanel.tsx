@@ -10,10 +10,11 @@ import { useAuth } from './AuthProvider';
 const DEFAULT_TRAVEL_RADIUS_KM = 15;
 
 type Props = { t: Dictionary };
-type Mode = 'signIn' | 'signUp';
+type Mode = 'signIn' | 'signUp' | 'reset';
 
 export default function AuthPanel({ t }: Props) {
-  const { configured, loading, profile, signIn, signUp, signOut } = useAuth();
+  const { configured, loading, profile, signIn, signUp, signOut, requestPasswordReset } =
+    useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +30,7 @@ export default function AuthPanel({ t }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -50,6 +52,24 @@ export default function AuthPanel({ t }: Props) {
           }}
         >
           {t.auth.haveAccount}
+        </button>
+      </div>
+    );
+  }
+
+  if (resetSent) {
+    return (
+      <div className="auth-panel">
+        <p className="auth-note">{t.auth.resetEmailSent}</p>
+        <button
+          type="button"
+          className="auth-link"
+          onClick={() => {
+            setResetSent(false);
+            setMode('signIn');
+          }}
+        >
+          {t.auth.backToSignIn}
         </button>
       </div>
     );
@@ -81,7 +101,10 @@ export default function AuthPanel({ t }: Props) {
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'signIn') {
+      if (mode === 'reset') {
+        await requestPasswordReset(email);
+        setResetSent(true);
+      } else if (mode === 'signIn') {
         await signIn(email, password);
       } else {
         const { emailConfirmationRequired } = await signUp(
@@ -113,37 +136,46 @@ export default function AuthPanel({ t }: Props) {
 
   return (
     <form className="auth-panel" onSubmit={handleSubmit}>
-      <h2>{mode === 'signIn' ? t.auth.signInHeading : t.auth.signUpHeading}</h2>
+      <h2>
+        {mode === 'reset'
+          ? t.auth.resetHeading
+          : mode === 'signIn'
+            ? t.auth.signInHeading
+            : t.auth.signUpHeading}
+      </h2>
+      {mode === 'reset' && <p className="auth-note">{t.auth.resetIntro}</p>}
       <label>
         {t.auth.emailLabel}
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </label>
-      <label>
-        {t.auth.passwordLabel}
-        <div className="password-field">
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setPasswordTouched(true)}
-            required
-          />
-          <button
-            type="button"
-            className="password-toggle"
-            aria-label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
-            aria-pressed={showPassword}
-            onClick={() => setShowPassword((v) => !v)}
-          >
-            <EyeIcon off={showPassword} />
-          </button>
-        </div>
-        {mode === 'signUp' && (
-          <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
-            {t.auth.passwordHint}
-          </small>
-        )}
-      </label>
+      {mode !== 'reset' && (
+        <label>
+          {t.auth.passwordLabel}
+          <div className="password-field">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => setPasswordTouched(true)}
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              <EyeIcon off={showPassword} />
+            </button>
+          </div>
+          {mode === 'signUp' && (
+            <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
+              {t.auth.passwordHint}
+            </small>
+          )}
+        </label>
+      )}
       {mode === 'signUp' && (
         <>
           <label>
@@ -201,21 +233,52 @@ export default function AuthPanel({ t }: Props) {
       {error && <p className="auth-error">{error}</p>}
       <div className="auth-actions">
         <button type="submit" disabled={busy}>
-          {busy ? t.auth.working : mode === 'signIn' ? t.auth.signInButton : t.auth.signUpButton}
+          {busy
+            ? t.auth.working
+            : mode === 'reset'
+              ? t.auth.resetSendButton
+              : mode === 'signIn'
+                ? t.auth.signInButton
+                : t.auth.signUpButton}
         </button>
+        {mode === 'reset' ? (
+          <button
+            type="button"
+            className="auth-link"
+            onClick={() => {
+              setMode('signIn');
+              setError(null);
+            }}
+          >
+            {t.auth.backToSignIn}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="auth-link"
+            onClick={() => {
+              setMode(mode === 'signIn' ? 'signUp' : 'signIn');
+              setError(null);
+              setPasswordTouched(false);
+              setContactTouched(false);
+            }}
+          >
+            {mode === 'signIn' ? t.auth.needAccount : t.auth.haveAccount}
+          </button>
+        )}
+      </div>
+      {mode === 'signIn' && (
         <button
           type="button"
-          className="auth-link"
+          className="auth-link auth-forgot-link"
           onClick={() => {
-            setMode(mode === 'signIn' ? 'signUp' : 'signIn');
+            setMode('reset');
             setError(null);
-            setPasswordTouched(false);
-            setContactTouched(false);
           }}
         >
-          {mode === 'signIn' ? t.auth.needAccount : t.auth.haveAccount}
+          {t.auth.forgotPassword}
         </button>
-      </div>
+      )}
       {mode === 'signUp' && (
         <Link className="auth-link auth-join-link" to="/join">
           {t.auth.joinPrompt}

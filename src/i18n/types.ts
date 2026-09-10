@@ -250,6 +250,19 @@ export type Dictionary = {
     genericError: string; // fallback when sign-in/up fails
     joinPrompt: string; // small line under sign-up pointing an organization to /join
     checkEmail: string; // shown after sign-up when email confirmation is required
+    forgotPassword: string; // link on the sign-in form: "Forgot password?"
+    resetHeading: string; // heading on the reset-request form
+    resetIntro: string; // explains what happens when they submit their email
+    resetSendButton: string; // "Send reset link"
+    resetEmailSent: string; // shown after the reset email is sent
+    resetError: string; // shown when sending the reset email fails
+    backToSignIn: string; // link back to sign-in from the reset-request form
+    newPasswordLabel: string; // label on the reset-password page's password field
+    updatePasswordButton: string; // "Update password"
+    passwordUpdated: string; // confirmation after the password is changed
+    updatePasswordError: string; // shown when updating the password fails
+    invalidResetLink: string; // shown when the reset-password page has no valid recovery session
+    continueToSignIn: string; // link/button after the password was updated
   };
   // The /join page: an existing invite code turns a fresh account into an
   // organization ("requester"). Signs up like any baker, then redeems the code.

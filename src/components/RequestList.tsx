@@ -20,15 +20,24 @@ type Props = {
   onDeleted: (id: string) => void;
   heading?: string; // overrides the default "Open requests" heading
   emptyText?: string; // overrides the default "no requests yet" message
-  showFilter?: boolean; // whether to show the All/Open/Reserved filter (default true)
+  showFilter?: boolean; // whether to show the status filter (default true)
+  // Which filter buttons to show, and in what order (default: All/Open/Reserved,
+  // the browse-style set). The admin view passes the full status list so a
+  // dashboard tile can deep-link straight to e.g. "Baking".
+  filterOptions?: Filter[];
+  // Pre-selects a filter on first render (e.g. from a dashboard tile's link).
+  // Ignored once the user picks a different one.
+  initialFilter?: Filter;
   // Turns on the view a coordinator managing many requests needs: a search box,
   // All/Open/In progress/Done tabs with live counts, soonest-needed-by-first
   // sorting, and an overdue/due-soon flag on each card. Overrides showFilter.
   coordinatorView?: boolean;
 };
 
-// The browse filter: everything, only open requests, or only reserved ones.
-type Filter = 'all' | 'open' | 'reserved';
+// The status filter: everything, or one specific status.
+export type Filter = 'all' | CakeRequest['status'];
+
+const DEFAULT_FILTER_OPTIONS: Filter[] = ['all', 'open', 'reserved'];
 
 export default function RequestList({
   t,
@@ -39,9 +48,11 @@ export default function RequestList({
   heading,
   emptyText,
   showFilter = true,
+  filterOptions = DEFAULT_FILTER_OPTIONS,
+  initialFilter = 'all',
   coordinatorView = false,
 }: Props) {
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [tab, setTab] = useState<StatusTab>('all');
   const [query, setQuery] = useState('');
 
@@ -57,11 +68,18 @@ export default function RequestList({
   const listHeading = heading ?? t.list.heading;
   const emptyMessage = emptyText ?? t.list.empty;
 
-  const filters: { key: Filter; label: string }[] = [
-    { key: 'all', label: t.list.filterAll },
-    { key: 'open', label: t.list.filterOpen },
-    { key: 'reserved', label: t.list.filterReserved },
-  ];
+  const filterLabels: Record<Filter, string> = {
+    all: t.list.filterAll,
+    open: t.list.filterOpen,
+    reserved: t.list.filterReserved,
+    committed: t.list.statusBaking,
+    delivered: t.list.statusDelivered,
+    received: t.list.statusReceived,
+  };
+  const filters: { key: Filter; label: string }[] = filterOptions.map((key) => ({
+    key,
+    label: filterLabels[key],
+  }));
 
   const tabs: { key: StatusTab; label: string }[] = [
     { key: 'all', label: t.myRequests.tabAll },

@@ -30,6 +30,14 @@ type AuthContextValue = {
   ) => Promise<{ emailConfirmationRequired: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  // Sends a "reset your password" email via Supabase. The link in it brings
+  // them back to /reset-password with a temporary recovery session already
+  // attached (Supabase's client picks it up from the URL automatically).
+  requestPasswordReset: (email: string) => Promise<void>;
+  // Sets a new password for whoever the current session belongs to — used on
+  // the /reset-password page, where that session is the temporary recovery
+  // one from the emailed link.
+  updatePassword: (newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -147,9 +155,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut();
   }
 
+  async function requestPasswordReset(email: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not configured');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }
+
+  async function updatePassword(newPassword: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not configured');
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   return (
     <AuthContext.Provider
-      value={{ configured, loading, profileLoading, session, profile, signUp, signIn, signOut }}
+      value={{
+        configured,
+        loading,
+        profileLoading,
+        session,
+        profile,
+        signUp,
+        signIn,
+        signOut,
+        requestPasswordReset,
+        updatePassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

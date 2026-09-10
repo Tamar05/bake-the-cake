@@ -673,6 +673,19 @@ body {
   border-radius: 14px;
   background: #fff8fb;
   text-align: center;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+.stat-tile:hover,
+.stat-tile:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px rgba(255, 77, 118, 0.18);
+  outline: none;
 }
 
 .stat-value {
@@ -1095,7 +1108,8 @@ body {
   font-size: 0.9rem;
 }
 
-.auth-join-link {
+.auth-join-link,
+.auth-forgot-link {
   display: block;
   margin-top: 0.75rem;
   font-size: 0.9rem;

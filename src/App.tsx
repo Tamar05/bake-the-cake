@@ -17,6 +17,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminInviteCodesPage from './pages/AdminInviteCodesPage';
 import GalleryPage from './pages/GalleryPage';
 import JoinPage from './pages/JoinPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { dictionaries, loadLanguage, saveLanguage, type Language } from './i18n/language';
 import { loadRequests, saveRequest } from './lib/requestsApi';
 import type { CakeRequest, RequestDraft } from './types';
@@ -113,6 +114,7 @@ export default function App() {
           />
           <Route path="/gallery" element={<GalleryPage t={t} />} />
           <Route path="/join" element={<JoinPage t={t} />} />
+          <Route path="/reset-password" element={<ResetPasswordPage t={t} />} />
           <Route
             path="/my"
             element={
