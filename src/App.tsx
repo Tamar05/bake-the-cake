@@ -8,6 +8,7 @@ import { useAuth } from './auth/AuthProvider';
 import RequireRole from './pages/RequireRole';
 import BrowsePage from './pages/BrowsePage';
 import MyRequestsPage from './pages/MyRequestsPage';
+import NewRequestPage from './pages/NewRequestPage';
 import MyReservationsPage from './pages/MyReservationsPage';
 import BakerNotificationsPage from './pages/BakerNotificationsPage';
 import AdminPage from './pages/AdminPage';
@@ -94,7 +95,7 @@ export default function App() {
         </div>
         <h1>{t.appTitle}</h1>
         <p>{t.tagline}</p>
-        <AuthPanel t={t} />
+        <AuthPanel t={t} language={language} />
       </header>
 
       <AppNav t={t} />
@@ -119,7 +120,15 @@ export default function App() {
             path="/my"
             element={
               <RequireRole roles={['requester']}>
-                <MyRequestsPage {...listProps} onAdd={handleAdd} />
+                <MyRequestsPage {...listProps} />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/my/new"
+            element={
+              <RequireRole roles={['requester']}>
+                <NewRequestPage t={t} language={language} onAdd={handleAdd} />
               </RequireRole>
             }
           />
@@ -135,7 +144,7 @@ export default function App() {
             path="/notifications"
             element={
               <RequireRole roles={['baker']}>
-                <BakerNotificationsPage t={t} />
+                <BakerNotificationsPage t={t} language={language} />
               </RequireRole>
             }
           />

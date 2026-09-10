@@ -1,10 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
+import type { Language } from '../i18n/language';
 import type { RequestDraft } from '../types';
 import { findMissingFields } from '../lib/requests';
 import { isValidPhone } from '../lib/phone';
-import { DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from '../lib/options';
-import { optionLabel } from '../lib/optionLabels';
+import {
+  DIETARY_OPTIONS,
+  KASHRUT_OPTIONS,
+  joinList,
+  parseList,
+  toggleOption,
+  setOtherFreeText,
+} from '../lib/options';
+import CapabilityGroup from './CapabilityGroup';
 import TownField from './TownField';
 
 const EMPTY_DRAFT: RequestDraft = {
@@ -20,6 +28,7 @@ const EMPTY_DRAFT: RequestDraft = {
 
 type Props = {
   t: Dictionary;
+  language: Language;
   onSubmit: (draft: RequestDraft) => void;
   initial?: RequestDraft; // pre-fill for editing; omitted → a blank create form
   submitLabel?: string; // defaults to the "Submit request" label
@@ -32,7 +41,7 @@ type FormError = null | 'missing' | 'phone';
 // Used for creating a new request, and — pre-filled via `initial` — for editing
 // an existing one. In edit mode (`onCancel` set) it hides the big heading and
 // shows a Cancel button, and it does not blank itself after submitting.
-export default function RequestForm({ t, onSubmit, initial, submitLabel, onCancel }: Props) {
+export default function RequestForm({ t, language, onSubmit, initial, submitLabel, onCancel }: Props) {
   const [draft, setDraft] = useState<RequestDraft>(initial ?? EMPTY_DRAFT);
   const [error, setError] = useState<FormError>(null);
   const isEditing = onCancel != null;
@@ -47,11 +56,7 @@ export default function RequestForm({ t, onSubmit, initial, submitLabel, onCance
   const chosenDietary = parseList(draft.dietary);
   const chosenKashrut = parseList(draft.kashrut);
   function toggleListValue(field: 'dietary' | 'kashrut', option: string) {
-    const current = parseList(draft[field]);
-    const next = current.includes(option)
-      ? current.filter((v) => v !== option)
-      : [...current, option];
-    update(field, joinList(next));
+    update(field, joinList(toggleOption(parseList(draft[field]), option)));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -94,35 +99,26 @@ export default function RequestForm({ t, onSubmit, initial, submitLabel, onCance
         value={draft.location}
         onChange={(v) => update('location', v)}
         hint={t.form.locationHint}
+        language={language}
       />
 
-      <fieldset className="options-fieldset">
-        <legend>{t.form.kashrutLabel}</legend>
-        {KASHRUT_OPTIONS.map((level) => (
-          <label key={level} className="checkbox-option">
-            <input
-              type="checkbox"
-              checked={chosenKashrut.includes(level)}
-              onChange={() => toggleListValue('kashrut', level)}
-            />
-            {optionLabel(t.options.kashrut, level)}
-          </label>
-        ))}
-      </fieldset>
+      <CapabilityGroup
+        legend={t.form.kashrutLabel}
+        options={KASHRUT_OPTIONS}
+        labels={t.options.kashrut}
+        selected={chosenKashrut}
+        onToggle={(v) => toggleListValue('kashrut', v)}
+      />
 
-      <fieldset className="options-fieldset">
-        <legend>{t.form.dietaryLabel}</legend>
-        {DIETARY_OPTIONS.map((option) => (
-          <label key={option} className="checkbox-option">
-            <input
-              type="checkbox"
-              checked={chosenDietary.includes(option)}
-              onChange={() => toggleListValue('dietary', option)}
-            />
-            {optionLabel(t.options.dietary, option)}
-          </label>
-        ))}
-      </fieldset>
+      <CapabilityGroup
+        legend={t.form.dietaryLabel}
+        options={DIETARY_OPTIONS}
+        labels={t.options.dietary}
+        selected={chosenDietary}
+        onToggle={(v) => toggleListValue('dietary', v)}
+        onOtherTextChange={(text) => update('dietary', joinList(setOtherFreeText(chosenDietary, text)))}
+        otherPlaceholder={t.options.otherPlaceholder}
+      />
 
       <label>
         {t.form.aboutRecipientLabel}

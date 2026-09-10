@@ -22,9 +22,9 @@ export default function AppNav({ t }: { t: Dictionary }) {
       <NavLink to="/gallery" className={linkClass}>
         {t.nav.gallery}
       </NavLink>
-      {(!role || role === 'baker') && (
-        <NavLink to="/join" className={linkClass}>
-          {t.nav.join}
+      {role === 'requester' && (
+        <NavLink to="/my/new" className={linkClass}>
+          {t.nav.requestCake}
         </NavLink>
       )}
       {role === 'requester' && (

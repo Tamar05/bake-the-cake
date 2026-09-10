@@ -112,7 +112,7 @@ export const en: Dictionary = {
     gallery: 'Gallery',
     notifications: 'Notifications',
     signInPrompt: 'Sign in to post a request or to bake one.',
-    join: 'Join as an organization',
+    requestCake: 'Request a cake',
     inviteCodes: 'Invite codes',
   },
   notifications: {
@@ -316,6 +316,7 @@ export const en: Dictionary = {
       'Kosher (no specific hechsher)': 'Kosher (no specific hechsher)',
       'Not required': 'Not required',
     },
+    otherPlaceholder: 'Please specify',
   },
   install: {
     title: 'Get the app?',

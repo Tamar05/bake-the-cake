@@ -20,7 +20,7 @@ import {
 } from './profilesStore';
 import { attentionReason, type AttentionReason } from './attention';
 import { matchesCapabilities } from './matching';
-import { DIETARY_OPTIONS, KASHRUT_OPTIONS, joinList, parseList } from './options';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS, OTHER_TEXT_PREFIX, joinList, parseList } from './options';
 import { findTown, OTHER_PREFIX } from './towns';
 import { normalizePhone } from './phone';
 import { createSupabasePushStore, type PushStore, type PushSubscriptionInput } from './pushStore';
@@ -93,16 +93,23 @@ function parseNotificationPrefs(body: unknown): NotificationPrefs | null {
     MAX_TRAVEL_RADIUS_KM,
     Math.max(MIN_TRAVEL_RADIUS_KM, Math.round(b.travelRadiusKm)),
   );
-  const asList = (value: unknown, allowed: readonly string[]): string[] | null => {
+  const asList = (
+    value: unknown,
+    allowed: readonly string[],
+    allowOtherFreeText = false,
+  ): string[] | null => {
     if (!Array.isArray(value)) return null;
     const seen = new Set<string>();
     for (const item of value) {
-      if (typeof item !== 'string' || !allowed.includes(item)) return null;
+      const isOtherFreeText = allowOtherFreeText && typeof item === 'string' && item.startsWith(OTHER_TEXT_PREFIX);
+      if (typeof item !== 'string' || (!allowed.includes(item) && !isOtherFreeText)) return null;
       seen.add(item);
     }
     return [...seen];
   };
-  const dietary = asList(b.dietary, DIETARY_OPTIONS);
+  // Dietary allows the "Other: <free text>" escape hatch (see options.ts);
+  // kashrut is a fixed set of certification levels with no such option.
+  const dietary = asList(b.dietary, DIETARY_OPTIONS, true);
   const kashrut = asList(b.kashrut, KASHRUT_OPTIONS);
   if (dietary === null || kashrut === null) return null;
   return { notifyNewRequests: b.notifyNewRequests, homeTown: b.homeTown, travelRadiusKm, dietary, kashrut };
@@ -149,7 +156,11 @@ function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft }
     return { error: 'Please choose the kashrut level(s) from the list.' };
   }
   const dietaryParts = parseList(body.dietary ?? '');
-  if (dietaryParts.some((part) => !(DIETARY_OPTIONS as readonly string[]).includes(part))) {
+  if (
+    dietaryParts.some(
+      (part) => !(DIETARY_OPTIONS as readonly string[]).includes(part) && !part.startsWith(OTHER_TEXT_PREFIX),
+    )
+  ) {
     return { error: 'Please choose dietary needs from the list.' };
   }
   return {

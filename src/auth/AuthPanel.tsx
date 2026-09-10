@@ -1,18 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
-import { DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
+import type { Language } from '../i18n/language';
+import { DIETARY_OPTIONS, KASHRUT_OPTIONS, toggleOption, setOtherFreeText } from '../lib/options';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import CapabilityGroup from '../components/CapabilityGroup';
+import PasswordField from '../components/PasswordField';
 import TownField from '../components/TownField';
 import { useAuth } from './AuthProvider';
 
 const DEFAULT_TRAVEL_RADIUS_KM = 15;
 
-type Props = { t: Dictionary };
+type Props = { t: Dictionary; language: Language };
 type Mode = 'signIn' | 'signUp' | 'reset';
 
-export default function AuthPanel({ t }: Props) {
+export default function AuthPanel({ t, language }: Props) {
   const { configured, loading, profile, signIn, signUp, signOut, requestPasswordReset } =
     useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
@@ -24,17 +26,12 @@ export default function AuthPanel({ t }: Props) {
   const [notifyTravelRadiusKm, setNotifyTravelRadiusKm] = useState(DEFAULT_TRAVEL_RADIUS_KM);
   const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
   const [notifyDietary, setNotifyDietary] = useState<string[]>([]);
-  const [showPassword, setShowPassword] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [contactTouched, setContactTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-
-  function toggle(list: string[], setList: (v: string[]) => void, value: string) {
-    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-  }
 
   if (!configured) return <p className="auth-note">{t.auth.notConfigured}</p>;
   if (loading) return null;
@@ -149,32 +146,20 @@ export default function AuthPanel({ t }: Props) {
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </label>
       {mode !== 'reset' && (
-        <label>
-          {t.auth.passwordLabel}
-          <div className="password-field">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setPasswordTouched(true)}
-              required
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              aria-label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
-              aria-pressed={showPassword}
-              onClick={() => setShowPassword((v) => !v)}
-            >
-              <EyeIcon off={showPassword} />
-            </button>
-          </div>
-          {mode === 'signUp' && (
-            <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
-              {t.auth.passwordHint}
-            </small>
-          )}
-        </label>
+        <PasswordField
+          label={t.auth.passwordLabel}
+          value={password}
+          onChange={setPassword}
+          onBlur={() => setPasswordTouched(true)}
+          showLabel={t.auth.showPassword}
+          hideLabel={t.auth.hidePassword}
+          required
+        />
+      )}
+      {mode === 'signUp' && (
+        <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
+          {t.auth.passwordHint}
+        </small>
       )}
       {mode === 'signUp' && (
         <>
@@ -202,6 +187,7 @@ export default function AuthPanel({ t }: Props) {
               value={notifyHomeTown}
               onChange={setNotifyHomeTown}
               hint={t.notifications.homeTownHint}
+              language={language}
             />
             <label>
               {t.notifications.travelRadiusLabel}
@@ -218,14 +204,16 @@ export default function AuthPanel({ t }: Props) {
               options={KASHRUT_OPTIONS}
               labels={t.options.kashrut}
               selected={notifyKashrut}
-              onToggle={(v) => toggle(notifyKashrut, setNotifyKashrut, v)}
+              onToggle={(v) => setNotifyKashrut(toggleOption(notifyKashrut, v))}
             />
             <CapabilityGroup
               legend={t.notifications.dietaryLabel}
               options={DIETARY_OPTIONS}
               labels={t.options.dietary}
               selected={notifyDietary}
-              onToggle={(v) => toggle(notifyDietary, setNotifyDietary, v)}
+              onToggle={(v) => setNotifyDietary(toggleOption(notifyDietary, v))}
+              onOtherTextChange={(text) => setNotifyDietary(setOtherFreeText(notifyDietary, text))}
+              otherPlaceholder={t.options.otherPlaceholder}
             />
           </div>
         </>
@@ -285,38 +273,5 @@ export default function AuthPanel({ t }: Props) {
         </Link>
       )}
     </form>
-  );
-}
-
-// A small eye icon for the reveal-password toggle. When `off` is true (the
-// password is currently visible) it shows the "eye with a slash" variant. It's
-// decorative — the button that wraps it carries the accessible label.
-function EyeIcon({ off }: { off: boolean }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {off ? (
-        <>
-          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a13.2 13.2 0 0 1-1.67 2.68" />
-          <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 8 10 8a9.12 9.12 0 0 0 5.39-1.61" />
-          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-          <line x1="2" y1="2" x2="22" y2="22" />
-        </>
-      ) : (
-        <>
-          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-          <circle cx="12" cy="12" r="3" />
-        </>
-      )}
-    </svg>
   );
 }

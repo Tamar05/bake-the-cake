@@ -112,7 +112,7 @@ export type Dictionary = {
     gallery: string; // the public inspiration gallery
     notifications: string; // baker's notification settings
     signInPrompt: string; // gentle nudge shown to signed-out browsers
-    join: string; // link to the /join page, shown to signed-out visitors
+    requestCake: string; // requester's own "post a new request" tab
     inviteCodes: string; // admin's invite-code management screen
   };
   notifications: {
@@ -309,6 +309,7 @@ export type Dictionary = {
   options: {
     dietary: Record<(typeof DIETARY_OPTIONS)[number], string>;
     kashrut: Record<(typeof KASHRUT_OPTIONS)[number], string>;
+    otherPlaceholder: string; // placeholder for the free-text box shown once "Other" is checked
   };
   // The "install the app to continue" screen shown to phone visitors who open the
   // site in a browser instead of the installed app.

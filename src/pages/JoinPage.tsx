@@ -4,6 +4,7 @@ import type { Dictionary } from '../i18n/types';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import { joinAsOrganization } from '../lib/authApi';
 import { supabase } from '../lib/supabaseClient';
+import PasswordField from '../components/PasswordField';
 import { useAuth } from '../auth/AuthProvider';
 
 type Props = { t: Dictionary };
@@ -97,19 +98,18 @@ export default function JoinPage({ t }: Props) {
             {t.auth.emailLabel}
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
-          <label>
-            {t.auth.passwordLabel}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setPasswordTouched(true)}
-              required
-            />
-            <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
-              {t.auth.passwordHint}
-            </small>
-          </label>
+          <PasswordField
+            label={t.auth.passwordLabel}
+            value={password}
+            onChange={setPassword}
+            onBlur={() => setPasswordTouched(true)}
+            showLabel={t.auth.showPassword}
+            hideLabel={t.auth.hidePassword}
+            required
+          />
+          <small className={passwordTouched && passwordInvalid ? 'field-error' : undefined}>
+            {t.auth.passwordHint}
+          </small>
           <label>
             {t.auth.nameLabel}
             <input value={name} onChange={(e) => setName(e.target.value)} required />

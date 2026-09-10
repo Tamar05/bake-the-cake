@@ -112,7 +112,7 @@ export const he: Dictionary = {
     gallery: 'גלריה',
     notifications: 'התראות',
     signInPrompt: 'התחברו כדי לפרסם בקשה או כדי לאפות.',
-    join: 'הצטרפות כארגון',
+    requestCake: 'בקשת עוגה',
     inviteCodes: 'קודי הזמנה',
   },
   notifications: {
@@ -314,6 +314,7 @@ export const he: Dictionary = {
       'Kosher (no specific hechsher)': 'כשר (ללא הכשר מסוים)',
       'Not required': 'לא נדרש',
     },
+    otherPlaceholder: 'נא לפרט',
   },
   install: {
     title: 'רוצים את האפליקציה?',

@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { Dictionary } from '../i18n/types';
+import type { Language } from '../i18n/language';
 import { useAuth } from '../auth/AuthProvider';
-import { DIETARY_OPTIONS, KASHRUT_OPTIONS, knownOnly } from '../lib/options';
+import {
+  DIETARY_OPTIONS,
+  KASHRUT_OPTIONS,
+  OTHER_TEXT_PREFIX,
+  knownOnly,
+  toggleOption,
+  setOtherFreeText,
+} from '../lib/options';
 import { getNotificationSettings, saveNotificationSettings } from '../lib/notificationsApi';
 import {
   isPushSupported,
@@ -20,7 +28,7 @@ type PushState = 'off' | 'on';
 // town + travel radius (Phase 5 — replaces the old area checklist), plus
 // which dietary needs and kashrut levels you can make. The 🔔 bell only
 // counts a new request as relevant when it matches all of these (see matching.ts).
-export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
+export default function BakerNotificationsPage({ t, language }: { t: Dictionary; language: Language }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [status, setStatus] = useState<Status>('loading');
@@ -50,7 +58,7 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
         // dietary need that was renamed or removed). Otherwise it stays in the
         // form invisibly — no checkbox to untick — and gets re-submitted on every
         // save, which the server rejects, blocking the baker from saving at all.
-        setDietary(knownOnly(s.dietary, DIETARY_OPTIONS));
+        setDietary(knownOnly(s.dietary, DIETARY_OPTIONS, OTHER_TEXT_PREFIX));
         setKashrut(knownOnly(s.kashrut, KASHRUT_OPTIONS));
         setStatus('ready');
       })
@@ -92,7 +100,7 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
 
   // Any edit invalidates the "Saved ✓" note so it never looks stale.
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
-    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+    setList(toggleOption(list, value));
     setSaveStatus('idle');
   }
 
@@ -136,6 +144,7 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
               setSaveStatus('idle');
             }}
             hint={t.notifications.homeTownHint}
+            language={language}
           />
           <label>
             {t.notifications.travelRadiusLabel}
@@ -156,6 +165,11 @@ export default function BakerNotificationsPage({ t }: { t: Dictionary }) {
             labels={t.options.dietary}
             selected={dietary}
             onToggle={(v) => toggle(dietary, setDietary, v)}
+            onOtherTextChange={(text) => {
+              setDietary(setOtherFreeText(dietary, text));
+              setSaveStatus('idle');
+            }}
+            otherPlaceholder={t.options.otherPlaceholder}
           />
           <CapabilityGroup
             legend={t.notifications.kashrutLabel}

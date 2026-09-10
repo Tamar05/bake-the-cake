@@ -264,6 +264,22 @@ body {
   margin-bottom: 1rem;
 }
 
+/* Wraps each checkbox row so the "Other" free-text box (shown only once its
+   checkbox is ticked) sits directly under it without disturbing the others. */
+.checkbox-option-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.other-free-text {
+  margin: 0 0 0.35rem 1.7rem;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  border: 1px solid #f0c9d6;
+  border-radius: 8px;
+  max-width: 20rem;
+}
+
 .form-error {
   color: #c0392b;
   font-weight: 600;

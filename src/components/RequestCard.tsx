@@ -320,6 +320,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
       <li className="request-card">
         <RequestForm
           t={t}
+          language={language}
           initial={editDraft}
           submitLabel={t.form.saveChanges}
           onSubmit={handleEditSubmit}
