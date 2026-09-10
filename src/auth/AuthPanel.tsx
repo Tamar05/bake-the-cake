@@ -24,6 +24,7 @@ export default function AuthPanel({ t }: Props) {
   const [contactTouched, setContactTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkEmail, setCheckEmail] = useState(false);
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -31,6 +32,24 @@ export default function AuthPanel({ t }: Props) {
 
   if (!configured) return <p className="auth-note">{t.auth.notConfigured}</p>;
   if (loading) return null;
+
+  if (checkEmail) {
+    return (
+      <div className="auth-panel">
+        <p className="auth-note">{t.auth.checkEmail}</p>
+        <button
+          type="button"
+          className="auth-link"
+          onClick={() => {
+            setCheckEmail(false);
+            setMode('signIn');
+          }}
+        >
+          {t.auth.haveAccount}
+        </button>
+      </div>
+    );
+  }
 
   if (profile) {
     return (
@@ -58,8 +77,20 @@ export default function AuthPanel({ t }: Props) {
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'signIn') await signIn(email, password);
-      else await signUp(email, password, name, contact, notifyAreas, notifyKashrut, notifyDietary);
+      if (mode === 'signIn') {
+        await signIn(email, password);
+      } else {
+        const { emailConfirmationRequired } = await signUp(
+          email,
+          password,
+          name,
+          contact,
+          notifyAreas,
+          notifyKashrut,
+          notifyDietary,
+        );
+        if (emailConfirmationRequired) setCheckEmail(true);
+      }
     } catch (err) {
       // Show the real reason (e.g. "Email not confirmed") — it's more useful
       // than a generic line while learning; fall back if there's no message.

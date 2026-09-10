@@ -246,6 +246,7 @@ export type Dictionary = {
     notConfigured: string; // shown when Supabase keys are missing
     genericError: string; // fallback when sign-in/up fails
     joinPrompt: string; // small line under sign-up pointing an organization to /join
+    checkEmail: string; // shown after sign-up when email confirmation is required
   };
   // The /join page: an existing invite code turns a fresh account into an
   // organization ("requester"). Signs up like any baker, then redeems the code.

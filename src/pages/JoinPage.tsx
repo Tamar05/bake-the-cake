@@ -29,6 +29,7 @@ export default function JoinPage({ t }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [checkEmail, setCheckEmail] = useState(false);
 
   if (!configured) return <p className="auth-note">{t.auth.notConfigured}</p>;
   if (loading || profileLoading) return <p className="list-status" aria-hidden />;
@@ -37,6 +38,12 @@ export default function JoinPage({ t }: Props) {
   if (profile && profile.role !== 'baker') return <Navigate to="/" replace />;
 
   if (success) return <p className="list-status">{t.join.success}</p>;
+
+  // Signed up, but Supabase requires confirming the email before issuing a
+  // session — there's no token yet to redeem the code with. They'll come back
+  // to this page once signed in (the alreadySignedIn branch below picks up
+  // from there); their org name and code aren't saved across that gap.
+  if (checkEmail) return <p className="auth-note">{t.auth.checkEmail}</p>;
 
   const alreadySignedIn = profile != null && session != null;
   const passwordInvalid = !alreadySignedIn && password.length > 0 && !isStrongPassword(password);
@@ -60,7 +67,11 @@ export default function JoinPage({ t }: Props) {
     try {
       let token = session?.access_token;
       if (!alreadySignedIn) {
-        await signUp(email, password, name, contact);
+        const { emailConfirmationRequired } = await signUp(email, password, name, contact);
+        if (emailConfirmationRequired) {
+          setCheckEmail(true);
+          return;
+        }
         // AuthProvider's signUp doesn't return the new session (it lands in
         // context on the next render), so read it directly to redeem the code
         // in this same action instead of waiting a render cycle.

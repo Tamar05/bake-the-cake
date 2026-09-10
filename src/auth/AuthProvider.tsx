@@ -14,6 +14,10 @@ type AuthContextValue = {
   // server-side regardless of what's sent, so there's no role to pick here.
   // Becoming a requester (an organization) happens separately, by redeeming
   // an invite code on the /join page (see joinAsOrganization in authApi.ts).
+  // Resolves with { emailConfirmationRequired } so a caller can tell whether
+  // it got a session back immediately, or needs to show a "check your email"
+  // state (Phase 4: Supabase can be configured to require email confirmation
+  // before issuing a session).
   signUp: (
     email: string,
     password: string,
@@ -22,7 +26,7 @@ type AuthContextValue = {
     notifyAreas?: string[], // bakers pick their areas at sign-up
     notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
     notifyDietary?: string[], // bakers pick which dietary needs they can bake for
-  ) => Promise<void>;
+  ) => Promise<{ emailConfirmationRequired: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -95,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     notifyAreas: string[] = [],
     notifyKashrut: string[] = [],
     notifyDietary: string[] = [],
-  ): Promise<void> {
+  ): Promise<{ emailConfirmationRequired: boolean }> {
     if (!supabase) throw new Error('Auth not configured');
     // No role is sent — the server-side signup trigger always makes a baker,
     // regardless of what a client claims (see AuthContextValue's comment).
@@ -106,9 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
     // Save any capabilities picked at sign-up and opt in. The profile row
-    // already exists (the on-signup trigger created it), and with email
-    // confirmation off signUp returns a session. Best-effort — a failure here
-    // never blocks the account; they can adjust it later in Settings.
+    // already exists (the on-signup trigger created it). If Supabase requires
+    // email confirmation, signUp returns no session here — nothing to save
+    // yet, and the caller shows a "check your email" state instead. Best-
+    // effort either way — a failure here never blocks the account; they can
+    // adjust it later in Settings.
     const chose = notifyAreas.length > 0 || notifyKashrut.length > 0 || notifyDietary.length > 0;
     if (data.session && chose) {
       try {
@@ -125,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // ignore — the baker can set these in the Notifications screen
       }
     }
+    return { emailConfirmationRequired: data.session == null };
   }
 
   async function signIn(email: string, password: string): Promise<void> {

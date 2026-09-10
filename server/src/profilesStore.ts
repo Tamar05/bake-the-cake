@@ -64,6 +64,7 @@ type ProfileRow = {
   display_name: string;
   contact: string | null;
   verified_at: string | null;
+  suspended_at: string | null;
   created_at: string;
 };
 
@@ -94,7 +95,10 @@ function rowToBaker(row: ProfileRow): BakerSummary {
     id: row.id,
     displayName: row.display_name,
     contact: row.contact,
-    verified: row.verified_at != null,
+    // "verified" here doubles as "not suspended" for the admin screen's single
+    // toggle (Phase 4): a baker who's never confirmed their email AND one an
+    // admin has explicitly suspended both show as unverified/not-yet-eligible.
+    verified: row.verified_at != null && row.suspended_at == null,
     createdAt: new Date(row.created_at).getTime(),
   };
 }
@@ -111,23 +115,57 @@ export function createSupabaseProfilesStore(): ProfilesStore {
     async listBakers(): Promise<BakerSummary[]> {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, contact, verified_at, created_at')
+        .select('id, display_name, contact, verified_at, suspended_at, created_at')
         .eq('role', 'baker')
         .order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
       return (data as ProfileRow[]).map(rowToBaker);
     },
 
+    // The admin screen's one toggle, repurposed (Phase 4): setting `verified:
+    // false` now records an explicit SUSPENSION (`suspended_at`) rather than
+    // clearing `verified_at` — a baker's email-confirmation history is never
+    // erased, only their eligibility while suspended. Setting `verified: true`
+    // clears any suspension and, for a baker who's never been verified any
+    // other way, verifies them immediately (preserving the admin's original
+    // power to manually approve someone without waiting on email confirmation).
     async setVerified(id: string, verified: boolean): Promise<BakerSummary> {
+      const now = new Date().toISOString();
+      const SELECT = 'id, display_name, contact, verified_at, suspended_at, created_at';
+
+      if (!verified) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ suspended_at: now })
+          .eq('id', id)
+          .eq('role', 'baker') // only bakers carry a verification state
+          .select(SELECT)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error(BAKER_NOT_FOUND);
+        return rowToBaker(data as ProfileRow);
+      }
+
+      // Reinstate: always clear any suspension. Only stamp verified_at if it's
+      // still unset (a baker who's never confirmed their email or been manually
+      // verified before) — an admin re-checking an already-verified baker
+      // shouldn't reset their original verification timestamp.
+      const { data: current, error: readError } = await supabase
+        .from('profiles')
+        .select(SELECT)
+        .eq('id', id)
+        .eq('role', 'baker')
+        .maybeSingle();
+      if (readError) throw new Error(readError.message);
+      if (!current) throw new Error(BAKER_NOT_FOUND);
+      const update = { suspended_at: null, ...((current as ProfileRow).verified_at == null && { verified_at: now }) };
       const { data, error } = await supabase
         .from('profiles')
-        .update({ verified_at: verified ? new Date().toISOString() : null })
+        .update(update)
         .eq('id', id)
-        .eq('role', 'baker') // only bakers carry a verification state
-        .select('id, display_name, contact, verified_at, created_at')
-        .maybeSingle();
+        .select(SELECT)
+        .single();
       if (error) throw new Error(error.message);
-      if (!data) throw new Error(BAKER_NOT_FOUND);
       return rowToBaker(data as ProfileRow);
     },
 

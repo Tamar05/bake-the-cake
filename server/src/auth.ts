@@ -8,7 +8,10 @@ export type AuthedProfile = {
   displayName: string;
   role: 'requester' | 'baker' | 'admin';
   contact: string | null;
-  verified: boolean; // an admin has vetted this baker; gates reserving/baking
+  // Gates reserving/baking. True once the baker's email is confirmed (or an
+  // admin manually verified them) AND an admin hasn't suspended them — see
+  // profiles.verified_at / profiles.suspended_at (Phase 4).
+  verified: boolean;
   email: string | null; // the account's login email (used to notify bakers)
 };
 
@@ -44,7 +47,7 @@ export function createSupabaseAuthenticator(): Authenticator {
       if (error || !data.user) return null; // bad/expired token → fail closed
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, role, contact, verified_at')
+        .select('id, display_name, role, contact, verified_at, suspended_at')
         .eq('id', data.user.id)
         .single();
       if (profileError || !profile) return null; // no profile → fail closed
@@ -53,7 +56,7 @@ export function createSupabaseAuthenticator(): Authenticator {
         displayName: profile.display_name,
         role: profile.role,
         contact: profile.contact,
-        verified: profile.verified_at != null,
+        verified: profile.verified_at != null && profile.suspended_at == null,
         email: data.user.email ?? null, // from the verified auth user, not the profile row
       };
     },

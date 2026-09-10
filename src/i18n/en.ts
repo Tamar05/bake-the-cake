@@ -243,6 +243,8 @@ export const en: Dictionary = {
     notConfigured: 'Accounts aren’t set up yet.',
     genericError: 'That didn’t work. Please check your details and try again.',
     joinPrompt: 'Signing up on behalf of an organization? Join with your invite code →',
+    checkEmail:
+      'Almost there! We sent you a confirmation email — click the link in it, then sign in.',
   },
   join: {
     heading: 'Join as an organization',
