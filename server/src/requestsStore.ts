@@ -169,10 +169,13 @@ export function createSupabaseStore(): RequestsStore {
       name: string,
       contact: string,
     ): Promise<CakeRequest> {
-      // Read the current row first so we can refuse an already-active reservation.
+      // Read the current row first so we can refuse reserving anything that isn't
+      // still open — including `committed`/`delivered`/`received`, not just
+      // `reserved`, so a second baker can never hijack another baker's
+      // already-claimed request by re-reserving it out from under them.
       const current = await supabase.from('cake_requests').select('*').eq('id', id).single();
       if (current.error) throw new Error(current.error.message);
-      if (rowToRequest(current.data as CakeRequestRow).status === 'reserved') {
+      if (rowToRequest(current.data as CakeRequestRow).status !== 'open') {
         throw new Error(ALREADY_RESERVED);
       }
       const { data, error } = await supabase
