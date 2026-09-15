@@ -1148,6 +1148,17 @@ describe('deliver & receive API', () => {
 });
 
 describe('photo API', () => {
+  // Real (if minimal) magic bytes — the deliver route now sniffs the actual
+  // file signature rather than trusting the client-declared Content-Type, so
+  // a fixture claiming to be an image must actually look like one.
+  const MINIMAL_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xdb]);
+  // A real (if tiny) 1x1 transparent PNG — file-type needs more than just the
+  // 8-byte signature to confirm a PNG, unlike JPEG.
+  const MINIMAL_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+
   const toCommitted = async (app: ReturnType<typeof createApp>) => {
     const created = await request(app)
       .post('/api/requests')
@@ -1169,7 +1180,7 @@ describe('photo API', () => {
     const delivered = await request(app)
       .post(`/api/requests/${id}/deliver`)
       .set('Authorization', 'Bearer bak')
-      .attach('photo', Buffer.from('fake-image-bytes'), {
+      .attach('photo', MINIMAL_JPEG, {
         filename: 'cake.jpg',
         contentType: 'image/jpeg',
       });
@@ -1197,7 +1208,7 @@ describe('photo API', () => {
     await request(app)
       .post(`/api/requests/${id}/deliver`)
       .set('Authorization', 'Bearer bak')
-      .attach('photo', Buffer.from('x'), { filename: 'c.png', contentType: 'image/png' });
+      .attach('photo', MINIMAL_PNG, { filename: 'c.png', contentType: 'image/png' });
     expect((await getPhoto(app, id)).status).toBe(401);
     expect((await getPhoto(app, id, 'bak2')).status).toBe(403);
     expect((await getPhoto(app, id, 'bak')).status).toBe(200);
@@ -1217,13 +1228,26 @@ describe('photo API', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects a file whose real bytes are not an image, even if it claims to be one', async () => {
+    const app = makeApp();
+    const id = await toCommitted(app);
+    const res = await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak')
+      .attach('photo', Buffer.from('not actually a jpeg'), {
+        filename: 'cake.jpg',
+        contentType: 'image/jpeg', // spoofed — multer's fileFilter alone would accept this
+      });
+    expect(res.status).toBe(400);
+  });
+
   it('an admin can remove a photo; a baker cannot; no token 401', async () => {
     const app = makeApp();
     const id = await toCommitted(app);
     await request(app)
       .post(`/api/requests/${id}/deliver`)
       .set('Authorization', 'Bearer bak')
-      .attach('photo', Buffer.from('x'), { filename: 'c.png', contentType: 'image/png' });
+      .attach('photo', MINIMAL_PNG, { filename: 'c.png', contentType: 'image/png' });
     // a baker cannot moderate
     expect(
       (await request(app).delete(`/api/requests/${id}/photo`).set('Authorization', 'Bearer bak'))
@@ -1730,6 +1754,13 @@ describe('translate API', () => {
 
   it('POST /api/translate with missing text returns 400', async () => {
     const res = await request(makeApp()).post('/api/translate').send({ text: '', to: 'he' });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /api/translate rejects text over the length cap with 400', async () => {
+    const res = await request(makeApp())
+      .post('/api/translate')
+      .send({ text: 'x'.repeat(1001), to: 'he' });
     expect(res.status).toBe(400);
   });
 

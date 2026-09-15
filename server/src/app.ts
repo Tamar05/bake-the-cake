@@ -1,6 +1,8 @@
 import express, { type RequestHandler } from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
+import { fileTypeFromBuffer } from 'file-type';
 import {
   ALREADY_RESERVED,
   NOT_RESERVER,
@@ -235,6 +237,32 @@ const acceptPhoto: RequestHandler = (req, res, next) => {
   });
 };
 
+// The set of image types this app actually accepts — checked against the
+// file's real signature (magic bytes), not the client-declared Content-Type,
+// so a mislabeled or non-image file can't slip through multer's fileFilter
+// (which only ever sees what the uploader claims).
+const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+// Modest, per-IP throttles on the two endpoints an anonymous or low-privilege
+// caller could otherwise hammer for free: the public translation proxy (a
+// third-party API call on the server's behalf) and invite-code redemption
+// (a guessing surface, however large the keyspace). Every other endpoint
+// already requires a verified account, which is its own throttle in practice.
+const translateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many translation requests — please try again later.' },
+});
+const joinLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts — please try again later.' },
+});
+
 // Builds the Express app around a store (real Supabase store in production,
 // an in-memory fake in tests).
 export function createApp(
@@ -385,7 +413,7 @@ export function createApp(
   // already being a requester/admin — gets the same generic message, so a
   // signed-in user can't probe which codes exist or are still active.
   const ORG_NAME_MAX = 80;
-  app.post('/api/join', auth, async (req, res) => {
+  app.post('/api/join', auth, joinLimiter, async (req, res) => {
     const { code, orgName } = (req.body ?? {}) as { code?: unknown; orgName?: unknown };
     const cleanOrgName = typeof orgName === 'string' ? orgName.trim().slice(0, ORG_NAME_MAX) : '';
     if (typeof code !== 'string' || code.trim() === '' || cleanOrgName === '') {
@@ -572,7 +600,18 @@ export function createApp(
     async (req, res) => {
     const me = (req as AuthedRequest).auth;
     const file = (req as AuthedRequest & { file?: Express.Multer.File }).file;
-    const photo = file ? { buffer: file.buffer, contentType: file.mimetype } : undefined;
+    // Trust the file's actual signature, not the client-declared Content-Type —
+    // multer's fileFilter only ever sees what the uploader claims (finding from
+    // the pre-production security audit).
+    let photo: { buffer: Buffer; contentType: string } | undefined;
+    if (file) {
+      const detected = await fileTypeFromBuffer(file.buffer);
+      if (!detected || !ALLOWED_PHOTO_TYPES.has(detected.mime)) {
+        res.status(400).json({ error: 'Invalid photo (JPEG, PNG or WebP, up to 5 MB)' });
+        return;
+      }
+      photo = { buffer: file.buffer, contentType: detected.mime };
+    }
     try {
       const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin', photo);
       res.status(200).json(updated);
@@ -824,10 +863,15 @@ export function createApp(
     }
   });
 
-  app.post('/api/translate', async (req, res) => {
+  const TRANSLATE_TEXT_MAX = 1000; // generous for anything this app actually shows
+  app.post('/api/translate', translateLimiter, async (req, res) => {
     const { text, to } = (req.body ?? {}) as { text?: string; to?: string };
     if (!text || !text.trim() || (to !== 'en' && to !== 'he')) {
       res.status(400).json({ error: 'Missing text or invalid target language' });
+      return;
+    }
+    if (text.length > TRANSLATE_TEXT_MAX) {
+      res.status(400).json({ error: 'Text is too long to translate' });
       return;
     }
     const from = to === 'he' ? 'en' : 'he';
