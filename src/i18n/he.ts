@@ -16,7 +16,7 @@ export const he: Dictionary = {
     aboutRecipientLabel: 'על מקבל/ת העוגה (רשות)',
     aboutRecipientHint:
       'קצת על מי שהעוגה מיועדת עבורו, כדי שהאופה יוכל להכין אותה במיוחד — למשל הצבע האהוב, דמות אהובה או תחביב.',
-    contactPhoneLabel: 'טלפון ליצירת קשר',
+    contactPhoneLabel: 'טלפון של מקבל/ת העוגה',
     contactPhoneHint: 'כדי שהאופה יוכל ליצור קשר לתיאום מסירה.',
     submit: 'שליחת בקשה',
     saveChanges: 'שמירת השינויים',
