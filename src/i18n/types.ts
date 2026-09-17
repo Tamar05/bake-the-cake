@@ -270,6 +270,7 @@ export type Dictionary = {
     heading: string;
     intro: string; // explains what this page is for
     orgNameLabel: string;
+    contactHint: string; // why a new org gives a contact, distinct from the baker signup wording
     codeLabel: string;
     codeHint: string; // where to get a code
     submit: string;

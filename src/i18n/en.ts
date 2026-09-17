@@ -267,6 +267,7 @@ export const en: Dictionary = {
     intro:
       'If you’re signing up on behalf of an organization, enter your invite code below. You’ll create an account (or sign in) like anyone else, then redeem the code to unlock organization features.',
     orgNameLabel: 'Organization name',
+    contactHint: 'Shown to a baker once they take on your request.',
     codeLabel: 'Invite code',
     codeHint: 'An admin gives you this code.',
     submit: 'Join',

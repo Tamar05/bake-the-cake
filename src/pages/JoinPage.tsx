@@ -121,7 +121,7 @@ export default function JoinPage({ t }: Props) {
               onChange={(e) => setContact(e.target.value)}
               onBlur={() => setContactTouched(true)}
             />
-            <small>{t.auth.contactHint}</small>
+            <small>{t.join.contactHint}</small>
             {contactTouched && contactInvalid && (
               <small className="field-error">{t.auth.contactInvalid}</small>
             )}
