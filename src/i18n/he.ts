@@ -27,7 +27,7 @@ export const he: Dictionary = {
   },
   list: {
     heading: 'בקשות פתוחות',
-    empty: 'אין בקשות עדיין. מלאו את הטופס כדי להוסיף את הראשונה.',
+    empty: 'אין בקשות עדיין.',
     neededByPrefix: 'נדרש עד:',
     dietaryPrefix: 'תזונה:',
     locationPrefix: 'אזור:',
@@ -125,7 +125,7 @@ export const he: Dictionary = {
     homeTownHint: 'התחילו להקליד את העיר שלכם. לא מוצאים אותה? פשוט הקלידו את השם.',
     travelRadiusLabel: 'כמה רחוק תהיו מוכנים לנסוע? (ק"מ)',
     dietaryLabel: 'צרכים תזונתיים שאתם אופים עבורם',
-    kashrutLabel: 'רמות כשרות שאתם אופים בהן',
+    kashrutLabel: 'רמות כשרות שאתם אופים בהן (בחרו כל מה שמתאים לכם)',
     save: 'שמירת ההגדרות',
     saving: 'שומרים…',
     saved: 'נשמר ✓',

@@ -180,7 +180,6 @@ export default function AuthPanel({ t, language }: Props) {
             )}
           </label>
           <div className="baker-caps">
-            <p className="baker-caps-heading">{t.auth.bakerCapabilitiesHeading}</p>
             <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
             <TownField
               label={t.notifications.homeTownLabel}

@@ -27,7 +27,7 @@ export const en: Dictionary = {
   },
   list: {
     heading: 'Open requests',
-    empty: 'No requests yet. Fill in the form to add the first one.',
+    empty: 'No requests yet.',
     neededByPrefix: 'Needed by:',
     dietaryPrefix: 'Dietary:',
     locationPrefix: 'Area:',
@@ -125,7 +125,7 @@ export const en: Dictionary = {
     homeTownHint: "Start typing your town. Can't find it? Just type the name.",
     travelRadiusLabel: 'How far will you travel? (km)',
     dietaryLabel: 'Dietary needs you can bake for',
-    kashrutLabel: 'Kashrut levels you bake with',
+    kashrutLabel: 'Kashrut levels you bake with (choose anything that applies to you)',
     save: 'Save settings',
     saving: 'Saving…',
     saved: 'Saved ✓',
