@@ -2,7 +2,6 @@ import type { Dictionary } from './types';
 
 export const he: Dictionary = {
   appTitle: '🍰 להכין את העוגה',
-  tagline: 'בקשו עוגה לחגיגה, שתיאפה באהבה על ידי מתנדב.',
   languageLabel: 'שפה',
   form: {
     heading: 'בקשת עוגה',
@@ -230,9 +229,9 @@ export const he: Dictionary = {
     passwordHint: 'לפחות 8 תווים, עם אות גדולה, אות קטנה וספרה.',
     hidePassword: 'הסתרת הסיסמה',
     nameLabel: 'השם שלכם',
-    contactLabel: 'פרטי קשר (טלפון או אימייל)',
+    contactLabel: 'מספר טלפון',
     contactHint: 'יוצג למבקש כשתשמרו את העוגה שלו.',
-    contactInvalid: 'הזינו מספר טלפון או כתובת אימייל תקינים.',
+    contactInvalid: 'הזינו מספר טלפון תקין.',
     bakerCapabilitiesHeading: 'מה אתם יכולים להכין?',
     bakerCapabilitiesNote: 'אפשר לשנות בכל עת במסך ההתראות.',
     signInButton: 'התחברות',

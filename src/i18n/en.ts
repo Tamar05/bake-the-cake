@@ -2,7 +2,6 @@ import type { Dictionary } from './types';
 
 export const en: Dictionary = {
   appTitle: '🍰 Bake the Cake',
-  tagline: 'Ask for a celebration cake, made with care by a volunteer.',
   languageLabel: 'Language',
   form: {
     heading: 'Request a cake',
@@ -231,9 +230,9 @@ export const en: Dictionary = {
     passwordHint:
       'Should be at least 8 characters, with a capital letter, a lowercase letter, and a number.',
     nameLabel: 'Your name',
-    contactLabel: 'Contact (phone or email)',
+    contactLabel: 'Phone number',
     contactHint: 'Shown to a requester when you reserve their cake.',
-    contactInvalid: 'Enter a valid phone number or email address.',
+    contactInvalid: 'Enter a valid phone number.',
     bakerCapabilitiesHeading: 'What can you make?',
     bakerCapabilitiesNote: 'You can change these anytime in Notifications.',
     signInButton: 'Sign in',

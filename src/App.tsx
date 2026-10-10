@@ -94,7 +94,6 @@ export default function App() {
           <NotificationBell t={t} />
         </div>
         <h1>{t.appTitle}</h1>
-        <p>{t.tagline}</p>
         <AuthPanel t={t} language={language} />
       </header>
 
