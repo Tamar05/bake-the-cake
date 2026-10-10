@@ -3,6 +3,18 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { fetchMe, type Profile } from '../lib/authApi';
 
+// Thrown by signUp when the email already belongs to an account. Supabase
+// doesn't error in that case (to avoid revealing which emails exist) — it
+// returns a user with no identities and sends no email — so we detect that and
+// say so plainly, rather than leave the person waiting for an email that
+// will never come.
+export class EmailAlreadyRegisteredError extends Error {
+  constructor() {
+    super('This email already has an account');
+    this.name = 'EmailAlreadyRegisteredError';
+  }
+}
+
 type AuthContextValue = {
   configured: boolean; // is Supabase set up in .env
   loading: boolean; // still checking for an existing session

@@ -5,7 +5,7 @@ import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import { joinAsOrganization } from '../lib/authApi';
 import { supabase } from '../lib/supabaseClient';
 import PasswordField from '../components/PasswordField';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth, EmailAlreadyRegisteredError } from '../auth/AuthProvider';
 
 type Props = { t: Dictionary };
 
@@ -81,8 +81,8 @@ export default function JoinPage({ t }: Props) {
       if (!token) throw new Error(t.join.invalidCode);
       await joinAsOrganization(cleanCode, cleanOrgName, token);
       setSuccess(true);
-    } catch {
-      setError(t.join.invalidCode);
+    } catch (err) {
+      setError(err instanceof EmailAlreadyRegisteredError ? t.auth.emailTaken : t.join.invalidCode);
     } finally {
       setBusy(false);
     }

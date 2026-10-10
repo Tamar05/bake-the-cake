@@ -4,7 +4,7 @@ import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import PasswordField from '../components/PasswordField';
-import { useAuth } from './AuthProvider';
+import { useAuth, EmailAlreadyRegisteredError } from './AuthProvider';
 
 type Props = { t: Dictionary; language: Language };
 type Mode = 'signIn' | 'signUp' | 'reset';
@@ -104,6 +104,12 @@ export default function AuthPanel({ t }: Props) {
         if (emailConfirmationRequired) setCheckEmail(true);
       }
     } catch (err) {
+      if (err instanceof EmailAlreadyRegisteredError) {
+        // Move them straight to the sign-in form, email already filled in.
+        setMode('signIn');
+        setError(t.auth.emailTaken);
+        return;
+      }
       // Show the real reason (e.g. "Email not confirmed") — it's more useful
       // than a generic line while learning; fall back if there's no message.
       setError(err instanceof Error ? err.message : t.auth.genericError);
