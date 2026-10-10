@@ -4,7 +4,6 @@ import { DIETARY_OPTIONS, KASHRUT_OPTIONS } from '../lib/options';
 // is added here, both en.ts and he.ts must provide it (the test enforces this).
 export type Dictionary = {
   appTitle: string;
-  tagline: string;
   languageLabel: string; // accessible label for the language switch
   form: {
     heading: string;
