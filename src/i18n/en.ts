@@ -115,6 +115,15 @@ export const en: Dictionary = {
     requestCake: 'Request a cake',
     inviteCodes: 'Invite codes',
   },
+  setup: {
+    heading: 'One last step',
+    intro:
+      'Tell us what you can make, and we’ll let you know when a matching cake request comes in. You can change this anytime in Notifications.',
+    save: 'Save and continue',
+    skip: 'Skip for now',
+    saving: 'Saving…',
+    error: 'That didn’t save. Please try again, or skip for now.',
+  },
   notifications: {
     heading: 'Notification settings',
     intro: 'Choose what you can make — new matching requests appear in the bell.',
@@ -234,8 +243,6 @@ export const en: Dictionary = {
     contactLabel: 'Contact (phone or email)',
     contactHint: 'Shown to a requester when you reserve their cake.',
     contactInvalid: 'Enter a valid phone number or email address.',
-    bakerCapabilitiesHeading: 'What can you make?',
-    bakerCapabilitiesNote: 'You can change these anytime in Notifications.',
     signInButton: 'Sign in',
     signUpButton: 'Create account',
     needAccount: 'New here? Create an account',
@@ -247,7 +254,7 @@ export const en: Dictionary = {
     genericError: 'That didn’t work. Please check your details and try again.',
     joinPrompt: 'Signing up on behalf of an organization? Join with your invite code →',
     checkEmail:
-      'Almost there! We sent you a confirmation email — click the link in it, then sign in.',
+      'Almost there! We sent you a confirmation email — click the link in it. You’ll come back here and finish setting up (area, kashrut, dietary).',
     forgotPassword: 'Forgot password?',
     resetHeading: 'Reset your password',
     resetIntro: 'Enter your email and we’ll send you a link to set a new password.',
