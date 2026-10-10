@@ -431,7 +431,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               (the server only sends it to the assigned baker / owner / admin). */}
           {(committed || delivered || received) && request.contactPhone && (
             <p className="delivery-phone">
-              {t.list.deliveryPhonePrefix} {request.contactPhone}
+              {request.contactPhone}
             </p>
           )}
           {reservedActive && (
@@ -439,7 +439,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               {t.list.timeLeftPrefix} {minsLeft}m {secsLeft}s
             </p>
           )}
-          {committed && <p className="baking-note">{t.list.bakingNote}</p>}
           {delivered && <p className="baking-note">{t.list.deliveredNote}</p>}
           {received && <p className="baking-note received-note">{t.list.receivedNote}</p>}
           {photoUrl && <img className="cake-photo" src={photoUrl} alt={t.list.photoAlt} />}
@@ -506,7 +505,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
                 />
-                <small className="photo-hint">{t.list.photoPrivacyHint}</small>
               </label>
               <button
                 type="button"
