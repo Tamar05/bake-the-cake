@@ -47,12 +47,11 @@ export type Dictionary = {
     commit: string; // baker's "I'll bake this" button
     committing: string; // busy label while committing
     commitError: string; // shown when committing fails
-    bakingNote: string; // note on a committed card ("a baker is making this now")
     markDelivered: string; // baker's "mark delivered" button
     delivering: string; // busy label while marking delivered
     deliverError: string; // shown when marking delivered fails
     addPhoto: string; // label above the optional photo picker at delivery
-    photoPrivacyHint: string; // clarifies the delivery photo is private, not public
+    deliveryPhonePrefix: string;
     photoAlt: string; // alt text for the finished-cake photo
     removePhoto: string; // admin moderation: remove a photo
     removingPhoto: string; // busy label while removing
@@ -73,7 +72,6 @@ export type Dictionary = {
     reserveMissing: string; // shown when name/contact are blank
     reservedByPrefix: string; // precedes the baker's name
     reservedContactPrefix: string; // precedes the baker's contact
-    deliveryPhonePrefix: string; // precedes the requester's delivery phone (shown to the baker once committed)
     timeLeftPrefix: string; // precedes the countdown
     release: string; // cancel a reservation
     releasing: string; // busy label while releasing
