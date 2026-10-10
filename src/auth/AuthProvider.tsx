@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { fetchMe, type Profile } from '../lib/authApi';
-import { saveNotificationSettings } from '../lib/notificationsApi';
 
 type AuthContextValue = {
   configured: boolean; // is Supabase set up in .env
@@ -23,11 +22,11 @@ type AuthContextValue = {
     password: string,
     displayName: string,
     contact: string,
-    notifyHomeTown?: string, // baker's home town at sign-up (Phase 5 — replaces notifyAreas)
-    notifyTravelRadiusKm?: number, // how far they'll travel
-    notifyKashrut?: string[], // bakers pick their kashrut levels at sign-up
-    notifyDietary?: string[], // bakers pick which dietary needs they can bake for
   ) => Promise<{ emailConfirmationRequired: boolean }>;
+  // Marks the signed-in baker's "finish setting up" step as done (or skipped)
+  // so it isn't shown again. Stored on the Supabase user, so it follows them
+  // across devices.
+  markSetupDone: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   // Sends a "reset your password" email via Supabase. The link in it brings
@@ -105,43 +104,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
     contact: string,
-    notifyHomeTown = '',
-    notifyTravelRadiusKm = 0,
-    notifyKashrut: string[] = [],
-    notifyDietary: string[] = [],
   ): Promise<{ emailConfirmationRequired: boolean }> {
     if (!supabase) throw new Error('Auth not configured');
     // No role is sent — the server-side signup trigger always makes a baker,
     // regardless of what a client claims (see AuthContextValue's comment).
+    // emailRedirectTo sends the confirmation link back to the site they signed
+    // up on, instead of whatever Site URL is configured in Supabase.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName, contact } },
+      options: {
+        data: { display_name: displayName, contact },
+        emailRedirectTo: window.location.origin,
+      },
     });
     if (error) throw error;
-    // Save any capabilities picked at sign-up and opt in. The profile row
-    // already exists (the on-signup trigger created it). If Supabase requires
-    // email confirmation, signUp returns no session here — nothing to save
-    // yet, and the caller shows a "check your email" state instead. Best-
-    // effort either way — a failure here never blocks the account; they can
-    // adjust it later in Settings.
-    const chose = notifyHomeTown !== '' || notifyKashrut.length > 0 || notifyDietary.length > 0;
-    if (data.session && chose) {
-      try {
-        await saveNotificationSettings(
-          {
-            notifyNewRequests: true,
-            homeTown: notifyHomeTown,
-            travelRadiusKm: notifyTravelRadiusKm,
-            dietary: notifyDietary,
-            kashrut: notifyKashrut,
-          },
-          data.session.access_token,
-        );
-      } catch {
-        // ignore — the baker can set these in the Notifications screen
-      }
-    }
+    // The area / kashrut / dietary questions come AFTER confirmation, on the
+    // "finish setting up" screen (BakerSetupPage) — there's no session yet here.
     return { emailConfirmationRequired: data.session == null };
   }
 
@@ -160,6 +139,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
+    if (error) throw error;
+  }
+
+  async function markSetupDone(): Promise<void> {
+    if (!supabase) throw new Error('Auth not configured');
+    const { error } = await supabase.auth.updateUser({ data: { setup_done: true } });
     if (error) throw error;
   }
 
@@ -182,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         requestPasswordReset,
         updatePassword,
+        markSetupDone,
       }}
     >
       {children}

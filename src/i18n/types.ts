@@ -114,6 +114,14 @@ export type Dictionary = {
     requestCake: string; // requester's own "post a new request" tab
     inviteCodes: string; // admin's invite-code management screen
   };
+  setup: {
+    heading: string;
+    intro: string;
+    save: string;
+    skip: string;
+    saving: string;
+    error: string;
+  };
   notifications: {
     heading: string;
     intro: string; // short explainer under the heading
@@ -236,8 +244,6 @@ export type Dictionary = {
     contactLabel: string;
     contactHint: string; // why bakers give a contact
     contactInvalid: string; // live error when the contact is neither a valid phone nor email
-    bakerCapabilitiesHeading: string; // prompt above the baker capability pickers at sign-up
-    bakerCapabilitiesNote: string; // smaller sub-note: you can change these later
     signInButton: string;
     signUpButton: string;
     needAccount: string; // switch to the sign-up form

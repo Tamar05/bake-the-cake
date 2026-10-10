@@ -2,19 +2,14 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
-import { DIETARY_OPTIONS, KASHRUT_OPTIONS, toggleOption, setOtherFreeText } from '../lib/options';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
-import CapabilityGroup from '../components/CapabilityGroup';
 import PasswordField from '../components/PasswordField';
-import TownField from '../components/TownField';
 import { useAuth } from './AuthProvider';
-
-const DEFAULT_TRAVEL_RADIUS_KM = 15;
 
 type Props = { t: Dictionary; language: Language };
 type Mode = 'signIn' | 'signUp' | 'reset';
 
-export default function AuthPanel({ t, language }: Props) {
+export default function AuthPanel({ t }: Props) {
   const { configured, loading, profile, signIn, signUp, signOut, requestPasswordReset } =
     useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
@@ -22,10 +17,6 @@ export default function AuthPanel({ t, language }: Props) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [notifyHomeTown, setNotifyHomeTown] = useState('');
-  const [notifyTravelRadiusKm, setNotifyTravelRadiusKm] = useState(DEFAULT_TRAVEL_RADIUS_KM);
-  const [notifyKashrut, setNotifyKashrut] = useState<string[]>([]);
-  const [notifyDietary, setNotifyDietary] = useState<string[]>([]);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [contactTouched, setContactTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -109,10 +100,6 @@ export default function AuthPanel({ t, language }: Props) {
           password,
           name,
           contact,
-          notifyHomeTown,
-          notifyTravelRadiusKm,
-          notifyKashrut,
-          notifyDietary,
         );
         if (emailConfirmationRequired) setCheckEmail(true);
       }
@@ -179,42 +166,6 @@ export default function AuthPanel({ t, language }: Props) {
               <small className="field-error">{t.auth.contactInvalid}</small>
             )}
           </label>
-          <div className="baker-caps">
-            <small className="baker-caps-note">{t.auth.bakerCapabilitiesNote}</small>
-            <TownField
-              label={t.notifications.homeTownLabel}
-              value={notifyHomeTown}
-              onChange={setNotifyHomeTown}
-              hint={t.notifications.homeTownHint}
-              language={language}
-            />
-            <label>
-              {t.notifications.travelRadiusLabel}
-              <input
-                type="number"
-                min={1}
-                max={300}
-                value={notifyTravelRadiusKm}
-                onChange={(e) => setNotifyTravelRadiusKm(Number(e.target.value))}
-              />
-            </label>
-            <CapabilityGroup
-              legend={t.notifications.kashrutLabel}
-              options={KASHRUT_OPTIONS}
-              labels={t.options.kashrut}
-              selected={notifyKashrut}
-              onToggle={(v) => setNotifyKashrut(toggleOption(notifyKashrut, v))}
-            />
-            <CapabilityGroup
-              legend={t.notifications.dietaryLabel}
-              options={DIETARY_OPTIONS}
-              labels={t.options.dietary}
-              selected={notifyDietary}
-              onToggle={(v) => setNotifyDietary(toggleOption(notifyDietary, v))}
-              onOtherTextChange={(text) => setNotifyDietary(setOtherFreeText(notifyDietary, text))}
-              otherPlaceholder={t.options.otherPlaceholder}
-            />
-          </div>
         </>
       )}
       {error && <p className="auth-error">{error}</p>}
