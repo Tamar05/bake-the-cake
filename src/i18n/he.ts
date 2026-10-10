@@ -241,8 +241,6 @@ export const he: Dictionary = {
     contactLabel: 'מספר טלפון',
     contactHint: 'יוצג למבקש כשתשמרו את העוגה שלו.',
     contactInvalid: 'הזינו מספר טלפון תקין.',
-    bakerCapabilitiesHeading: 'מה אתם יכולים להכין?',
-    bakerCapabilitiesNote: 'אפשר לשנות בכל עת במסך ההתראות.',
     signInButton: 'התחברות',
     signUpButton: 'יצירת חשבון',
     needAccount: 'חדשים כאן? צרו חשבון',

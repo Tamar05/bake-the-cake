@@ -242,8 +242,6 @@ export const en: Dictionary = {
     contactLabel: 'Phone number',
     contactHint: 'Shown to a requester when you reserve their cake.',
     contactInvalid: 'Enter a valid phone number.',
-    bakerCapabilitiesHeading: 'What can you make?',
-    bakerCapabilitiesNote: 'You can change these anytime in Notifications.',
     signInButton: 'Sign in',
     signUpButton: 'Create account',
     needAccount: 'New here? Create an account',
