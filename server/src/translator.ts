@@ -8,13 +8,20 @@ type MyMemoryResponse = {
   responseData?: { translatedText?: string };
 };
 
+// MyMemory gives a much larger free daily quota when requests carry a contact
+// email (the `de` parameter). Not a secret; override with MYMEMORY_EMAIL.
+const DEFAULT_CONTACT_EMAIL = 'tamatcakeproject@gmail.com';
+
 // A translator backed by the free MyMemory API (no key required).
-export function createMyMemoryTranslator(): Translator {
+export function createMyMemoryTranslator(
+  contactEmail: string = process.env.MYMEMORY_EMAIL || DEFAULT_CONTACT_EMAIL,
+): Translator {
   return {
     async translate(text: string, from: string, to: string): Promise<string> {
       const url =
         'https://api.mymemory.translated.net/get' +
-        `?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
+        `?q=${encodeURIComponent(text)}&langpair=${from}|${to}` +
+        `&de=${encodeURIComponent(contactEmail)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Translation service error (HTTP ${res.status})`);
       const data = (await res.json()) as MyMemoryResponse;
