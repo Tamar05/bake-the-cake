@@ -50,6 +50,7 @@ export const en: Dictionary = {
     delivering: 'Saving…',
     deliverError: 'Could not mark delivered. Please try again.',
     addPhoto: 'Add a photo of the cake (optional)',
+    deliveryPhonePrefix: 'Phone number to contact the requester:',
     photoAlt: 'The finished cake',
     removePhoto: 'Remove photo',
     removingPhoto: 'Removing…',

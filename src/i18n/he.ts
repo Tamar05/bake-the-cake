@@ -50,6 +50,7 @@ export const he: Dictionary = {
     delivering: 'שומרים…',
     deliverError: 'לא ניתן לסמן כנמסרה. נסו שוב.',
     addPhoto: 'הוסיפו תמונה של העוגה (רשות)',
+    deliveryPhonePrefix: '',
     photoAlt: 'העוגה המוכנה',
     removePhoto: 'הסירו תמונה',
     removingPhoto: 'מסירים…',

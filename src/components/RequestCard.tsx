@@ -431,7 +431,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               (the server only sends it to the assigned baker / owner / admin). */}
           {(committed || delivered || received) && request.contactPhone && (
             <p className="delivery-phone">
-              {request.contactPhone}
+              {t.list.deliveryPhonePrefix} {request.contactPhone}
             </p>
           )}
           {reservedActive && (

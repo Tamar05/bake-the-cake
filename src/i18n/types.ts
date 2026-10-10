@@ -51,6 +51,7 @@ export type Dictionary = {
     delivering: string; // busy label while marking delivered
     deliverError: string; // shown when marking delivered fails
     addPhoto: string; // label above the optional photo picker at delivery
+    deliveryPhonePrefix: string;
     photoAlt: string; // alt text for the finished-cake photo
     removePhoto: string; // admin moderation: remove a photo
     removingPhoto: string; // busy label while removing
