@@ -878,7 +878,8 @@ export function createApp(
     try {
       const translated = await translator.translate(text, from, to);
       res.status(200).json({ translated });
-    } catch {
+    } catch (err) {
+      console.error('Translation failed:', err);
       res.status(500).json({ error: 'Could not translate' });
     }
   });

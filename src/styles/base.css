@@ -573,11 +573,6 @@ body {
   font-weight: 400;
 }
 
-.photo-hint {
-  font-weight: 400;
-  color: #8a6d6d;
-}
-
 /* --- Baker verification (Slice 6) --- */
 .pending-note {
   margin: 0.5rem 0 0;
