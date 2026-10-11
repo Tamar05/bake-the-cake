@@ -3,6 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- One address only: the old *.pages.dev address sends everyone (and any old
+         emailed links, with their sign-in token) to the real domain. Runs before
+         anything loads. Production hostname only, so local dev and preview builds
+         are untouched. -->
+    <script>
+      if (location.hostname === 'bake-the-cake.pages.dev') {
+        location.replace('https://bakethecake.org' + location.pathname + location.search + location.hash);
+      }
+    </script>
     <title>Bake the Cake</title>
     <meta name="description" content="Request a cake, or bake one for someone who needs a little kindness." />
 
