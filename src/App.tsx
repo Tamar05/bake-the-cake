@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import LanguageToggle from "./components/LanguageToggle";
 import NotificationBell from "./components/NotificationBell";
 import AppNav from "./components/AppNav";
@@ -28,10 +28,16 @@ import {
   type Language,
 } from "./i18n/language";
 import { loadRequests, saveRequest } from "./lib/requestsApi";
+import { isRecoveryLink } from "./lib/recoveryLink";
 import type { Dictionary } from "./i18n/types";
 import type { CakeRequest, RequestDraft } from "./types";
 
 type Status = "loading" | "ready" | "error";
+
+// Read once, at load, before Supabase's client tidies the link out of the address
+// bar: did this visit start from a "reset your password" email link?
+const LANDED_ON_RECOVERY_LINK =
+  typeof window !== "undefined" && isRecoveryLink(window.location.hash);
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(loadLanguage);
@@ -41,6 +47,19 @@ export default function App() {
   const t = dictionaries[language];
   const { session, loading: authLoading } = useAuth();
   const token = session?.access_token;
+
+  // A password-reset link should always end on the reset form, even if Supabase
+  // sent the person to the home page (its allowed-redirect list decides that).
+  // The fragment is carried along so the temporary session still gets picked up.
+  const navigate = useNavigate();
+  const { pathname: currentPath } = useLocation();
+  useEffect(() => {
+    if (LANDED_ON_RECOVERY_LINK && !currentPath.startsWith("/reset-password")) {
+      navigate({ pathname: "/reset-password", hash: window.location.hash }, { replace: true });
+    }
+    // Only on first load — after that the normal routes take over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep the page's reading direction and lang in step with the language.
   useEffect(() => {
@@ -291,7 +310,14 @@ function BakerSetupGate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, token]);
 
-  if (profileLoading || !pending || pathname.startsWith("/join"))
+  // /reset-password too: someone resetting their password must reach that form,
+  // not get the setup step first.
+  if (
+    profileLoading ||
+    !pending ||
+    pathname.startsWith("/join") ||
+    pathname.startsWith("/reset-password")
+  )
     return <>{children}</>;
   if (state === "checking") return <p className="list-status" aria-hidden />;
   if (state === "new") return <BakerSetupPage t={t} language={language} />;
