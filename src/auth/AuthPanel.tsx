@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
+import { emailProblem } from '../lib/authErrors';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
 import PasswordField from '../components/PasswordField';
 import { useAuth, EmailAlreadyRegisteredError } from './AuthProvider';
@@ -107,6 +108,11 @@ export default function AuthPanel({ t }: Props) {
         // Move them straight to the sign-in form, email already filled in.
         setMode('signIn');
         setError(t.auth.emailTaken);
+        return;
+      }
+      const problem = emailProblem(err);
+      if (problem) {
+        setError(problem === 'invalid' ? t.auth.emailInvalid : t.auth.tooManyEmails);
         return;
       }
       // Show the real reason (e.g. "Email not confirmed") — it's more useful

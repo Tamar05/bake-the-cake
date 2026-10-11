@@ -251,6 +251,8 @@ export const en: Dictionary = {
     genericError: 'That didn’t work. Please check your details and try again.',
     joinPrompt: 'Signing up on behalf of an organization? Join with your invite code →',
     emailTaken: 'This email already has an account. Please sign in.',
+    emailInvalid: 'That email address doesn’t look valid. Please check it and try again.',
+    tooManyEmails: 'Too many emails were requested just now. Please wait a few minutes and try again.',
     checkEmail:
       'Almost there! We sent you a confirmation email — click the link in it. You’ll come back here and finish setting up (area, kashrut, dietary).',
     forgotPassword: 'Forgot password?',

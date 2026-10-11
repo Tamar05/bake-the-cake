@@ -6,6 +6,7 @@ import { joinAsOrganization } from '../lib/authApi';
 import { supabase } from '../lib/supabaseClient';
 import PasswordField from '../components/PasswordField';
 import { useAuth, EmailAlreadyRegisteredError } from '../auth/AuthProvider';
+import { emailProblem } from '../lib/authErrors';
 
 type Props = { t: Dictionary };
 
@@ -82,7 +83,16 @@ export default function JoinPage({ t }: Props) {
       await joinAsOrganization(cleanCode, cleanOrgName, token);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof EmailAlreadyRegisteredError ? t.auth.emailTaken : t.join.invalidCode);
+      const problem = emailProblem(err);
+      setError(
+        err instanceof EmailAlreadyRegisteredError
+          ? t.auth.emailTaken
+          : problem === 'invalid'
+            ? t.auth.emailInvalid
+            : problem === 'tooMany'
+              ? t.auth.tooManyEmails
+              : t.join.invalidCode,
+      );
     } finally {
       setBusy(false);
     }
