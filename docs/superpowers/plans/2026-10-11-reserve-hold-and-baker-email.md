@@ -796,7 +796,7 @@ git commit -m "feat(email): send delivery details to the baker on commit, with a
 - Produces:
   - `commitRequest(id: string, token: string, lang: Language): Promise<CommittedResult>` where `type CommittedResult = { request: CakeRequest; emailSent: boolean }`
   - `resendDetails(id: string, token: string, lang: Language): Promise<void>` (throws on non-2xx)
-  - new `Dictionary['list']` keys: `organizationPrefix`, `reserveHint`, `openHold`, `holdTitle`, `holdIntro`, `notThisTime`, `bakeIt`, `holdWorking`, `holdExpired`, `holdTaken`, `thanksTitle`, `thanksBody`, `thanksEmailFailed`, `resendDetails`, `resendSending`, `resendDone`, `resendError`, `closeBox`
+  - new `Dictionary['list']` keys: `organizationPrefix`, `reserveHint`, `openHold`, `holdTitle`, `holdIntro`, `notThisTime`, `bakeIt`, `holdWorking`, `holdExpired`, `holdTaken`, `thanksTitle`, `thanksBody`, `thanksEmailFailed`, `resendDetails`, `resendSending`, `resendDone`, `resendError`, `closeBox`, `signInToReserve`, `signInToReserve`
 
 - [ ] **Step 1: Write failing tests** — in `src/lib/requestsApi.test.ts` Extend the file's import to `import { loadRequests, saveRequest, deleteRequest, commitRequest, resendDetails } from './requestsApi';` and add these inside the existing `describe('requestsApi', …)` block (same `vi.stubGlobal('fetch', …)` pattern as its other tests):
 
@@ -903,6 +903,7 @@ i18n — add the keys to the `list` section of `src/i18n/types.ts` (type `string
     resendDone: 'Sent! Please check your email.',
     resendError: 'Could not send the email. Please try again.',
     closeBox: 'Close',
+    signInToReserve: 'Youג€™re not signed in. Please sign in or sign up to reserve a cake.',
 ```
 (`reserve` already exists — change its text, do not duplicate the key. Also delete the now-unused English `deliveryPhonePrefix` line's text only if the type key is also removed; simplest: leave the key and value, it is just unused.)
 
@@ -1175,6 +1176,7 @@ export default function HoldBox({ t, language, request, token, onUpdated, onClos
           }}
 ```
   (read the existing `handleCommit` to copy exactly how/when it navigated; preserve that condition.)
+- Signed-out visitors: today the card shows them no reserve button at all. Change it so a visitor with no `profile` (and not still loading: use `!profile && !authLoading`, reading `loading` from `useAuth()`) sees the same "Reserve this cake" button and hint; pressing it does NOT call the server, it just shows `t.list.signInToReserve` under the button (`<p className="reserve-error">`). Signed-in bakers reserve as before; signed-in organizations (requesters) still see no button; unverified bakers still see the pending note. (The server already answers 401 to a reserve call with no login, covered by the existing "auth negative tests"; add one assertion there if `reserve` is missing from that list.)
 - Under the reserve button (`canReserve` branch) add the hint line:
 ```tsx
           <p className="reserve-hint">{t.list.reserveHint}</p>

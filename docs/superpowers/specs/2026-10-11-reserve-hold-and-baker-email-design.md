@@ -134,6 +134,9 @@ straight from the database row, not from the redacted API response.
   baker sees "someone just reserved this cake" and the card refreshes.
 - Hold expires while the box is open: box closes, message "the hour ran out, the
   cake is open again". A late commit returns the existing 409.
+- Signed-out visitor presses "Reserve this cake": no hold is made; a notice says
+  "You're not signed in. Please sign in or sign up to reserve a cake." Only
+  signed-in, verified bakers can actually reserve (the server enforces this).
 - Baker without a verified account: unchanged (cannot reserve; sees the pending
   note).
 - Baker signed up with no email on the auth user: not possible with email
