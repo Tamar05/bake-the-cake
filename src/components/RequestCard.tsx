@@ -7,12 +7,12 @@ import { translateText } from '../lib/translationApi';
 import {
   reserveRequest,
   releaseRequest,
-  commitRequest,
   deliverRequest,
   receiveRequest,
   deleteRequest,
   updateRequest,
   getPhotoUrl,
+  resendDetails,
   removePhoto,
   setGalleryShare,
 } from '../lib/requestsApi';
@@ -22,6 +22,7 @@ import { optionLabel, townLabel } from '../lib/optionLabels';
 import { useAuth } from '../auth/AuthProvider';
 import RequestForm from './RequestForm';
 import Timeline from './Timeline';
+import HoldBox from './HoldBox';
 
 type Props = {
   t: Dictionary;
@@ -46,7 +47,7 @@ type Translated = {
 const TEXT_FIELDS = ['recipient', 'occasion', 'aboutRecipient'] as const;
 
 export default function RequestCard({ t, language, request, onUpdated, onDeleted }: Props) {
-  const { profile, session } = useAuth();
+  const { profile, session, loading: authLoading } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
 
@@ -56,7 +57,9 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
 
   const [reserveStatus, setReserveStatus] = useState<ActionStatus>('idle');
   const [releaseStatus, setReleaseStatus] = useState<ActionStatus>('idle');
-  const [commitStatus, setCommitStatus] = useState<ActionStatus>('idle');
+  const [holdOpen, setHoldOpen] = useState(false); // the hold box is showing
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [signInNotice, setSignInNotice] = useState(false); // a signed-out visitor pressed Reserve
   const [deliverStatus, setDeliverStatus] = useState<ActionStatus>('idle');
   const [receiveStatus, setReceiveStatus] = useState<ActionStatus>('idle');
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
@@ -95,8 +98,9 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // decides which buttons to show.
   const isAdmin = profile?.role === 'admin';
   const isHolder = profile != null && (request.reservedByUserId === profile.id || isAdmin);
-  // Only a verified baker (or an admin) may reserve; an unverified baker can
-  // browse but not bake, and sees a "pending verification" note instead.
+  // A baker may reserve unless an admin has suspended them (`profile.verified`
+  // now means "not suspended"); a suspended baker can browse but not bake, and
+  // sees a "paused" note instead.
   const canReserve = (profile?.role === 'baker' && profile.verified) || isAdmin;
   const isUnverifiedBaker = profile?.role === 'baker' && !profile.verified;
   const canCommit = reservedActive && isHolder;
@@ -196,6 +200,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     try {
       onUpdated(await reserveRequest(request.id, token));
       setReserveStatus('idle');
+      setHoldOpen(true);
     } catch {
       setReserveStatus('error');
     }
@@ -212,18 +217,25 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     }
   }
 
-  async function handleCommit() {
+  // The hold box reports the changed request (released, or committed once the
+  // thank-you box is closed). Committing hides the cake from Browse and moves it
+  // into the baker's own list, so take them there to see what they just took on.
+  // (Only bakers have that page; an admin who commits stays put.)
+  function handleHoldUpdated(updated: CakeRequest) {
+    onUpdated(updated);
+    if (updated.status === 'committed' && profile?.role === 'baker') navigate('/reservations');
+  }
+
+  // The recipient's name and phone only ever arrive by email, so a baker who lost
+  // the email can ask for it again from the committed card.
+  async function handleResend() {
     if (!token) return;
-    setCommitStatus('saving');
+    setResendStatus('sending');
     try {
-      onUpdated((await commitRequest(request.id, token, language)).request);
-      setCommitStatus('idle');
-      // Committing hides the cake from Browse and moves it into the baker's own
-      // list — take them straight there so they see what they just took on. (Only
-      // bakers have that page; an admin who commits stays put.)
-      if (profile?.role === 'baker') navigate('/reservations');
+      await resendDetails(request.id, token, language);
+      setResendStatus('done');
     } catch {
-      setCommitStatus('error');
+      setResendStatus('error');
     }
   }
 
@@ -496,6 +508,11 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           )}
           {canDeliver && (
             <>
+              <button type="button" onClick={handleResend} disabled={resendStatus === 'sending'}>
+                {resendStatus === 'sending' ? t.list.resendSending : t.list.resendDetails}
+              </button>
+              {resendStatus === 'done' && <p>{t.list.resendDone}</p>}
+              {resendStatus === 'error' && <p className="reserve-error">{t.list.resendError}</p>}
               <label className="photo-input">
                 {t.list.addPhoto}
                 <input
@@ -529,19 +546,11 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
             </>
           )}
           {canCommit && (
-            <>
-              <button
-                type="button"
-                className="reserve-button"
-                onClick={handleCommit}
-                disabled={commitStatus === 'saving'}
-              >
-                {commitStatus === 'saving' ? t.list.committing : t.list.commit}
-              </button>
-              {commitStatus === 'error' && <p className="reserve-error">{t.list.commitError}</p>}
-            </>
+            <button type="button" className="reserve-button" onClick={() => setHoldOpen(true)}>
+              {t.list.openHold}
+            </button>
           )}
-          {canRelease && (
+          {canRelease && !reservedActive && (
             <>
               <button type="button" onClick={handleRelease} disabled={releaseStatus === 'saving'}>
                 {releaseStatus === 'saving' ? t.list.releasing : t.list.release}
@@ -560,10 +569,31 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           >
             {reserveStatus === 'saving' ? t.list.reserving : t.list.reserve}
           </button>
+          <p className="reserve-hint">{t.list.reserveHint}</p>
           {reserveStatus === 'error' && <p className="reserve-error">{t.list.reserveError}</p>}
+        </>
+      ) : !session && !authLoading ? (
+        // Signed out: show the same button, but pressing it only asks them to sign in.
+        <>
+          <button type="button" className="reserve-button" onClick={() => setSignInNotice(true)}>
+            {t.list.reserve}
+          </button>
+          <p className="reserve-hint">{t.list.reserveHint}</p>
+          {signInNotice && <p className="reserve-error">{t.list.signInToReserve}</p>}
         </>
       ) : (
         isUnverifiedBaker && <p className="pending-note">{t.list.pendingVerification}</p>
+      )}
+
+      {holdOpen && token && reservedActive && (
+        <HoldBox
+          t={t}
+          language={language}
+          request={request}
+          token={token}
+          onUpdated={handleHoldUpdated}
+          onClose={() => setHoldOpen(false)}
+        />
       )}
 
       {request.committedAt != null && <Timeline t={t} language={language} request={request} />}
