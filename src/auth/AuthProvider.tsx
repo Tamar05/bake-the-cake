@@ -35,6 +35,9 @@ type AuthContextValue = {
     password: string,
     displayName: string,
     contact: string,
+    // Where the confirmation email's link lands, as a path on this site. Omit
+    // for the home page; the organization form passes '/join'.
+    redirectPath?: string,
   ) => Promise<{ emailConfirmationRequired: boolean }>;
   // Marks the signed-in baker's "finish setting up" step as done (or skipped)
   // so it isn't shown again. Stored on the Supabase user, so it follows them
@@ -117,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
     contact: string,
+    redirectPath = '',
   ): Promise<{ emailConfirmationRequired: boolean }> {
     if (!supabase) throw new Error('Auth not configured');
     // No role is sent — the server-side signup trigger always makes a baker,
@@ -128,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { display_name: displayName, contact },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: window.location.origin + redirectPath,
       },
     });
     if (error) throw error;
