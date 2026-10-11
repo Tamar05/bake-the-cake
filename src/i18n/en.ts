@@ -108,7 +108,7 @@ export const en: Dictionary = {
     dashboard: 'Dashboard',
     gallery: 'Gallery',
     notifications: 'Notifications',
-    signInPrompt: 'Sign in to post a request or to bake one.',
+    signInPrompt: 'Sign up to bake a cake.',
     requestCake: 'Request a cake',
     inviteCodes: 'Invite codes',
   },

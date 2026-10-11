@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import type { Dictionary } from '../i18n/types';
 import type { Language } from '../i18n/language';
 import { isStrongPassword, isValidContact } from '../lib/signupValidation';
@@ -222,11 +221,6 @@ export default function AuthPanel({ t }: Props) {
         >
           {t.auth.forgotPassword}
         </button>
-      )}
-      {mode === 'signUp' && (
-        <Link className="auth-link auth-join-link" to="/join">
-          {t.auth.joinPrompt}
-        </Link>
       )}
     </form>
   );

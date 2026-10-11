@@ -108,7 +108,7 @@ export const he: Dictionary = {
     dashboard: 'לוח בקרה',
     gallery: 'גלריה',
     notifications: 'התראות',
-    signInPrompt: 'התחברו כדי לפרסם בקשה או כדי לאפות.',
+    signInPrompt: 'הירשמו כדי לאפות עוגה.',
     requestCake: 'בקשת עוגה',
     inviteCodes: 'קודי הזמנה',
   },
