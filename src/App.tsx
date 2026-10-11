@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import LanguageToggle from "./components/LanguageToggle";
 import NotificationBell from "./components/NotificationBell";
 import AppNav from "./components/AppNav";
@@ -39,7 +39,7 @@ export default function App() {
   const [status, setStatus] = useState<Status>("loading");
 
   const t = dictionaries[language];
-  const { session, loading: authLoading } = useAuth();
+  const { session, profile, loading: authLoading } = useAuth();
   const token = session?.access_token;
 
   // Keep the page's reading direction and lang in step with the language.
@@ -208,6 +208,12 @@ export default function App() {
             <Route path="*" element={<Navigate to="/browse" replace />} />
           </Routes>
         </BakerSetupGate>
+      )}
+
+      {!profile && (
+        <footer className="app-footer">
+          <Link to="/join">{t.auth.joinPrompt}</Link>
+        </footer>
       )}
     </main>
   );

@@ -1119,12 +1119,22 @@ body {
   font-size: 0.9rem;
 }
 
-.auth-join-link,
 .auth-forgot-link {
   display: block;
   margin-top: 0.75rem;
   font-size: 0.9rem;
   text-align: center;
+}
+
+.app-footer {
+  margin-top: 2rem;
+  padding-bottom: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.app-footer a {
+  color: #8a6d6d;
 }
 
 .join-panel {
