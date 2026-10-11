@@ -232,7 +232,7 @@ const PROFILES: Record<string, AuthedProfile> = {
     verified: true,
     email: 'bex.baker@example.com',
   },
-  // An unverified baker: signed in, but not yet vetted by an admin.
+  // A suspended baker: signed in, but paused by an admin.
   bakU: {
     id: 'user-bakU',
     displayName: 'Uma',
@@ -1516,11 +1516,11 @@ describe('verification & bakers API', () => {
   const reserve = (app: ReturnType<typeof createApp>, id: string, token: string) =>
     request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${token}`).send();
 
-  it('an unverified baker cannot reserve (403), but a verified one and an admin can', async () => {
+  it('a suspended baker cannot reserve (403), but an active baker and an admin can', async () => {
     const app = makeApp();
     const id = await addOne(app);
-    expect((await reserve(app, id, 'bakU')).status).toBe(403); // awaiting verification
-    expect((await reserve(app, id, 'bak')).status).toBe(200); // verified baker
+    expect((await reserve(app, id, 'bakU')).status).toBe(403); // paused by an admin
+    expect((await reserve(app, id, 'bak')).status).toBe(200); // active baker
   });
 
   it('an admin (never needing verification) can reserve', async () => {

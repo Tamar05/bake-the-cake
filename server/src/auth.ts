@@ -8,9 +8,9 @@ export type AuthedProfile = {
   displayName: string;
   role: 'requester' | 'baker' | 'admin';
   contact: string | null;
-  // Gates reserving/baking. True once the baker's email is confirmed (or an
-  // admin manually verified them) AND an admin hasn't suspended them — see
-  // profiles.verified_at / profiles.suspended_at (Phase 4).
+  // Gates reserving/baking. True unless an admin has suspended the account
+  // (profiles.suspended_at). The name is kept from the old "verified by an
+  // admin" rule; there is no separate verification step any more.
   verified: boolean;
   email: string | null; // the account's login email (used to notify bakers)
 };
@@ -23,6 +23,13 @@ export type AuthedRequest = Request & { auth: AuthedProfile };
 export type Authenticator = {
   verify(token: string): Promise<AuthedProfile | null>;
 };
+
+// A baker may reserve and bake unless an admin has suspended them. (There is no
+// separate "verified by an admin" step any more: confirming the email to sign in
+// is enough.) The field is still named `verified` elsewhere; it now means this.
+export function isActive(suspendedAt: string | null): boolean {
+  return suspendedAt == null;
+}
 
 // The production authenticator: validates the token with Supabase Auth, then
 // looks up the person's role in the profiles table (server-side, authoritative).
@@ -47,7 +54,7 @@ export function createSupabaseAuthenticator(): Authenticator {
       if (error || !data.user) return null; // bad/expired token → fail closed
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, role, contact, verified_at, suspended_at')
+        .select('id, display_name, role, contact, suspended_at')
         .eq('id', data.user.id)
         .single();
       if (profileError || !profile) return null; // no profile → fail closed
@@ -56,7 +63,7 @@ export function createSupabaseAuthenticator(): Authenticator {
         displayName: profile.display_name,
         role: profile.role,
         contact: profile.contact,
-        verified: profile.verified_at != null && profile.suspended_at == null,
+        verified: isActive(profile.suspended_at),
         email: data.user.email ?? null, // from the verified auth user, not the profile row
       };
     },
@@ -110,14 +117,14 @@ export function requireRole(...roles: AuthedProfile['role'][]): RequestHandler {
   };
 }
 
-// Middleware to run AFTER requireRole('baker','admin'): a baker must be verified
-// by an admin before they can bake. Admins always pass. An unverified baker is
-// refused with 403 so they can browse but not reserve.
+// Middleware to run AFTER requireRole('baker','admin'): blocks only a baker an
+// admin has suspended (403), so they can browse but not reserve. Admins always
+// pass. No admin verification is needed any more.
 export const requireVerifiedBaker: RequestHandler = (req, res, next) => {
   const profile = (req as AuthedRequest).auth;
   if (profile && (profile.role === 'admin' || profile.verified)) {
     next();
     return;
   }
-  res.status(403).json({ error: 'Your baker account is awaiting verification' });
+  res.status(403).json({ error: 'Your baker account is paused' });
 };

@@ -23,7 +23,7 @@ export async function listBakers(token: string): Promise<Baker[]> {
   return (await res.json()) as Baker[];
 }
 
-// Verifies or unverifies a baker (admin only). Only a verified baker may reserve.
+// Reinstates (true) or suspends (false) a baker (admin only). A suspended baker cannot reserve.
 export async function setBakerVerified(
   id: string,
   verified: boolean,

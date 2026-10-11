@@ -6,7 +6,7 @@ import { listBakers, setBakerVerified, type Baker } from '../lib/adminApi';
 type Status = 'loading' | 'ready' | 'error';
 
 // Admin-only screen: every baker with their verification state and a
-// Verify / Unverify toggle. Only a verified baker may reserve and bake.
+// Suspend / Reinstate toggle. A suspended baker cannot reserve or bake.
 export default function AdminBakersPage({ t }: { t: Dictionary }) {
   const { session } = useAuth();
   const token = session?.access_token;

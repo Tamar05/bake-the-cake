@@ -88,7 +88,7 @@ export const en: Dictionary = {
     confirmCancel: 'Cancel this request? This can’t be undone.',
     confirmDelete: 'Delete this request? This can’t be undone.',
     pendingVerification:
-      'Your baker account is awaiting verification — you can browse, but can’t reserve cakes yet.',
+      'Your baker account is paused. Please contact an admin.',
   },
   timeline: {
     heading: 'This cake’s journey',
@@ -180,7 +180,7 @@ export const en: Dictionary = {
     fulfilled: 'Fulfilled',
     needsAttention: 'Needs attention',
     bakers: 'Bakers',
-    verifiedSuffix: 'verified',
+    verifiedSuffix: 'active',
   },
   attention: {
     heading: 'Needs attention',
@@ -198,10 +198,10 @@ export const en: Dictionary = {
     empty: 'No bakers have signed up yet.',
     loading: 'Loading bakers…',
     loadError: 'Could not load bakers. Please refresh.',
-    verifiedLabel: 'Verified',
-    unverifiedLabel: 'Not verified',
-    verify: 'Verify',
-    unverify: 'Unverify',
+    verifiedLabel: 'Active',
+    unverifiedLabel: 'Suspended',
+    verify: 'Reinstate',
+    unverify: 'Suspend',
     working: 'Saving…',
     contactPrefix: 'Contact:',
     actionError: 'Could not update. Please try again.',

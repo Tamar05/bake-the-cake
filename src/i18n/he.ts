@@ -88,7 +88,7 @@ export const he: Dictionary = {
     confirmCancel: 'לבטל בקשה זו? לא ניתן לשחזר.',
     confirmDelete: 'למחוק בקשה זו? לא ניתן לשחזר.',
     pendingVerification:
-      'חשבון האופה שלכם ממתין לאימות — אפשר לעיין, אך עדיין לא ניתן לשמור עוגות.',
+      'חשבון האופה שלכם מושהה. אנא פנו למנהל/ת.',
   },
   timeline: {
     heading: 'המסע של העוגה הזו',
@@ -180,7 +180,7 @@ export const he: Dictionary = {
     fulfilled: 'הושלמו',
     needsAttention: 'דורש טיפול',
     bakers: 'אופים',
-    verifiedSuffix: 'מאומתים',
+    verifiedSuffix: 'פעילים',
   },
   attention: {
     heading: 'דורש טיפול',
@@ -198,10 +198,10 @@ export const he: Dictionary = {
     empty: 'עדיין לא נרשמו אופים.',
     loading: 'טוען אופים…',
     loadError: 'לא ניתן לטעון אופים. רעננו את הדף.',
-    verifiedLabel: 'מאומת',
-    unverifiedLabel: 'לא מאומת',
-    verify: 'אמתו',
-    unverify: 'בטלו אימות',
+    verifiedLabel: 'פעיל',
+    unverifiedLabel: 'מושהה',
+    verify: 'הפעילו מחדש',
+    unverify: 'השהו',
     working: 'שומרים…',
     contactPrefix: 'ליצירת קשר:',
     actionError: 'לא ניתן לעדכן. נסו שוב.',

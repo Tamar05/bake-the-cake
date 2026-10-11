@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isActive } from './auth';
 
 // What an admin sees about a baker in the verification screen.
 export type BakerSummary = {
@@ -104,10 +105,9 @@ function rowToBaker(row: ProfileRow): BakerSummary {
     id: row.id,
     displayName: row.display_name,
     contact: row.contact,
-    // "verified" here doubles as "not suspended" for the admin screen's single
-    // toggle (Phase 4): a baker who's never confirmed their email AND one an
-    // admin has explicitly suspended both show as unverified/not-yet-eligible.
-    verified: row.verified_at != null && row.suspended_at == null,
+    // "verified" now simply means "not suspended": the admin screen's one
+    // toggle is suspend / reinstate (no admin verification is needed any more).
+    verified: isActive(row.suspended_at),
     createdAt: new Date(row.created_at).getTime(),
   };
 }
@@ -247,16 +247,12 @@ export function createSupabaseProfilesStore(): ProfilesStore {
     },
 
     async listNotifiableBakers(): Promise<NotifiableBaker[]> {
-      // Verified (verified_at set), NOT suspended, opted-in bakers — the
-      // audience the fan-out then narrows by capability match. The suspended
-      // check was missing before Phase 5 touched this query (a suspended
-      // baker would otherwise still get push for new requests despite being
-      // unable to reserve/bake) — fixed here alongside the area→radius change.
+      // Not-suspended, opted-in bakers: the audience the fan-out then narrows
+      // by capability match. (No admin verification is needed any more.)
       const { data, error } = await supabase
         .from('profiles')
         .select('id, home_town, travel_radius_km, notify_dietary, notify_kashrut')
         .eq('role', 'baker')
-        .not('verified_at', 'is', null)
         .is('suspended_at', null)
         .eq('notify_new_requests', true);
       if (error) throw new Error(error.message);
