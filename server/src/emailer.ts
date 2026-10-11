@@ -45,6 +45,10 @@ export function buildCommitEmail(
       '',
       'אנא צרו קשר עם מקבל/ת העוגה בטלפון שלמעלה כדי לתאם את המיקום המדויק ואת שעת המסירה.',
       '',
+      'אחרי שמסרתם את העוגה, עדכנו את האתר:',
+      '1. היכנסו ל-Bake the Cake ופתחו בתפריט את "My reservations" (ההזמנות שלי).',
+      '2. בעוגה הזו לחצו על "סמנו כנמסרה" (אפשר להוסיף קודם תמונה של העוגה, לא חובה).',
+      '',
       'בהצלחה, ותודה!',
     );
     return { subject: `פרטי המסירה לעוגה של ${request.recipient}`, text: lines.join('\n') };
@@ -65,6 +69,10 @@ export function buildCommitEmail(
   lines.push(
     '',
     'Please call or message the recipient on the phone number above to agree on the exact location and delivery time.',
+    '',
+    'Once you have delivered the cake, please let the site know:',
+    '1. Sign in to Bake the Cake and open "My reservations" in the menu.',
+    '2. Find this cake and press "Mark delivered" (you can add a photo of the cake first, but it is optional).',
     '',
     'Good luck, and thank you!',
   );
