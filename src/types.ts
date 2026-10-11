@@ -17,6 +17,7 @@ export type CakeRequest = RequestDraft & {
   id: string;
   createdAt: number; // milliseconds since 1970, used for ordering
   ownerId: string | null; // the requester who posted it; null for legacy rows
+  organizationName: string; // the posting organization's name; '' when unknown
   status: 'open' | 'reserved' | 'committed' | 'delivered' | 'received';
   reservedBy: string | null; // baker's name while claimed, else null
   reservedContact: string | null; // baker's phone/email while claimed, else null

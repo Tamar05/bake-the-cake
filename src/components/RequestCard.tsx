@@ -216,7 +216,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     if (!token) return;
     setCommitStatus('saving');
     try {
-      onUpdated(await commitRequest(request.id, token));
+      onUpdated((await commitRequest(request.id, token, language)).request);
       setCommitStatus('idle');
       // Committing hides the cake from Browse and moves it into the baker's own
       // list — take them straight there so they see what they just took on. (Only
@@ -368,8 +368,13 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   return (
     <li className="request-card">
       <span className={`status-badge status-${badgeStatus}`}>{badgeLabel}</span>
-      <h3>{shown.recipient}</h3>
+      <h3>{shown.recipient || request.organizationName || shown.occasion}</h3>
       <p>{shown.occasion}</p>
+      {request.organizationName && (
+        <p>
+          {t.list.organizationPrefix} {request.organizationName}
+        </p>
+      )}
       <p>
         {t.list.neededByPrefix} {request.neededBy}
       </p>
@@ -425,13 +430,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           {request.reservedContact && (
             <p>
               {t.list.reservedContactPrefix} {request.reservedContact}
-            </p>
-          )}
-          {/* Once a baker commits, they see the requester's delivery phone here
-              (the server only sends it to the assigned baker / owner / admin). */}
-          {(committed || delivered || received) && request.contactPhone && (
-            <p className="delivery-phone">
-              {t.list.deliveryPhonePrefix} {request.contactPhone}
             </p>
           )}
           {reservedActive && (

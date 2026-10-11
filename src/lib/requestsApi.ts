@@ -1,4 +1,5 @@
 import type { CakeRequest, RequestDraft } from '../types';
+import type { Language } from '../i18n/language';
 
 // The server's address, set per environment in the frontend .env file.
 function apiBase(): string {
@@ -59,16 +60,35 @@ export async function reserveRequest(id: string, token: string): Promise<CakeReq
   return (await res.json()) as CakeRequest;
 }
 
+export type CommittedResult = { request: CakeRequest; emailSent: boolean };
+
 // The reserving baker commits to bake a request they're holding, turning the
 // 1-hour hold into a lasting claim. The server checks it's really their
-// reservation and that it's still in the reserved state.
-export async function commitRequest(id: string, token: string): Promise<CakeRequest> {
+// reservation and that it's still in the reserved state, then e-mails them the
+// recipient's details (in `lang`) and says whether the email went out.
+export async function commitRequest(
+  id: string,
+  token: string,
+  lang: Language,
+): Promise<CommittedResult> {
   const res = await fetch(`${apiBase()}/api/requests/${id}/commit`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ lang }),
   });
   if (!res.ok) throw new Error(`Could not commit to request (HTTP ${res.status})`);
-  return (await res.json()) as CakeRequest;
+  const { emailSent, ...request } = (await res.json()) as CakeRequest & { emailSent: boolean };
+  return { request: request as CakeRequest, emailSent };
+}
+
+// Asks the server to e-mail the committed baker the delivery details again.
+export async function resendDetails(id: string, token: string, lang: Language): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/resend-details`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ lang }),
+  });
+  if (!res.ok) throw new Error(`Could not re-send the details (HTTP ${res.status})`);
 }
 
 // The baker who committed marks the cake delivered (committed → delivered),

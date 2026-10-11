@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadRequests, saveRequest, deleteRequest } from './requestsApi';
+import { loadRequests, saveRequest, deleteRequest, commitRequest, resendDetails } from './requestsApi';
 import type { RequestDraft } from '../types';
 
 const draft: RequestDraft = {
@@ -64,5 +64,42 @@ describe('requestsApi', () => {
   it('deleteRequest throws when the server refuses (e.g. 403)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
     await expect(deleteRequest('req-9', 'token-123')).rejects.toThrow();
+  });
+
+  it('commitRequest sends the language and returns the request plus emailSent', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ id: 'id1', status: 'committed', emailSent: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await commitRequest('id1', 'tok', 'he');
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests/id1/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer tok' },
+      body: JSON.stringify({ lang: 'he' }),
+    });
+    expect(result.emailSent).toBe(true);
+    expect(result.request.id).toBe('id1');
+    expect(result.request).not.toHaveProperty('emailSent');
+  });
+
+  it('commitRequest throws on a non-2xx answer', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({}) }));
+    await expect(commitRequest('id1', 'tok', 'en')).rejects.toThrow(/409/);
+  });
+
+  it('resendDetails POSTs the language and resolves on 200', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ emailSent: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(resendDetails('id1', 'tok', 'en')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests/id1/resend-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer tok' },
+      body: JSON.stringify({ lang: 'en' }),
+    });
+  });
+
+  it('resendDetails throws when the server cannot send (502)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({}) }));
+    await expect(resendDetails('id1', 'tok', 'en')).rejects.toThrow(/502/);
   });
 });

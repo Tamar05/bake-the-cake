@@ -36,6 +36,7 @@ function makeRequest(overrides: Partial<CakeRequest> = {}): CakeRequest {
     sharedByOwner: false,
     sharedByBaker: false,
     galleryCaption: '',
+    organizationName: '',
     ...overrides,
   };
 }

@@ -88,7 +88,26 @@ export type Dictionary = {
     deleteError: string; // shown when a delete fails
     confirmCancel: string; // confirm prompt before an owner cancels
     confirmDelete: string; // confirm prompt before an admin deletes
-    pendingVerification: string; // shown to an unverified baker in place of Reserve
+    pendingVerification: string; // shown to a suspended baker in place of Reserve
+    organizationPrefix: string; // precedes the posting organization's name
+    reserveHint: string; // line under the Reserve button
+    openHold: string; // button that reopens the hold box
+    holdTitle: string; // hold box heading
+    holdIntro: string; // hold box explanation
+    notThisTime: string; // hold box: let the cake go
+    bakeIt: string; // hold box: commit to bake
+    holdWorking: string; // busy label in the hold box
+    holdExpired: string; // shown when the hour runs out
+    holdTaken: string; // shown when the hold is no longer the baker's
+    thanksTitle: string; // thank-you box heading
+    thanksBody: string; // thank-you box: check your email
+    thanksEmailFailed: string; // thank-you box: the email did not go out
+    resendDetails: string; // button: send the details email again
+    resendSending: string; // busy label for re-sending
+    resendDone: string; // shown after a successful re-send
+    resendError: string; // shown when the re-send fails
+    closeBox: string; // closes the thank-you box
+    signInToReserve: string; // shown to a signed-out visitor who presses Reserve
   };
   timeline: {
     heading: string; // "This cake's journey"
