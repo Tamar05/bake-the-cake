@@ -17,7 +17,9 @@ that expires on its own (computed on read, no background job); release; commit.
 
 New in this spec:
 
-1. The card shows **which organization posted** the request.
+1. The open-request card shows **which organization posted** it, plus the
+   **area, dietary needs, kashrut and occasion** ג€” and **no recipient name and
+   no phone number** (not even a first name) until the baker commits.
 2. The button reads **"Reserve this cake"** with a line under it:
    *"Reserving lets you hold it for 1 hour."*
 3. Pressing it holds the cake and opens a **hold box** with a 1-hour countdown
@@ -51,6 +53,12 @@ New in this spec:
 ## Design
 
 ### Cards
+What a baker sees on an open request: organization, area, dietary needs,
+kashrut, occasion (and the existing needed-by date and short note preview).
+The recipient's name ג€” including today's "first name only" preview ג€” and the
+phone are removed from browse cards for everyone except the owner, admins and
+the committed baker. (Today `redactReserver` keeps the first name; that changes.)
+
 `GET /api/requests` adds `organizationName` (the poster's organization name) to
 every request. It is public to all viewers (bakers, admins, signed-out), as
 requested. Legacy rows with no owner show no organization line.
@@ -79,7 +87,8 @@ says these are private "until a baker commits". Change it: while status is
 `reserved`, the holder sees the same redacted card as any baker (first name
 only, no phone, short note preview). Full name, phone and full note are
 released only when status is `committed` (or later), to the committing baker,
-the owner and admins. The email is sent after commit, so it never leaks
+the owner and admins. This replaces the current "first name only" preview with no name at all. The
+email is sent after commit, so it never leaks
 anything the commit did not already unlock.
 
 ### Request form phone field
