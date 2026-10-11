@@ -380,8 +380,12 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   return (
     <li className="request-card">
       <span className={`status-badge status-${badgeStatus}`}>{badgeLabel}</span>
-      <h3>{shown.recipient || request.organizationName || shown.occasion}</h3>
-      <p>{shown.occasion}</p>
+      <h3>{shown.occasion}</h3>
+      {shown.recipient && (
+        <p>
+          {t.list.recipientPrefix} {shown.recipient}
+        </p>
+      )}
       {request.organizationName && (
         <p>
           {t.list.organizationPrefix} {request.organizationName}

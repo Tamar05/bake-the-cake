@@ -29,6 +29,7 @@ export type Dictionary = {
     heading: string;
     empty: string; // shown when there are no requests yet
     neededByPrefix: string;
+    recipientPrefix: string; // precedes the cake recipient's name (owner / admin only)
     dietaryPrefix: string;
     locationPrefix: string;
     kashrutPrefix: string; // precedes the required kashrut on a card
