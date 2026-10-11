@@ -141,7 +141,7 @@ straight from the database row, not from the redacted API response.
   message, because there would be no way to deliver the details.
 
 ### Testing
-- Server: privacy redaction during `reserved` vs `committed`; commit sends
+- Server: a baker never gets the recipient name or phone from the API at any status (owner and admin still do), while the email contains both; commit sends
   exactly one email via the fake emailer and survives emailer failure;
   resend endpoint authorization and rate limit; `organizationName` present for
   all viewers.
