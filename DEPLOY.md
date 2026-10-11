@@ -79,6 +79,28 @@ machine.)*
 
 ---
 
+## Step 5 - Baker emails (Resend)
+
+When a baker presses **I'll bake it**, the server emails them the recipient's name,
+phone and cake details. This needs Resend:
+
+1. In **Resend** -> **Domains**, `bakethecake.org` must show **Verified**. (Until it
+   does, Resend only delivers to your own Resend account address.)
+2. **Resend** -> **API Keys** -> **Create API Key** (permission: **Sending access**).
+   Copy it once.
+3. In **Render** -> your service -> **Environment** add:
+   - `RESEND_API_KEY` = the key you just copied
+   - `EMAIL_FROM` = `Bake the Cake <orders@bakethecake.org>`
+   Save (Render redeploys).
+4. In **Supabase** -> Authentication -> URL Configuration -> **Redirect URLs**, make
+   sure `https://bakethecake.org/join` is listed (the organization sign-up email
+   link returns there).
+
+If an email fails to send, the baker is still committed and can press **Send me the
+details again** on the cake's card; the server log shows the reason.
+
+---
+
 ## Updating later
 
 Every `git push` to `master` redeploys both Render and Cloudflare automatically.
