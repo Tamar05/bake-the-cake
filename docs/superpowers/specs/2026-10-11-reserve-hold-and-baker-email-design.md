@@ -39,8 +39,11 @@ New in this spec:
 - Email contents: **recipient's full name + phone**, and **cake details**
   (occasion, needed-by date, location, dietary needs, kashrut, note about the
   recipient). **Not** included: posting organization's name, link to the app.
-- The phone and full name also stay on the card in the app after commit, as a
-  fallback when an email is delayed or lost.
+- The recipient's **full name and phone appear ONLY in the email**, never on any
+  card in the app: not while browsing, not during the hold, not after commit.
+  The owner who posted the request and admins still see their own request's
+  details. Because there is no in-app copy, "send it again" is the only
+  fallback if the email is lost.
 - Approach A: the server sends the email directly when the commit succeeds.
   The commit never fails because an email failed. A "send it again" button on
   the committed card re-sends. (Rejected: a queue + background worker, which is
@@ -56,8 +59,11 @@ New in this spec:
 What a baker sees on an open request: organization, area, dietary needs,
 kashrut, occasion (and the existing needed-by date and short note preview).
 The recipient's name — including today's "first name only" preview — and the
-phone are removed from browse cards for everyone except the owner, admins and
-the committed baker. (Today `redactReserver` keeps the first name; that changes.)
+phone are removed from every baker's card, at every stage. They are visible
+in the app only to the owner who posted the request and to admins. (Today
+`redactReserver` keeps the first name and shows the phone to the holder; that
+changes. The in-app "phone number to contact the requester" line on the
+committed card is removed.)
 
 `GET /api/requests` adds `organizationName` (the poster's organization name) to
 every request. It is public to all viewers (bakers, admins, signed-out), as
@@ -81,15 +87,13 @@ needed.
 - All new strings go in both `en.ts` and `he.ts` and the `Dictionary` type.
 
 ### Privacy tightening (behaviour change)
-Today a baker who merely reserves already receives the recipient's full name
-and phone (`redactReserver` treats the holder like the owner). The code comment
-says these are private "until a baker commits". Change it: while status is
-`reserved`, the holder sees the same redacted card as any baker (no name at all,
-no phone, short note preview). Full name, phone and full note are
-released only when status is `committed` (or later), to the committing baker,
-the owner and admins. This replaces the current "first name only" preview with no name at all. The
-email is sent after commit, so it never leaks
-anything the commit did not already unlock.
+Today a baker who reserves already receives the recipient's full name and
+phone (`redactReserver` treats the holder like the owner). Change it: for a
+baker, at every status (open, reserved, committed, delivered), the API returns
+no recipient name, no phone and only the short note preview. Only the owner and
+admins get the full request. The baker receives the full name, phone and full
+note solely through the email the server sends on commit, which reads them
+straight from the database row, not from the redacted API response.
 
 ### Request form phone field
 - English label becomes **"Recipient's phone"**, hint *"The baker will use this
@@ -103,8 +107,9 @@ anything the commit did not already unlock.
   with a fake implementation for tests, matching how other stores are injected.
 - Sent from the commit handler after the database update succeeds. Failure is
   logged and reported to the client as `emailSent: false`; the thank-you box
-  then says the email did not go out and offers "send it again" and shows the
-  details in the app.
+  then says the email did not go out and offers "send it again". Nothing is
+  shown in the app, so the baker cannot proceed without the email. The
+  committed card also keeps a "send the details again" button.
 - Recipient address: the baker's auth email (`profile.email`, already on the
   authenticated profile).
 - Sender address, API key (`RESEND_API_KEY`) and sender (`EMAIL_FROM`) come from
@@ -121,7 +126,7 @@ anything the commit did not already unlock.
    (existing) → hold box opens.
 2. **Not this time** → `POST /api/requests/:id/release` (existing).
 3. **I'll bake it** → `POST /api/requests/:id/commit` (existing, extended) →
-   server updates, sends email, returns the unredacted request + `emailSent`.
+   server updates, sends email, returns the (still redacted) request + `emailSent`.
 4. Thank-you box → "check your email".
 
 ### Errors and edge cases
@@ -132,8 +137,8 @@ anything the commit did not already unlock.
 - Baker without a verified account: unchanged (cannot reserve; sees the pending
   note).
 - Baker signed up with no email on the auth user: not possible with email
-  sign-up, but if `profile.email` is null the commit still succeeds and the
-  thank-you box shows the details in the app.
+  sign-up, but if `profile.email` is null the commit is refused with a clear
+  message, because there would be no way to deliver the details.
 
 ### Testing
 - Server: privacy redaction during `reserved` vs `committed`; commit sends
