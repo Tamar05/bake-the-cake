@@ -10,7 +10,7 @@ type Props = { t: Dictionary; language: Language };
 type Mode = 'signIn' | 'signUp' | 'reset';
 
 export default function AuthPanel({ t }: Props) {
-  const { configured, loading, profile, signIn, signUp, signOut, requestPasswordReset } =
+  const { configured, loading, profileLoading, session, profile, signIn, signUp, signOut, requestPasswordReset } =
     useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
@@ -26,6 +26,11 @@ export default function AuthPanel({ t }: Props) {
 
   if (!configured) return <p className="auth-note">{t.auth.notConfigured}</p>;
   if (loading) return null;
+
+  // Signed in, but still fetching who they are from our server (which can take up
+  // to a minute to wake up). Say so, rather than showing a sign-in form to someone
+  // who already is signed in — e.g. right after clicking their confirmation link.
+  if (session && profileLoading) return <p className="auth-note">{t.auth.signingIn}</p>;
 
   if (checkEmail) {
     return (

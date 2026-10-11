@@ -253,6 +253,7 @@ export type Dictionary = {
     genericError: string; // fallback when sign-in/up fails
     joinPrompt: string; // small line under sign-up pointing an organization to /join
     emailTaken: string; // sign-up with an email that already has an account
+    signingIn: string; // shown while a signed-in person's profile is still loading
     emailInvalid: string; // the email address was rejected as invalid
     tooManyEmails: string; // Supabase's email sending limit was hit
     checkEmail: string; // shown after sign-up when email confirmation is required
