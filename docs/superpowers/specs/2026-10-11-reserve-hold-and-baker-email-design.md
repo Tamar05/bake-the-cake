@@ -39,6 +39,9 @@ New in this spec:
 - Email contents: **recipient's full name + phone**, and **cake details**
   (occasion, needed-by date, location, dietary needs, kashrut, note about the
   recipient). **Not** included: posting organization's name, link to the app.
+  The email also **tells the baker to call or message the recipient on that
+  phone number to agree the exact location and delivery time** (Hebrew and
+  English).
 - The recipient's **full name and phone appear ONLY in the email**, never on any
   card in the app: not while browsing, not during the hold, not after commit.
   The owner who posted the request and admins still see their own request's
@@ -136,9 +139,15 @@ straight from the database row, not from the redacted API response.
   cake is open again". A late commit returns the existing 409.
 - Signed-out visitor presses "Reserve this cake": no hold is made; a notice says
   "You're not signed in. Please sign in or sign up to reserve a cake." Only
-  signed-in, verified bakers can actually reserve (the server enforces this).
-- Baker without a verified account: unchanged (cannot reserve; sees the pending
-  note).
+  signed-in bakers can actually reserve (the server enforces this).
+- **No baker verification.** Any signed-in baker may reserve and bake; signing in
+  already requires a confirmed email, and that is enough. The only thing that
+  stops a baker is an admin **suspending** them (the admin "Bakers" screen
+  becomes a suspend / reinstate tool, labelled Active / Suspended). A suspended
+  baker sees "Your baker account is paused. Please contact an admin." in place of
+  the Reserve button. Baker push notifications also no longer require
+  verification (only not-suspended + opted-in). The Supabase email-confirmation
+  trigger from the earlier phase is no longer needed.
 - Baker signed up with no email on the auth user: not possible with email
   sign-up, but if `profile.email` is null the commit is refused with a clear
   message, because there would be no way to deliver the details.

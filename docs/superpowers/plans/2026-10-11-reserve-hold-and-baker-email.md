@@ -116,6 +116,12 @@ describe('buildCommitEmail', () => {
     expect(text).toContain('+972501234567');
   });
 
+  it('tells the baker to contact the recipient by phone to arrange the exact location and delivery time', () => {
+    expect(buildCommitEmail(request, 'en').text).toMatch(/call or message the recipient/i);
+    expect(buildCommitEmail(request, 'en').text).toMatch(/exact location and delivery time/i);
+    expect(buildCommitEmail(request, 'he').text).toContain('אנא צרו קשר עם מקבל/ת העוגה');
+  });
+
   it('omits the dietary and note lines when empty, and never mentions an organization or link', () => {
     const { text } = buildCommitEmail({ ...request, dietary: '', aboutRecipient: '' }, 'en');
     expect(text).not.toMatch(/dietary/i);
@@ -243,7 +249,12 @@ export function buildCommitEmail(
     ];
     if (request.dietary) lines.push(detail('צרכים תזונתיים', request.dietary));
     if (request.aboutRecipient) lines.push('', detail('קצת על מקבל/ת העוגה', request.aboutRecipient));
-    lines.push('', 'בהצלחה, ותודה!');
+    lines.push(
+      '',
+      'אנא צרו קשר עם מקבל/ת העוגה בטלפון שלמעלה כדי לתאם את המיקום המדויק ואת שעת המסירה.',
+      '',
+      'בהצלחה, ותודה!',
+    );
     return { subject: `פרטי המסירה לעוגה של ${request.recipient}`, text: lines.join('\n') };
   }
   const lines = [
@@ -259,7 +270,12 @@ export function buildCommitEmail(
   ];
   if (request.dietary) lines.push(detail('Dietary needs', request.dietary));
   if (request.aboutRecipient) lines.push('', detail('About the recipient', request.aboutRecipient));
-  lines.push('', 'Good luck, and thank you!');
+  lines.push(
+    '',
+    'Please call or message the recipient on the phone number above to agree on the exact location and delivery time.',
+    '',
+    'Good luck, and thank you!',
+  );
   return { subject: `Delivery details for ${request.recipient}'s cake`, text: lines.join('\n') };
 }
 
@@ -783,6 +799,85 @@ git commit -m "feat(email): send delivery details to the baker on commit, with a
 
 ---
 
+### Task 3A: Remove the baker-verification requirement (suspension is the only block)
+
+**Why:** any signed-in baker may reserve and bake; confirming the email to sign in is enough. An admin can still **suspend** a baker. To avoid a risky cross-layer rename, the existing field `verified` (server `AuthedProfile.verified`, `BakerSummary.verified`, client `profile.verified`) is **kept by name but now means "not suspended"**, with comments saying so. (A rename to `active` can be done later with the expand-contract process in `~/.ai-instructions/renames-and-schema-changes.md`.)
+
+**Files:**
+- Modify: `server/src/auth.ts` (add `isActive`, use it; stop selecting `verified_at`; fix comments)
+- Create: `server/src/auth.test.ts`
+- Modify: `server/src/profilesStore.ts` (`rowToBaker` uses `isActive`; `listNotifiableBakers` drops the `verified_at` filter; fix comments)
+- Modify: `server/src/app.test.ts` (the unverified-baker test + fake comments)
+- Modify: `src/i18n/en.ts`, `src/i18n/he.ts` (values only; keys unchanged)
+- Modify: comments only in `src/components/RequestCard.tsx`, `src/lib/authApi.ts`, `src/lib/adminApi.ts`, `src/pages/AdminBakersPage.tsx`
+
+**Interfaces:**
+- Produces: `isActive(suspendedAt: string | null): boolean` exported from `server/src/auth.ts` (true when not suspended).
+
+- [ ] **Step 1: Write the failing tests**
+
+`server/src/auth.test.ts`:
+```ts
+import { describe, it, expect } from 'vitest';
+import { isActive } from './auth';
+
+describe('isActive', () => {
+  it('is true for a baker who has never been suspended, verified or not', () => {
+    expect(isActive(null)).toBe(true);
+  });
+  it('is false once an admin has suspended them', () => {
+    expect(isActive('2026-10-11T10:00:00.000Z')).toBe(false);
+  });
+});
+```
+In `server/src/app.test.ts`: change the comment above `bakU` to `// A suspended baker: signed in, but paused by an admin.` and replace the test `'an unverified baker cannot reserve (403), but a verified one and an admin can'` with:
+```ts
+  it('a suspended baker cannot reserve (403), but an active baker and an admin can', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    expect((await reserve(app, id, 'bakU')).status).toBe(403); // paused by an admin
+    expect((await reserve(app, id, 'bak')).status).toBe(200); // active baker
+  });
+```
+
+- [ ] **Step 2: Run to confirm failure** — `npm --prefix server test -- auth` → FAIL (`isActive` not exported).
+
+- [ ] **Step 3: Implement**
+
+`server/src/auth.ts`:
+- Add above `createSupabaseAuthenticator`:
+```ts
+// A baker may reserve and bake unless an admin has suspended them. (There is no
+// separate "verified by an admin" step any more: confirming the email to sign in
+// is enough.) The field is still named `verified` elsewhere; it now means this.
+export function isActive(suspendedAt: string | null): boolean {
+  return suspendedAt == null;
+}
+```
+- In the `select` string remove `verified_at` → `'id, display_name, role, contact, suspended_at'`.
+- Replace `verified: profile.verified_at != null && profile.suspended_at == null,` with `verified: isActive(profile.suspended_at),`.
+- Update the comment on `AuthedProfile.verified` to: `// Gates reserving/baking. True unless an admin has suspended the account (profiles.suspended_at). Name kept from the old "verified by an admin" rule.`
+- Update the comment above `requireVerifiedBaker` to say it blocks only suspended bakers (admins always pass), and the 403 message to `'Your baker account is paused'`.
+
+`server/src/profilesStore.ts`:
+- `import { isActive } from './auth';` and in `rowToBaker`: `verified: isActive(row.suspended_at),` with the comment replaced by `// "verified" now simply means "not suspended" — the admin screen's one toggle is suspend / reinstate.`
+- In `listNotifiableBakers` delete the line `.not('verified_at', 'is', null)` and rewrite the comment above to `// Not-suspended, opted-in bakers — the audience the fan-out then narrows by capability match.`
+
+`src/i18n/en.ts` (values): `pendingVerification: 'Your baker account is paused. Please contact an admin.'`, `verifiedSuffix: 'active'`, `verifiedLabel: 'Active'`, `unverifiedLabel: 'Suspended'`, `verify: 'Reinstate'`, `unverify: 'Suspend'`.
+`src/i18n/he.ts` (values): `pendingVerification: 'חשבון האופה שלכם מושהה. אנא פנו למנהל/ת.'`, `verifiedSuffix: 'פעילים'`, `verifiedLabel: 'פעיל'`, `unverifiedLabel: 'מושהה'`, `verify: 'הפעילו מחדש'`, `unverify: 'השהו'`.
+
+Comment-only edits: wherever the files above say "an admin has vetted/verified this baker" or "Only a verified baker may reserve", change to "an admin has not suspended this baker".
+
+- [ ] **Step 4: Run to confirm pass** — `npm --prefix server test`, `npm --prefix server run typecheck`, `npm test`, `npx tsc --noEmit -p .`. Expected: all green.
+
+- [ ] **Step 5: Commit**
+```bash
+git add server/src src
+git commit -m "feat(auth): bakers no longer need admin verification; admins can only suspend"
+```
+
+---
+
 ### Task 4: Client data layer, strings, form label and card content
 
 **Files:**
@@ -1177,7 +1272,7 @@ export default function HoldBox({ t, language, request, token, onUpdated, onClos
           }}
 ```
   (read the existing `handleCommit` to copy exactly how/when it navigated; preserve that condition.)
-- Signed-out visitors: today the card shows them no reserve button at all. Change it so a visitor with no `profile` (and not still loading: use `!profile && !authLoading`, reading `loading` from `useAuth()`) sees the same "Reserve this cake" button and hint; pressing it does NOT call the server, it just shows `t.list.signInToReserve` under the button (`<p className="reserve-error">`). Signed-in bakers reserve as before; signed-in organizations (requesters) still see no button; unverified bakers still see the pending note. (The server already answers 401 to a reserve call with no login, covered by the existing "auth negative tests"; add one assertion there if `reserve` is missing from that list.)
+- Signed-out visitors: today the card shows them no reserve button at all. Change it so a visitor with no `profile` (and not still loading: use `!profile && !authLoading`, reading `loading` from `useAuth()`) sees the same "Reserve this cake" button and hint; pressing it does NOT call the server, it just shows `t.list.signInToReserve` under the button (`<p className="reserve-error">`). Signed-in bakers reserve as before; signed-in organizations (requesters) still see no button; suspended bakers still see the 'paused' note (the old pending-verification text). (The server already answers 401 to a reserve call with no login, covered by the existing "auth negative tests"; add one assertion there if `reserve` is missing from that list.)
 - Under the reserve button (`canReserve` branch) add the hint line:
 ```tsx
           <p className="reserve-hint">{t.list.reserveHint}</p>
