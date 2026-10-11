@@ -125,7 +125,11 @@ export default function App() {
           <NotificationBell t={t} />
         </div>
         <h1>{t.appTitle}</h1>
-        <AuthPanel t={t} language={language} />
+        {/* Not on the reset page: its own form is the only thing there. While the
+            server wakes up, this box would otherwise show a sign-in form above it. */}
+        {!currentPath.startsWith("/reset-password") && (
+          <AuthPanel t={t} language={language} />
+        )}
       </header>
 
       <AppNav t={t} />
