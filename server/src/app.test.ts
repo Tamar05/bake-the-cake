@@ -1712,6 +1712,14 @@ describe('gallery API', () => {
   ) => request(app).post(`/api/requests/${id}/gallery`).set('Authorization', `Bearer ${token}`).send(body);
   const gallery = (app: ReturnType<typeof createApp>) => request(app).get('/api/gallery');
 
+  it('never returns the recipient name or phone to the baker who shares', async () => {
+    const app = appWith([receivedCake()]);
+    const res = await share(app, 'g1', 'bak', { share: true });
+    expect(res.status).toBe(200);
+    expect(res.body.recipient).toBe('');
+    expect(res.body.contactPhone).toBe('');
+  });
+
   it('appears in the public gallery only after BOTH the requester and baker agree', async () => {
     const app = appWith([receivedCake()]);
     await share(app, 'g1', 'req', { share: true }); // requester agrees
@@ -2082,5 +2090,42 @@ describe('commit email', () => {
       .post(`/api/requests/${id}/resend-details`)
       .set('Authorization', 'Bearer bak');
     expect(res.status).toBe(502);
+  });
+
+  const suspendableApp = () => {
+    const fake = makeFakeEmailer();
+    const profiles = cloneProfiles();
+    const app = createApp(
+      makeFakeStore(),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(profiles),
+      makeFakeProfilesStore(),
+      undefined,
+      undefined,
+      makeFakeInvitesStore(profiles),
+      fake.emailer,
+    );
+    return { app, profiles, fake };
+  };
+
+  it('stops a baker suspended during the hold from committing (no email is sent)', async () => {
+    const { app, profiles, fake } = suspendableApp();
+    const id = await addAndReserve(app);
+    profiles.bak.verified = false; // an admin suspends the baker mid-hold
+    const res = await commit(app, id);
+    expect(res.status).toBe(403);
+    expect(fake.sent).toHaveLength(0);
+  });
+
+  it('stops a baker suspended after committing from re-requesting the details', async () => {
+    const { app, profiles, fake } = suspendableApp();
+    const id = await addAndReserve(app);
+    expect((await commit(app, id)).status).toBe(200);
+    profiles.bak.verified = false;
+    const res = await request(app)
+      .post(`/api/requests/${id}/resend-details`)
+      .set('Authorization', 'Bearer bak');
+    expect(res.status).toBe(403);
+    expect(fake.sent).toHaveLength(1); // only the original commit email
   });
 });

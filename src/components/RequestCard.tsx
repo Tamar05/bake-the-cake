@@ -585,7 +585,10 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
         isUnverifiedBaker && <p className="pending-note">{t.list.pendingVerification}</p>
       )}
 
-      {holdOpen && token && reservedActive && (
+      {/* Mounted whenever the box is open, NOT only while the card's own hold is
+          active: the box handles the hour running out itself, and must outlive
+          the card's reserved state so the thank-you screen is never cut off. */}
+      {holdOpen && token && (
         <HoldBox
           t={t}
           language={language}

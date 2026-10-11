@@ -547,7 +547,7 @@ export function createApp(
         me.role === 'admin',
         result.draft,
       );
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -592,7 +592,7 @@ export function createApp(
 
   // The reserving baker (or an admin) commits to bake a request they're holding,
   // turning the 1-hour hold into a lasting claim. Only valid from `reserved`.
-  app.post('/api/requests/:id/commit', auth, requireRole('baker', 'admin'), async (req, res) => {
+  app.post('/api/requests/:id/commit', auth, requireRole('baker', 'admin'), requireVerifiedBaker, async (req, res) => {
     const me = (req as AuthedRequest).auth;
     const lang = parseEmailLang((req.body ?? {}).lang);
     // The details go out by email only, so refuse (and leave the hold alone) if
@@ -645,6 +645,7 @@ export function createApp(
     resendLimiter,
     auth,
     requireRole('baker', 'admin'),
+    requireVerifiedBaker,
     async (req, res) => {
       const me = (req as AuthedRequest).auth;
       if (!me.email) {
@@ -734,7 +735,7 @@ export function createApp(
     const me = (req as AuthedRequest).auth;
     try {
       const updated = await store.receiveRequest(req.params.id, me.id, me.role === 'admin');
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -797,7 +798,7 @@ export function createApp(
         body.share,
         caption,
       );
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -889,7 +890,8 @@ export function createApp(
     }
   });
 
-  // Admin: verify or unverify a baker. Only a verified baker may reserve/bake.
+  // Admin: suspend (verified=false) or reinstate (verified=true) a baker. A suspended
+  // baker cannot reserve or commit (the field keeps its old name; see auth.ts).
   app.post('/api/bakers/:id/verification', auth, requireRole('admin'), async (req, res) => {
     const { verified } = (req.body ?? {}) as { verified?: unknown };
     if (typeof verified !== 'boolean') {
