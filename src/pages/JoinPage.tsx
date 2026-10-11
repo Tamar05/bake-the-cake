@@ -69,7 +69,7 @@ export default function JoinPage({ t }: Props) {
     try {
       let token = session?.access_token;
       if (!alreadySignedIn) {
-        const { emailConfirmationRequired } = await signUp(email, password, name, contact);
+        const { emailConfirmationRequired } = await signUp(email, password, name, contact, '/join');
         if (emailConfirmationRequired) {
           setCheckEmail(true);
           return;
