@@ -1,3 +1,5 @@
+> **Partly superseded 2026-10-11:** the reserve/commit interaction is now defined in `2026-10-11-reserve-hold-and-baker-email-design.md`. Read that first.
+
 # Slice — Baker browse & reserve (design)
 
 *Written 2026-08-25. The next core slice from the roadmap (§4, "Baker browse &

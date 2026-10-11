@@ -1,3 +1,5 @@
+> **Partly superseded 2026-10-11:** the reserve/commit interaction is now defined in `2026-10-11-reserve-hold-and-baker-email-design.md`. Read that first.
+
 # Slice 5 — Fulfillment flow (design)
 
 *Written 2026-08-25. The roadmap's Slice 5: a baker commits to bake a reserved
