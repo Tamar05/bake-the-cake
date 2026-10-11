@@ -106,6 +106,10 @@ export default function App() {
     setRequests((prev) => prev.filter((r) => r.id !== id));
   }
 
+  // The reset page stands alone: just the title and its own form, no nav, bell,
+  // sign-in box or footer around it.
+  const onResetPage = currentPath.startsWith("/reset-password");
+
   const listProps = {
     t,
     language,
@@ -123,17 +127,15 @@ export default function App() {
             language={language}
             onChange={handleLanguageChange}
           />
-          <NotificationBell t={t} />
+          {!onResetPage && <NotificationBell t={t} />}
         </div>
         <h1>{t.appTitle}</h1>
         {/* Not on the reset page: its own form is the only thing there. While the
             server wakes up, this box would otherwise show a sign-in form above it. */}
-        {!currentPath.startsWith("/reset-password") && (
-          <AuthPanel t={t} language={language} />
-        )}
+        {!onResetPage && <AuthPanel t={t} language={language} />}
       </header>
 
-      <AppNav t={t} />
+      {!onResetPage && <AppNav t={t} />}
 
       {status === "loading" && <p className="list-status">{t.list.loading}</p>}
       {status === "error" && (
@@ -234,7 +236,7 @@ export default function App() {
         </BakerSetupGate>
       )}
 
-      {!profile && (
+      {!profile && !onResetPage && (
         <footer className="app-footer">
           <Link to="/join">{t.auth.joinPrompt}</Link>
         </footer>
