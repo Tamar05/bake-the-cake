@@ -903,7 +903,7 @@ i18n — add the keys to the `list` section of `src/i18n/types.ts` (type `string
     resendDone: 'Sent! Please check your email.',
     resendError: 'Could not send the email. Please try again.',
     closeBox: 'Close',
-    signInToReserve: 'Youג€™re not signed in. Please sign in or sign up to reserve a cake.',
+    signInToReserve: 'You’re not signed in. Please sign in or sign up to reserve a cake.',
 ```
 (`reserve` already exists — change its text, do not duplicate the key. Also delete the now-unused English `deliveryPhonePrefix` line's text only if the type key is also removed; simplest: leave the key and value, it is just unused.)
 
@@ -928,6 +928,7 @@ i18n — add the keys to the `list` section of `src/i18n/types.ts` (type `string
     resendDone: 'נשלח! בדקו את תיבת הדואר.',
     resendError: 'לא הצלחנו לשלוח את המייל. נסו שוב.',
     closeBox: 'סגירה',
+    signInToReserve: 'לא התחברתם. אנא התחברו או הירשמו כדי לשמור עוגה.',
 ```
 Form wording (`form` section): English `contactPhoneLabel: 'Recipient’s phone'`, `contactPhoneHint: 'The baker will use this number to arrange delivery.'`; Hebrew keeps its label `'טלפון של מקבל/ת העוגה'` and `contactPhoneHint: 'האופה ישתמש במספר הזה כדי לתאם את המסירה.'`.
 
@@ -1282,4 +1283,4 @@ Expected: all green; record the final test counts.
 
 **Placeholder scan:** none left; every code step carries code.
 
-**Type consistency:** `Emailer`/`CommitEmailInput`/`EmailLang`/`parseEmailLang` (Task 1) are used with the same names in Task 3; `presentMany`/`presentOne` (Task 2) are used in Task 3; `commitRequest(id, token, lang): Promise<CommittedResult>` and `resendDetails(id, token, lang)` (Task 4) match their use in `HoldBox` (Task 5); `holdRemaining` (Task 5) matches its test; `list.*` keys listed in Task 4 are exactly those used in `HoldBox`/`RequestCard` (`organizationPrefix, reserve, reserveHint, openHold, holdTitle, holdIntro, notThisTime, bakeIt, holdWorking, holdExpired, holdTaken, thanksTitle, thanksBody, thanksEmailFailed, resendDetails, resendSending, resendDone, resendError, closeBox`).
+**Type consistency:** `Emailer`/`CommitEmailInput`/`EmailLang`/`parseEmailLang` (Task 1) are used with the same names in Task 3; `presentMany`/`presentOne` (Task 2) are used in Task 3; `commitRequest(id, token, lang): Promise<CommittedResult>` and `resendDetails(id, token, lang)` (Task 4) match their use in `HoldBox` (Task 5); `holdRemaining` (Task 5) matches its test; `list.*` keys listed in Task 4 are exactly those used in `HoldBox`/`RequestCard` (`organizationPrefix, reserve, reserveHint, openHold, holdTitle, holdIntro, notThisTime, bakeIt, holdWorking, holdExpired, holdTaken, thanksTitle, thanksBody, thanksEmailFailed, resendDetails, resendSending, resendDone, resendError, closeBox, signInToReserve`).
