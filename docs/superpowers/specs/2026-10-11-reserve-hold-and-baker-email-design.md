@@ -84,8 +84,8 @@ needed.
 Today a baker who merely reserves already receives the recipient's full name
 and phone (`redactReserver` treats the holder like the owner). The code comment
 says these are private "until a baker commits". Change it: while status is
-`reserved`, the holder sees the same redacted card as any baker (first name
-only, no phone, short note preview). Full name, phone and full note are
+`reserved`, the holder sees the same redacted card as any baker (no name at all,
+no phone, short note preview). Full name, phone and full note are
 released only when status is `committed` (or later), to the committing baker,
 the owner and admins. This replaces the current "first name only" preview with no name at all. The
 email is sent after commit, so it never leaks
