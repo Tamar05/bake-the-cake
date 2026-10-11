@@ -796,26 +796,48 @@ git commit -m "feat(email): send delivery details to the baker on commit, with a
 - Produces:
   - `commitRequest(id: string, token: string, lang: Language): Promise<CommittedResult>` where `type CommittedResult = { request: CakeRequest; emailSent: boolean }`
   - `resendDetails(id: string, token: string, lang: Language): Promise<void>` (throws on non-2xx)
-  - new `Dictionary['list']` keys: `organizationPrefix`, `reserveHint`, `openHold`, `holdTitle`, `holdIntro`, `notThisTime`, `bakeIt`, `holdWorking`, `holdExpired`, `holdTaken`, `holdError`, `thanksTitle`, `thanksBody`, `thanksEmailFailed`, `resendDetails`, `resendSending`, `resendDone`, `resendError`, `closeBox`
+  - new `Dictionary['list']` keys: `organizationPrefix`, `reserveHint`, `openHold`, `holdTitle`, `holdIntro`, `notThisTime`, `bakeIt`, `holdWorking`, `holdExpired`, `holdTaken`, `thanksTitle`, `thanksBody`, `thanksEmailFailed`, `resendDetails`, `resendSending`, `resendDone`, `resendError`, `closeBox`
 
-- [ ] **Step 1: Write failing tests** — in `src/lib/requestsApi.test.ts` (follow the file's existing fetch-mocking style; read its top 30 lines first and mirror the helper it uses):
+- [ ] **Step 1: Write failing tests** — in `src/lib/requestsApi.test.ts` Extend the file's import to `import { loadRequests, saveRequest, deleteRequest, commitRequest, resendDetails } from './requestsApi';` and add these inside the existing `describe('requestsApi', …)` block (same `vi.stubGlobal('fetch', …)` pattern as its other tests):
 
 ```ts
-describe('commitRequest', () => {
-  it('sends the language and returns the request plus emailSent', async () => {
-    // mock fetch → 200 { ...someRequest, emailSent: true }
-    // call commitRequest('id1', 'tok', 'he')
-    // expect the POST body to equal JSON.stringify({ lang: 'he' })
-    // expect result.emailSent === true and result.request.id === 'id1' and result.request has no emailSent key
+  it('commitRequest sends the language and returns the request plus emailSent', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ id: 'id1', status: 'committed', emailSent: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await commitRequest('id1', 'tok', 'he');
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests/id1/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer tok' },
+      body: JSON.stringify({ lang: 'he' }),
+    });
+    expect(result.emailSent).toBe(true);
+    expect(result.request.id).toBe('id1');
+    expect(result.request).not.toHaveProperty('emailSent');
   });
-  it('throws on a non-2xx answer', async () => { /* 409 → rejects */ });
-});
-describe('resendDetails', () => {
-  it('POSTs to /resend-details with the language and resolves on 200', async () => { /* … */ });
-  it('throws on 502', async () => { /* … */ });
-});
+
+  it('commitRequest throws on a non-2xx answer', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({}) }));
+    await expect(commitRequest('id1', 'tok', 'en')).rejects.toThrow(/409/);
+  });
+
+  it('resendDetails POSTs the language and resolves on 200', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ emailSent: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(resendDetails('id1', 'tok', 'en')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith('https://server.example/api/requests/id1/resend-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer tok' },
+      body: JSON.stringify({ lang: 'en' }),
+    });
+  });
+
+  it('resendDetails throws when the server cannot send (502)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({}) }));
+    await expect(resendDetails('id1', 'tok', 'en')).rejects.toThrow(/502/);
+  });
 ```
-Write these out fully using the same `vi.stubGlobal('fetch', …)` / mock pattern already in that file (do not leave the comments as the test).
 
 - [ ] **Step 2: Run to confirm failure**
 
@@ -873,7 +895,6 @@ i18n — add the keys to the `list` section of `src/i18n/types.ts` (type `string
     holdWorking: 'Saving…',
     holdExpired: 'The hour ran out, so the cake is open again.',
     holdTaken: 'Sorry, this cake is no longer on hold for you.',
-    holdError: 'Something went wrong. Please try again.',
     thanksTitle: 'Thank you!',
     thanksBody: 'Please check your email: we sent you the recipient’s name, phone number and the cake details.',
     thanksEmailFailed: 'We could not send the email just now. Press the button below to try again.',
@@ -898,7 +919,6 @@ i18n — add the keys to the `list` section of `src/i18n/types.ts` (type `string
     holdWorking: 'שומרים…',
     holdExpired: 'השעה הסתיימה והעוגה חזרה להיות פתוחה.',
     holdTaken: 'מצטערים, העוגה כבר לא שמורה בשבילכם.',
-    holdError: 'משהו השתבש. נסו שוב.',
     thanksTitle: 'תודה רבה!',
     thanksBody: 'בדקו את תיבת הדואר: שלחנו לכם את שם מקבל/ת העוגה, הטלפון ופרטי העוגה.',
     thanksEmailFailed: 'לא הצלחנו לשלוח את המייל כרגע. לחצו על הכפתור למטה כדי לנסות שוב.',
@@ -1258,6 +1278,6 @@ Expected: all green; record the final test counts.
 
 **Spec coverage:** organization on cards (Task 2 server, Task 4 UI) ✓; area/dietary/kashrut/occasion shown and no name/phone (Task 2 redaction, Task 4 heading + removal of phone line) ✓; "Reserve this cake" + hint (Tasks 4–5) ✓; hold box with countdown, Not this time / I'll bake it, auto-expire, reopen from My reservations via the "Open my hold" button (Task 5) ✓; thank-you box (Task 5) ✓; email with name, phone, cake details, no org/link, language (Tasks 1, 3) ✓; recipient-phone wording on the form and same value emailed (Task 4; value flows from `contactPhone`) ✓; send-it-again fallback (Task 3 + Task 5) ✓; no email on file → commit refused (Task 3) ✓; privacy tightening at all statuses, owner/admin keep access (Task 2) ✓; Resend setup + domain check + organization-name check handed to the user (Task 6) ✓; old specs marked superseded (already done in the spec commit) ✓.
 
-**Placeholder scan:** Task 4 Step 1 describes the `requestsApi` tests in outline because they must mirror that file's existing mock helper; the step says to write them out fully in that style — the executor must read the file first. Everything else carries code.
+**Placeholder scan:** none left; every code step carries code.
 
-**Type consistency:** `Emailer`/`CommitEmailInput`/`EmailLang`/`parseEmailLang` (Task 1) are used with the same names in Task 3; `presentMany`/`presentOne` (Task 2) are used in Task 3; `commitRequest(id, token, lang): Promise<CommittedResult>` and `resendDetails(id, token, lang)` (Task 4) match their use in `HoldBox` (Task 5); `holdRemaining` (Task 5) matches its test; `list.*` keys listed in Task 4 are exactly those used in `HoldBox`/`RequestCard` (`organizationPrefix, reserve, reserveHint, openHold, holdTitle, holdIntro, notThisTime, bakeIt, holdWorking, holdExpired, holdTaken, thanksTitle, thanksBody, thanksEmailFailed, resendDetails, resendSending, resendDone, resendError, closeBox`; `holdError` is defined but unused — remove it from the three i18n files if the executor does not use it).
+**Type consistency:** `Emailer`/`CommitEmailInput`/`EmailLang`/`parseEmailLang` (Task 1) are used with the same names in Task 3; `presentMany`/`presentOne` (Task 2) are used in Task 3; `commitRequest(id, token, lang): Promise<CommittedResult>` and `resendDetails(id, token, lang)` (Task 4) match their use in `HoldBox` (Task 5); `holdRemaining` (Task 5) matches its test; `list.*` keys listed in Task 4 are exactly those used in `HoldBox`/`RequestCard` (`organizationPrefix, reserve, reserveHint, openHold, holdTitle, holdIntro, notThisTime, bakeIt, holdWorking, holdExpired, holdTaken, thanksTitle, thanksBody, thanksEmailFailed, resendDetails, resendSending, resendDone, resendError, closeBox`).
