@@ -50,6 +50,9 @@ export type ProfilesStore = {
   // Contact details for the given profile ids, as an id → contact map. Used to
   // show an admin how to reach the requester behind a stuck request.
   getContacts(ids: string[]): Promise<Record<string, string | null>>;
+  // Display names (an organization's name, for requesters) for the given profile
+  // ids, as an id -> name map. Unknown ids are simply absent.
+  getDisplayNames(ids: string[]): Promise<Record<string, string>>;
   // A baker's notification preferences (defaults when they've set none).
   getNotificationSettings(userId: string): Promise<NotificationSettings>;
   // Saves a baker's notification preferences and returns the full settings.
@@ -185,6 +188,20 @@ export function createSupabaseProfilesStore(): ProfilesStore {
       const map: Record<string, string | null> = {};
       for (const row of data as { id: string; contact: string | null }[]) {
         map[row.id] = row.contact;
+      }
+      return map;
+    },
+
+    async getDisplayNames(ids: string[]): Promise<Record<string, string>> {
+      if (ids.length === 0) return {};
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', ids);
+      if (error) throw new Error(error.message);
+      const map: Record<string, string> = {};
+      for (const row of data as { id: string; display_name: string | null }[]) {
+        if (row.display_name) map[row.id] = row.display_name;
       }
       return map;
     },

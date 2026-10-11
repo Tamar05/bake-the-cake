@@ -50,6 +50,7 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         sharedByOwner: false,
         sharedByBaker: false,
         galleryCaption: '',
+        organizationName: '',
       };
       items.push(saved);
       return saved;
@@ -292,6 +293,15 @@ function makeFakeProfilesStore(): ProfilesStore {
       for (const id of ids) if (id in known) map[id] = known[id];
       return map;
     },
+    async getDisplayNames(ids) {
+      const known: Record<string, string> = {
+        'user-req': 'Rae Bakery Friends',
+        'user-req2': 'Ravi Org',
+      };
+      const map: Record<string, string> = {};
+      for (const id of ids) if (id in known) map[id] = known[id];
+      return map;
+    },
     async getNotificationSettings(userId) {
       return settings.get(userId) ?? emptySettings();
     },
@@ -415,7 +425,7 @@ describe('requests API', () => {
   it('a saved request then appears in the list', async () => {
     const app = makeApp();
     await request(app).post('/api/requests').set('Authorization', 'Bearer req').send(validDraft);
-    const res = await request(app).get('/api/requests');
+    const res = await request(app).get('/api/requests').set('Authorization', 'Bearer req'); // the owner sees the name
     expect(res.body).toHaveLength(1);
     expect(res.body[0].recipient).toBe('Maya');
   });
@@ -546,7 +556,7 @@ describe('requests API', () => {
     expect(asBaker.body[0].aboutRecipient.endsWith('…')).toBe(true);
   });
 
-  it('shows the full recipient name only to the owner, the committed baker, and admins', async () => {
+  it('shows the recipient name only to the owner and admins', async () => {
     const app = makeApp();
     await request(app)
       .post('/api/requests')
@@ -559,8 +569,8 @@ describe('requests API', () => {
       return res.body[0].recipient;
     };
 
-    expect(await recipientSeenBy()).toBe('Ruth'); // anonymous — first name only
-    expect(await recipientSeenBy('bak2')).toBe('Ruth'); // an unrelated baker
+    expect(await recipientSeenBy()).toBe(''); // anonymous — first name only
+    expect(await recipientSeenBy('bak2')).toBe(''); // an unrelated baker
     expect(await recipientSeenBy('req')).toBe('Ruth Cohen'); // the owner
     expect(await recipientSeenBy('adm')).toBe('Ruth Cohen'); // an admin
   });
@@ -872,7 +882,7 @@ describe('reserve API', () => {
     expect(anon.reservedUntil).toBeGreaterThan(Date.now());
   });
 
-  it('keeps the requester’s phone private — visible only to owner, reserver, and admin', async () => {
+  it('keeps the requester’s phone private — visible only to owner and admin', async () => {
     const app = makeApp();
     const id = await addOne(app); // owner = user-req, phone from validDraft
     await reserve(app, id, 'bak'); // reserver = user-bak
@@ -885,7 +895,7 @@ describe('reserve API', () => {
 
     expect(await phoneSeenBy()).toBe(''); // anonymous — redacted
     expect(await phoneSeenBy('bak2')).toBe(''); // an unrelated baker — redacted
-    expect(await phoneSeenBy('bak')).toBe(validDraft.contactPhone); // the reserving baker
+    expect(await phoneSeenBy('bak')).toBe(''); // the reserving baker - never in the app
     expect(await phoneSeenBy('req')).toBe(validDraft.contactPhone); // the owner
     expect(await phoneSeenBy('adm')).toBe(validDraft.contactPhone); // an admin
   });
@@ -987,16 +997,15 @@ describe('commit API', () => {
     expect(res.body.committedAt).toBeNull();
   });
 
-  it('committing returns the requester delivery phone to the assigned baker', async () => {
-    // The commit no longer emails; the baker gets the requester's phone in-app,
-    // returned unredacted to them on the request (redaction is covered elsewhere).
+  it('committing does NOT return the requester phone to the baker (it goes only by email)', async () => {
     const app = makeApp();
     const id = await addOne(app); // posted by 'req' with validDraft.contactPhone
     await reserve(app, id, 'bak');
     const res = await commit(app, id, 'bak');
     expect(res.status).toBe(200);
-    expect(res.body.contactPhone).toBe(validDraft.contactPhone);
+    expect(res.body.contactPhone).toBe('');
   });
+
 });
 
 describe('deliver & receive API', () => {
@@ -1095,6 +1104,7 @@ describe('deliver & receive API', () => {
       sharedByOwner: false,
       sharedByBaker: false,
       galleryCaption: '',
+      organizationName: '',
     };
     const app = createApp(
       makeFakeStore([ownedByBaker]),
@@ -1139,6 +1149,7 @@ describe('deliver & receive API', () => {
       sharedByOwner: false,
       sharedByBaker: false,
       galleryCaption: '',
+      organizationName: '',
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
@@ -1366,6 +1377,7 @@ describe('delete API', () => {
       sharedByOwner: false,
       sharedByBaker: false,
       galleryCaption: '',
+      organizationName: '',
     };
     const makeSeeded = () =>
       createApp(makeFakeStore([legacy]), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
@@ -1613,6 +1625,7 @@ describe('attention API', () => {
     sharedByOwner: false,
     sharedByBaker: false,
     galleryCaption: '',
+    organizationName: '',
     ...over,
   });
 
@@ -1673,6 +1686,7 @@ describe('gallery API', () => {
     sharedByOwner: false,
     sharedByBaker: false,
     galleryCaption: '',
+    organizationName: '',
     ...over,
   });
   const appWith = (seed: CakeRequest[]) =>
@@ -1883,5 +1897,74 @@ describe('invite codes / join API', () => {
       (await request(app).post('/api/join').set('Authorization', 'Bearer bak').send({ code: 'X', orgName: '' }))
         .status,
     ).toBe(400);
+  });
+});
+
+describe('baker privacy + organization name', () => {
+  const addOne = async (app: ReturnType<typeof createApp>) => {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, recipient: 'Ruth Cohen', aboutRecipient: 'x '.repeat(200) });
+    return res.body.id as string;
+  };
+  const list = async (app: ReturnType<typeof createApp>, token?: string) => {
+    const call = request(app).get('/api/requests');
+    return (token ? await call.set('Authorization', `Bearer ${token}`) : await call).body;
+  };
+
+  it('shows the posting organization to everyone', async () => {
+    const app = makeApp();
+    await addOne(app);
+    for (const token of [undefined, 'bak', 'adm', 'req']) {
+      expect((await list(app, token))[0].organizationName).toBe('Rae Bakery Friends');
+    }
+  });
+
+  it('never gives a baker the recipient name or phone, at any status', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const bakerView = async () => (await list(app, 'bak')).find((r: { id: string }) => r.id === id);
+
+    let card = await bakerView(); // open
+    expect(card.recipient).toBe('');
+    expect(card.contactPhone).toBe('');
+
+    await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', 'Bearer bak');
+    card = await bakerView(); // reserved, held by this baker
+    expect(card.recipient).toBe('');
+    expect(card.contactPhone).toBe('');
+    expect(card.aboutRecipient.length).toBeLessThan(400); // preview only
+
+    await request(app).post(`/api/requests/${id}/commit`).set('Authorization', 'Bearer bak');
+    card = await bakerView(); // committed
+    expect(card.recipient).toBe('');
+    expect(card.contactPhone).toBe('');
+  });
+
+  it('still shows the owner and admins the full request', async () => {
+    const app = makeApp();
+    await addOne(app);
+    for (const token of ['req', 'adm']) {
+      const card = (await list(app, token))[0];
+      expect(card.recipient).toBe('Ruth Cohen');
+      expect(card.contactPhone).toBe(validDraft.contactPhone);
+    }
+  });
+
+  it('redacts the responses to reserve and release as well', async () => {
+    const app = makeApp();
+    const id = await addOne(app);
+    const reserve = await request(app)
+      .post(`/api/requests/${id}/reserve`)
+      .set('Authorization', 'Bearer bak');
+    expect(reserve.body.recipient).toBe('');
+    expect(reserve.body.contactPhone).toBe('');
+    expect(reserve.body.organizationName).toBe('Rae Bakery Friends');
+    const release = await request(app)
+      .post(`/api/requests/${id}/release`)
+      .set('Authorization', 'Bearer bak');
+    expect(release.body.recipient).toBe('');
+    expect(release.body.contactPhone).toBe('');
   });
 });

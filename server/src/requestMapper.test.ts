@@ -41,6 +41,7 @@ describe('rowToRequest', () => {
       contactPhone: '',
       createdAt: Date.parse('2026-08-20T10:00:00.000Z'),
       ownerId: null,
+      organizationName: '',
       status: 'open',
       reservedBy: null,
       reservedContact: null,
@@ -138,5 +139,9 @@ describe('rowToRequest', () => {
     expect(result.status).toBe('received');
     expect(result.deliveredAt).toBe(Date.parse('2026-08-22T09:00:00.000Z'));
     expect(result.receivedAt).toBe(Date.parse('2026-08-22T18:00:00.000Z'));
+  });
+
+  it('leaves the organization name empty (the app fills it in from profiles)', () => {
+    expect(rowToRequest(baseRow).organizationName).toBe('');
   });
 });

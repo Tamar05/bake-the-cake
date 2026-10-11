@@ -30,6 +30,7 @@ function makeRequest(over: Partial<CakeRequest> = {}): CakeRequest {
     sharedByOwner: false,
     sharedByBaker: false,
     galleryCaption: '',
+    organizationName: '',
     ...over,
   };
 }

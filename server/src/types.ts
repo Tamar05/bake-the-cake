@@ -22,6 +22,7 @@ export type CakeRequest = RequestDraft & {
   id: string;
   createdAt: number;
   ownerId: string | null; // the requester who posted it; null for legacy rows
+  organizationName: string; // the posting organization's name; '' for legacy rows or when unknown
   status: 'open' | 'reserved' | 'committed' | 'delivered' | 'received';
   reservedBy: string | null; // baker's name while claimed, else null
   reservedContact: string | null; // baker's phone/email while claimed, else null

@@ -45,6 +45,7 @@ export function rowToRequest(row: CakeRequestRow, now: number = Date.now()): Cak
     contactPhone: row.contact_phone ?? '', // '' for legacy rows with no phone
     createdAt: new Date(row.created_at).getTime(),
     ownerId: row.owner_id,
+    organizationName: '', // filled in by the app from the owner's profile
   };
 
   const reservedUntil = row.reserved_at

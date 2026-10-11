@@ -29,6 +29,7 @@ const base: CakeRequest = {
   sharedByOwner: false,
   sharedByBaker: false,
   galleryCaption: '',
+  organizationName: '',
 };
 
 describe('attentionReason', () => {

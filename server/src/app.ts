@@ -67,14 +67,6 @@ function previewText(text: string, max: number): string {
   return cut.trimEnd() + '…';
 }
 
-// The recipient's name: everyone browsing sees only the first name; once a
-// baker commits (or for the owner/admin), the full name shows. Same privacy
-// shape as the phone number and the "about recipient" note above.
-function firstNameOnly(name: string): string {
-  const [first, ...rest] = name.trim().split(/\s+/);
-  return rest.length > 0 ? first : name;
-}
-
 // A baker's travel radius: bounded but generously (matching only affects
 // notification relevance, never Browse visibility or reservation eligibility
 // — see matching.ts — so this clamps rather than rejects an out-of-range value).
@@ -179,38 +171,36 @@ function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft }
   };
 }
 
-// Trims private details a viewer isn't allowed to see. Only the owner (the
-// requester who posted it), the baker holding it, or an admin may see the
-// requester's delivery phone, the claimant's identity, and that a (private)
-// photo exists. Everyone else — including anonymous browsers — gets a plain card.
+// Trims private details a viewer isn't allowed to see. The recipient's name and
+// phone are NEVER sent to a baker - not while browsing, not during the hold, not
+// after committing; a baker gets them only in the email sent on commit. Only the
+// owner (the requester who posted it) and admins see them. Who is baking it, the
+// private photo and the gallery caption stay hidden from everyone except the
+// owner, an admin and the baker holding the request.
 function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined): CakeRequest {
-  const maySee =
-    viewer != null &&
-    (viewer.role === 'admin' ||
-      viewer.id === request.reservedByUserId ||
-      viewer.id === request.ownerId);
-  if (maySee) return request;
-
+  const isAdmin = viewer?.role === 'admin';
+  const isOwner = viewer != null && viewer.id === request.ownerId;
+  const isHolder = viewer != null && viewer.id === request.reservedByUserId;
   let result = request;
-  // The requester's phone is private — the assigned baker sees it in-app.
-  if (request.contactPhone) result = { ...result, contactPhone: '' };
-  // The recipient's full name is private until a baker commits — everyone
-  // browsing sees only the first name.
-  if (request.recipient) {
-    const preview = firstNameOnly(request.recipient);
-    if (preview !== request.recipient) result = { ...result, recipient: preview };
+  if (!isAdmin && !isOwner) {
+    result = { ...result, recipient: '', contactPhone: '' };
+    // The recipient note is shown as a short preview only.
+    if (request.aboutRecipient) {
+      const preview = previewText(request.aboutRecipient, ABOUT_PREVIEW_MAX);
+      if (preview !== request.aboutRecipient) result = { ...result, aboutRecipient: preview };
+    }
   }
-  // The recipient note is shown to everyone, but non-holders get only a short
-  // preview; the assigned baker sees the whole thing with the contact details.
-  if (request.aboutRecipient) {
-    const preview = previewText(request.aboutRecipient, ABOUT_PREVIEW_MAX);
-    if (preview !== request.aboutRecipient) result = { ...result, aboutRecipient: preview };
-  }
-  // The gallery caption is only public through the gallery endpoint, once shared.
-  if (request.galleryCaption) result = { ...result, galleryCaption: '' };
-  // Hide who's baking it AND that a (private) photo exists.
-  if (request.reservedByUserId != null || request.reservedBy != null) {
-    result = { ...result, reservedBy: null, reservedContact: null, reservedByUserId: null, hasPhoto: false };
+  if (!isAdmin && !isOwner && !isHolder) {
+    result = { ...result, galleryCaption: '' };
+    if (request.reservedByUserId != null || request.reservedBy != null) {
+      result = {
+        ...result,
+        reservedBy: null,
+        reservedContact: null,
+        reservedByUserId: null,
+        hasPhoto: false,
+      };
+    }
   }
   return result;
 }
@@ -286,6 +276,32 @@ export function createApp(
   app.use(express.json());
   const auth = requireAuth(authenticator);
   const optAuth = optionalAuth(authenticator);
+
+  // Fills in each request's organization name (the owner's profile display name)
+  // and trims what this viewer may not see. The name lookup is best-effort: if it
+  // fails the cards simply lack the organization line.
+  async function presentMany(
+    requests: CakeRequest[],
+    viewer: AuthedProfile | undefined,
+  ): Promise<CakeRequest[]> {
+    let names: Record<string, string> = {};
+    const ownerIds = [
+      ...new Set(requests.map((r) => r.ownerId).filter((id): id is string => id != null)),
+    ];
+    if (ownerIds.length > 0) {
+      try {
+        names = await profilesStore.getDisplayNames(ownerIds);
+      } catch {
+        names = {};
+      }
+    }
+    return requests.map((r) =>
+      redactReserver({ ...r, organizationName: r.ownerId ? (names[r.ownerId] ?? '') : '' }, viewer),
+    );
+  }
+  async function presentOne(request: CakeRequest, viewer: AuthedProfile | undefined) {
+    return (await presentMany([request], viewer))[0];
+  }
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
@@ -476,7 +492,7 @@ export function createApp(
     const viewer = (req as AuthedRequest).auth as AuthedProfile | undefined;
     try {
       const requests = await store.listRequests();
-      res.json(requests.map((r) => redactReserver(r, viewer)));
+      res.json(await presentMany(requests, viewer));
     } catch {
       res.status(500).json({ error: 'Could not load requests' });
     }
@@ -554,7 +570,7 @@ export function createApp(
         me.displayName,
         me.contact ?? '',
       );
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === ALREADY_RESERVED) {
         res.status(409).json({ error: 'This request is already reserved' });
@@ -572,7 +588,7 @@ export function createApp(
       const updated = await store.commitRequest(req.params.id, me.id, me.role === 'admin');
       // The baker now sees the requester's delivery phone in-app on this cake's
       // card (returned unredacted to the assigned baker) — no email is sent.
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -614,7 +630,7 @@ export function createApp(
     }
     try {
       const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin', photo);
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -738,7 +754,7 @@ export function createApp(
     const me = (req as AuthedRequest).auth;
     try {
       const updated = await store.releaseRequest(req.params.id, me.id, me.role === 'admin');
-      res.status(200).json(updated);
+      res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === COMMITTED_LOCKED) {
         res.status(403).json({

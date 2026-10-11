@@ -27,6 +27,7 @@ const request: CakeRequest = {
   sharedByOwner: false,
   sharedByBaker: false,
   galleryCaption: '',
+  organizationName: '',
 };
 
 // A baker who can make exactly this request: based in the same town as the
