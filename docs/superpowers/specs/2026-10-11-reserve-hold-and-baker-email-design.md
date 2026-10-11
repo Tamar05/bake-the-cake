@@ -18,7 +18,7 @@ that expires on its own (computed on read, no background job); release; commit.
 New in this spec:
 
 1. The open-request card shows **which organization posted** it, plus the
-   **area, dietary needs, kashrut and occasion** ג€” and **no recipient name and
+   **area, dietary needs, kashrut and occasion** — and **no recipient name and
    no phone number** (not even a first name) until the baker commits.
 2. The button reads **"Reserve this cake"** with a line under it:
    *"Reserving lets you hold it for 1 hour."*
@@ -55,7 +55,7 @@ New in this spec:
 ### Cards
 What a baker sees on an open request: organization, area, dietary needs,
 kashrut, occasion (and the existing needed-by date and short note preview).
-The recipient's name ג€” including today's "first name only" preview ג€” and the
+The recipient's name — including today's "first name only" preview — and the
 phone are removed from browse cards for everyone except the owner, admins and
 the committed baker. (Today `redactReserver` keeps the first name; that changes.)
 
