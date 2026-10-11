@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { fetchMe, type Profile } from '../lib/authApi';
+import { isExistingUserResponse } from '../lib/existingUser';
 
 // Thrown by signUp when the email already belongs to an account. Supabase
 // doesn't error in that case (to avoid revealing which emails exist) — it
@@ -131,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) throw error;
+    if (isExistingUserResponse(data.user)) throw new EmailAlreadyRegisteredError();
     // The area / kashrut / dietary questions come AFTER confirmation, on the
     // "finish setting up" screen (BakerSetupPage) — there's no session yet here.
     return { emailConfirmationRequired: data.session == null };
