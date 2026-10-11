@@ -7,6 +7,7 @@ import { createSupabaseAuthenticator } from './auth';
 import { createSupabasePushStore } from './pushStore';
 import { createWebPushSender } from './pushSender';
 import { createSupabaseInvitesStore } from './invitesStore';
+import { createResendEmailer } from './emailer';
 
 const port = Number(process.env.PORT ?? 3001);
 const store = createSupabaseStore();
@@ -19,6 +20,7 @@ const app = createApp(
   createSupabasePushStore(),
   createWebPushSender(),
   createSupabaseInvitesStore(),
+  createResendEmailer(),
 );
 
 app.listen(port, () => {

@@ -38,6 +38,7 @@ import {
   type AuthedRequest,
   type AuthedProfile,
 } from './auth';
+import { createResendEmailer, parseEmailLang, type Emailer } from './emailer';
 import { createSupabaseInvitesStore, CODE_NOT_FOUND, type InvitesStore } from './invitesStore';
 
 // The required fields a new request must include. Dietary and the recipient
@@ -252,6 +253,14 @@ const joinLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many attempts — please try again later.' },
 });
+// "Send the details again" costs an outbound email, so cap it per IP.
+const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts - please try again later.' },
+});
 
 // Builds the Express app around a store (real Supabase store in production,
 // an in-memory fake in tests).
@@ -263,6 +272,7 @@ export function createApp(
   pushStore: PushStore = createSupabasePushStore(),
   pushSender: PushSender = createWebPushSender(),
   invitesStore: InvitesStore = createSupabaseInvitesStore(),
+  emailer: Emailer = createResendEmailer(),
 ) {
   const app = express();
   // In production, restrict which sites' browsers may call this API to the
@@ -584,11 +594,32 @@ export function createApp(
   // turning the 1-hour hold into a lasting claim. Only valid from `reserved`.
   app.post('/api/requests/:id/commit', auth, requireRole('baker', 'admin'), async (req, res) => {
     const me = (req as AuthedRequest).auth;
+    const lang = parseEmailLang((req.body ?? {}).lang);
+    // The details go out by email only, so refuse (and leave the hold alone) if
+    // this account has no address to send them to.
+    if (!me.email) {
+      res
+        .status(409)
+        .json({ error: 'Your account has no email address, so we cannot send you the details' });
+      return;
+    }
     try {
       const updated = await store.commitRequest(req.params.id, me.id, me.role === 'admin');
-      // The baker now sees the requester's delivery phone in-app on this cake's
-      // card (returned unredacted to the assigned baker) — no email is sent.
-      res.status(200).json(await presentOne(updated, me));
+      // `updated` is the unredacted row (it holds the name + phone). It goes into
+      // the email; the HTTP response below is redacted like every other.
+      let emailSent = false;
+      try {
+        await emailer.sendCommitEmail({
+          to: me.email,
+          lang,
+          request: updated,
+          idempotencyKey: `${updated.id}:${updated.committedAt ?? ''}`,
+        });
+        emailSent = true;
+      } catch (err) {
+        console.error('Could not send the commit email:', err);
+      }
+      res.status(200).json({ ...(await presentOne(updated, me)), emailSent });
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
         res.status(404).json({ error: 'Request not found' });
@@ -605,6 +636,54 @@ export function createApp(
       res.status(500).json({ error: 'Could not commit to this request' });
     }
   });
+
+  // Re-sends the delivery details to the baker who committed (or an admin) -
+  // the only fallback if the first email went missing, since the app itself
+  // never shows the recipient's name or phone to a baker.
+  app.post(
+    '/api/requests/:id/resend-details',
+    resendLimiter,
+    auth,
+    requireRole('baker', 'admin'),
+    async (req, res) => {
+      const me = (req as AuthedRequest).auth;
+      if (!me.email) {
+        res.status(409).json({ error: 'Your account has no email address' });
+        return;
+      }
+      try {
+        const all = await store.listRequests();
+        const target = all.find((r) => r.id === req.params.id);
+        if (!target) {
+          res.status(404).json({ error: 'Request not found' });
+          return;
+        }
+        if (me.role !== 'admin' && target.reservedByUserId !== me.id) {
+          res.status(403).json({ error: 'Only the baker baking this request can ask for the details' });
+          return;
+        }
+        if (target.status !== 'committed') {
+          res.status(409).json({ error: 'The details are sent once you commit to baking this cake' });
+          return;
+        }
+        try {
+          await emailer.sendCommitEmail({
+            to: me.email,
+            lang: parseEmailLang((req.body ?? {}).lang),
+            request: target,
+            idempotencyKey: `${target.id}:${target.committedAt ?? ''}:resend:${Date.now()}`,
+          });
+        } catch (err) {
+          console.error('Could not re-send the details email:', err);
+          res.status(502).json({ error: 'We could not send the email. Please try again.' });
+          return;
+        }
+        res.status(200).json({ emailSent: true });
+      } catch {
+        res.status(500).json({ error: 'Could not send the details' });
+      }
+    },
+  );
 
   // The baker who committed marks the cake delivered (committed → delivered),
   // optionally attaching one finished-cake photo (multipart field `photo`).

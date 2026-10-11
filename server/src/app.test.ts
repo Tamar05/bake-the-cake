@@ -19,6 +19,7 @@ import {
 } from './profilesStore';
 import { CODE_NOT_FOUND, type InvitesStore, type InviteCode } from './invitesStore';
 import type { Translator } from './translator';
+import type { Emailer, CommitEmailInput } from './emailer';
 import { RESERVATION_MS, type CakeRequest, type RequestDraft } from './types';
 
 // An in-memory stand-in for the Supabase store, so these tests need no database.
@@ -380,7 +381,18 @@ function makeFakeInvitesStore(profilesByToken: Record<string, AuthedProfile>): I
   };
 }
 
-function makeApp() {
+function makeFakeEmailer(opts: { fail?: boolean } = {}) {
+  const sent: CommitEmailInput[] = [];
+  const emailer: Emailer = {
+    async sendCommitEmail(input) {
+      if (opts.fail) throw new Error('resend down');
+      sent.push(input);
+    },
+  };
+  return { emailer, sent };
+}
+
+function makeApp(emailer: Emailer = makeFakeEmailer().emailer) {
   const profiles = cloneProfiles();
   return createApp(
     makeFakeStore(),
@@ -390,6 +402,7 @@ function makeApp() {
     undefined,
     undefined,
     makeFakeInvitesStore(profiles),
+    emailer,
   );
 }
 
@@ -1966,5 +1979,108 @@ describe('baker privacy + organization name', () => {
       .set('Authorization', 'Bearer bak');
     expect(release.body.recipient).toBe('');
     expect(release.body.contactPhone).toBe('');
+  });
+});
+
+describe('commit email', () => {
+  const setup = (opts: { fail?: boolean } = {}) => {
+    const fake = makeFakeEmailer(opts);
+    return { app: makeApp(fake.emailer), sent: fake.sent, fake };
+  };
+  const addAndReserve = async (app: ReturnType<typeof createApp>, who = 'bak') => {
+    const created = await request(app)
+      .post('/api/requests')
+      .set('Authorization', 'Bearer req')
+      .send({ ...validDraft, recipient: 'Ruth Cohen' });
+    const id = created.body.id as string;
+    await request(app).post(`/api/requests/${id}/reserve`).set('Authorization', `Bearer ${who}`);
+    return id;
+  };
+  const commit = (app: ReturnType<typeof createApp>, id: string, token = 'bak', body = {}) =>
+    request(app).post(`/api/requests/${id}/commit`).set('Authorization', `Bearer ${token}`).send(body);
+
+  it('emails the baker the full name and phone, and the response stays redacted', async () => {
+    const { app, sent } = setup();
+    const id = await addAndReserve(app);
+    const res = await commit(app, id, 'bak', { lang: 'he' });
+    expect(res.status).toBe(200);
+    expect(res.body.emailSent).toBe(true);
+    expect(res.body.recipient).toBe('');
+    expect(res.body.contactPhone).toBe('');
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe('baz.baker@example.com'); // the baker's auth email
+    expect(sent[0].lang).toBe('he');
+    expect(sent[0].request.recipient).toBe('Ruth Cohen');
+    expect(sent[0].request.contactPhone).toBe(validDraft.contactPhone);
+    expect(sent[0].idempotencyKey).toContain(id);
+  });
+
+  it('still commits when the email fails, and reports emailSent:false', async () => {
+    const { app } = setup({ fail: true });
+    const id = await addAndReserve(app);
+    const res = await commit(app, id);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('committed');
+    expect(res.body.emailSent).toBe(false);
+  });
+
+  it('sends nothing on a repeated commit (409) and nothing when it is not your hold (403)', async () => {
+    const { app, sent } = setup();
+    const id = await addAndReserve(app);
+    expect((await commit(app, id, 'bak2')).status).toBe(403);
+    expect(sent).toHaveLength(0);
+    expect((await commit(app, id)).status).toBe(200);
+    expect((await commit(app, id)).status).toBe(409);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('refuses to commit when the baker has no email address, leaving the hold in place', async () => {
+    const fake = makeFakeEmailer();
+    const profiles = cloneProfiles();
+    profiles.bak = { ...profiles.bak, email: null };
+    const app = createApp(
+      makeFakeStore(),
+      makeFakeTranslator(),
+      makeFakeAuthenticator(profiles),
+      makeFakeProfilesStore(),
+      undefined,
+      undefined,
+      makeFakeInvitesStore(profiles),
+      fake.emailer,
+    );
+    const id = await addAndReserve(app);
+    const res = await commit(app, id);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/email/i);
+    const after = (await request(app).get('/api/requests').set('Authorization', 'Bearer adm')).body;
+    expect(after.find((r: { id: string }) => r.id === id).status).toBe('reserved');
+  });
+
+  it('lets only the committed baker (or an admin) re-send the details, and only once committed', async () => {
+    const { app, sent } = setup();
+    const id = await addAndReserve(app);
+    const resend = (token: string) =>
+      request(app).post(`/api/requests/${id}/resend-details`).set('Authorization', `Bearer ${token}`);
+    expect((await resend('bak')).status).toBe(409); // still only reserved
+    await commit(app, id);
+    expect((await resend('bak2')).status).toBe(403);
+    expect((await resend('req')).status).toBe(403);
+    const ok = await resend('bak');
+    expect(ok.status).toBe(200);
+    expect(ok.body.emailSent).toBe(true);
+    expect(sent).toHaveLength(2); // the commit email + the re-send
+  });
+
+  it('answers 502 when a re-send fails', async () => {
+    const { app, fake } = setup();
+    const id = await addAndReserve(app);
+    await commit(app, id);
+    fake.emailer.sendCommitEmail = async () => {
+      throw new Error('resend down');
+    };
+    const res = await request(app)
+      .post(`/api/requests/${id}/resend-details`)
+      .set('Authorization', 'Bearer bak');
+    expect(res.status).toBe(502);
   });
 });
