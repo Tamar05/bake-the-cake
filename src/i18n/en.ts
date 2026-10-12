@@ -146,7 +146,7 @@ export const en: Dictionary = {
     homeTownLabel: 'Your home town',
     homeTownHint: "Start typing your town. Can't find it? Just type the name.",
     travelRadiusLabel: 'How far will you travel? (km)',
-    dietaryLabel: 'Dietary needs you are willing to bake for',
+    dietaryLabel: 'Dietary needs you are willing to bake for (choose everything that applies to you)',
     kashrutLabel: 'Kashrut levels you bake with (choose anything that applies to you)',
     save: 'Save settings',
     saving: 'Saving…',
