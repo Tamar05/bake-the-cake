@@ -9,9 +9,8 @@ export const en: Dictionary = {
     occasionLabel: 'Occasion or theme',
     neededByLabel: 'Date needed',
     dietaryLabel: 'Dietary needs (choose any)',
-    locationLabel: 'Town',
-    locationHint: "Start typing your town. Can't find it? Just type the name — we'll note it for review.",
-    kashrutLabel: 'Kashrut needed (the cake must meet all you choose)',
+    locationLabel: 'Recipient’s town',
+    kashrutLabel: 'Kashrut needed',
     aboutRecipientLabel: 'About the recipient (optional)',
     aboutRecipientHint:
       'A little about who the cake is for, so the baker can make it special — e.g. their favourite colour, character, or hobby.',

@@ -1212,6 +1212,12 @@ body {
   cursor: pointer;
 }
 
+/* The main action for an organization: "Request a cake" — a touch larger. */
+.app-nav a.nav-primary {
+  font-size: 1.1rem;
+  padding: 0.5rem 1.2rem;
+}
+
 .app-nav a:hover {
   background: #fff0f4;
 }

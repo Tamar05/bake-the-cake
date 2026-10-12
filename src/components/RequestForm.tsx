@@ -98,7 +98,6 @@ export default function RequestForm({ t, language, onSubmit, initial, submitLabe
         label={t.form.locationLabel}
         value={draft.location}
         onChange={(v) => update('location', v)}
-        hint={t.form.locationHint}
         language={language}
       />
 

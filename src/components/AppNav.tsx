@@ -19,11 +19,11 @@ export default function AppNav({ t }: { t: Dictionary }) {
           {t.nav.browse}
         </NavLink>
       )}
-      <NavLink to="/gallery" className={linkClass}>
-        {t.nav.gallery}
-      </NavLink>
       {role === 'requester' && (
-        <NavLink to="/my/new" className={linkClass}>
+        <NavLink
+          to="/my/new"
+          className={({ isActive }) => (isActive ? 'nav-primary active' : 'nav-primary')}
+        >
           {t.nav.requestCake}
         </NavLink>
       )}
@@ -32,6 +32,9 @@ export default function AppNav({ t }: { t: Dictionary }) {
           {t.nav.myRequests}
         </NavLink>
       )}
+      <NavLink to="/gallery" className={linkClass}>
+        {t.nav.gallery}
+      </NavLink>
       {role === 'baker' && (
         <NavLink to="/reservations" className={linkClass}>
           {t.nav.myReservations}

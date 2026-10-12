@@ -9,9 +9,8 @@ export const he: Dictionary = {
     occasionLabel: 'אירוע או נושא',
     neededByLabel: 'תאריך נדרש',
     dietaryLabel: 'צרכים תזונתיים (בחרו כל מה שרלוונטי)',
-    locationLabel: 'עיר/יישוב',
-    locationHint: 'התחילו להקליד את העיר שלכם. לא מוצאים אותה? פשוט הקלידו את השם — נבדוק אותה.',
-    kashrutLabel: 'כשרות נדרשת (העוגה חייבת לעמוד בכל מה שתבחרו)',
+    locationLabel: 'עיר/יישוב של מקבל/ת העוגה',
+    kashrutLabel: 'כשרות נדרשת',
     aboutRecipientLabel: 'על מקבל/ת העוגה (רשות)',
     aboutRecipientHint:
       'קצת על מי שהעוגה מיועדת עבורו, כדי שהאופה יוכל להכין אותה במיוחד — למשל הצבע האהוב, דמות אהובה או תחביב.',

@@ -12,7 +12,6 @@ export type Dictionary = {
     neededByLabel: string;
     dietaryLabel: string; // "Dietary needs (choose any)" — the multi-select heading
     locationLabel: string; // "Town" — the searchable town picker (Phase 5)
-    locationHint: string; // tells them to type their town, or any name if it's missing
     kashrutLabel: string; // "Kashrut needed" — the kashrut dropdown
     aboutRecipientLabel: string; // "About the recipient (optional)"
     aboutRecipientHint: string; // why the note helps the baker
