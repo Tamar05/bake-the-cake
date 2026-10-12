@@ -74,6 +74,26 @@ describe('buildCommitEmail HTML copy', () => {
   });
 });
 
+describe('buildCommitEmail Hebrew option names', () => {
+  it('writes dietary and kashrut in Hebrew (the same words as the app) in the Hebrew email', () => {
+    const he = buildCommitEmail(
+      { ...request, kashrut: 'Rabbanut, Badatz Beit Yosef', dietary: 'nut-free, Other: no kiwi' },
+      'he',
+    );
+    expect(he.text).toContain('כשרות: רבנות, בד״ץ בית יוסף');
+    expect(he.text).toContain('צרכים תזונתיים: ללא אגוזים, אחר: no kiwi');
+    expect(he.text).not.toContain('Rabbanut');
+    expect(he.html).toContain('רבנות, בד״ץ בית יוסף');
+  });
+
+  it('keeps the English names in the English email, and unknown values as written', () => {
+    expect(buildCommitEmail(request, 'en').text).toContain('Kashrut: Rabbanut');
+    expect(buildCommitEmail({ ...request, kashrut: 'strict', dietary: 'nut-free' }, 'he').text).toContain(
+      'כשרות: strict',
+    );
+  });
+});
+
 describe('parseEmailLang', () => {
   it('accepts he, and falls back to en for anything else', () => {
     expect(parseEmailLang('he')).toBe('he');

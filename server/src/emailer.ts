@@ -1,4 +1,5 @@
 import type { CakeRequest } from './types';
+import { OTHER_TEXT_PREFIX, joinList, parseList } from './options';
 
 export type EmailLang = 'en' | 'he';
 
@@ -28,6 +29,43 @@ const escapeHtml = (value: string) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+// Hebrew names for the stored English option values — the same words the Hebrew
+// app shows (src/i18n/he.ts `options`). Anything not listed (legacy free text)
+// is shown as written.
+const HE_DIETARY: Record<string, string> = {
+  'nut-free': 'ללא אגוזים',
+  'gluten-free': 'ללא גלוטן',
+  'dairy-free': 'ללא מוצרי חלב (פרווה)',
+  vegan: 'טבעוני',
+  vegetarian: 'צמחוני',
+  'egg-free': 'ללא ביצים',
+  'sugar-free': 'ללא סוכר',
+  Other: 'אחר',
+};
+const HE_KASHRUT: Record<string, string> = {
+  Rabbanut: 'רבנות',
+  'Rabbanut Mehadrin': 'רבנות מהדרין',
+  'Badatz Eda Haredit': 'בד״ץ העדה החרדית',
+  'Badatz Beit Yosef': 'בד״ץ בית יוסף',
+  'Badatz Chatam Sofer': 'בד״ץ חתם סופר',
+  'Kosher (no specific hechsher)': 'כשר (ללא הכשר מסוים)',
+  'Not required': 'לא נדרש',
+};
+
+// Translates a stored ", "-joined option list into the email's language. An
+// "Other: <text>" entry keeps the baker-visible free text after a translated
+// "Other" label.
+function translateList(value: string, lang: EmailLang, names: Record<string, string>): string {
+  if (lang !== 'he') return value;
+  return joinList(
+    parseList(value).map((part) =>
+      part.startsWith(OTHER_TEXT_PREFIX)
+        ? `${names.Other ?? 'אחר'}: ${part.slice(OTHER_TEXT_PREFIX.length)}`
+        : (names[part] ?? part),
+    ),
+  );
+}
 
 type Copy = {
   dir: 'ltr' | 'rtl';
@@ -72,7 +110,7 @@ const COPY: Record<EmailLang, Copy> = {
     afterSteps: [
       'Sign in to Bake the Cake.',
       'Open "My reservations" in the menu.',
-      'Find this cake and press "Mark delivered". Adding a photo of the cake first is optional.',
+      'Find this cake and press "Mark delivered".',
     ],
     closing: 'Good luck, and thank you!',
   },
@@ -96,7 +134,7 @@ const COPY: Record<EmailLang, Copy> = {
     afterSteps: [
       'היכנסו ל"להכין את העוגה".',
       'פתחו בתפריט את "השמירות שלי".',
-      'מצאו את העוגה הזו ולחצו על "סמנו כנמסרה". אפשר להוסיף קודם תמונה של העוגה, אבל זה לא חובה.',
+      'מצאו את העוגה הזו ולחצו על "סמנו כנמסרה".',
     ],
     closing: 'בהצלחה, ותודה!',
   },
@@ -113,9 +151,9 @@ export function buildCommitEmail(request: CakeRequest, lang: EmailLang): CommitE
     [c.occasion, request.occasion],
     [c.neededBy, request.neededBy],
     [c.location, request.location],
-    [c.kashrut, request.kashrut],
+    [c.kashrut, translateList(request.kashrut, lang, HE_KASHRUT)],
   ];
-  if (request.dietary) facts.push([c.dietary, request.dietary]);
+  if (request.dietary) facts.push([c.dietary, translateList(request.dietary, lang, HE_DIETARY)]);
   if (request.aboutRecipient) facts.push([c.about, request.aboutRecipient]);
 
   const text = [
