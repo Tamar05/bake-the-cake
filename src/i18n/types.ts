@@ -50,13 +50,7 @@ export type Dictionary = {
     markDelivered: string; // baker's "mark delivered" button
     delivering: string; // busy label while marking delivered
     deliverError: string; // shown when marking delivered fails
-    addPhoto: string; // label above the optional photo picker at delivery
     deliveryPhonePrefix: string;
-    photoAlt: string; // alt text for the finished-cake photo
-    removePhoto: string; // admin moderation: remove a photo
-    removingPhoto: string; // busy label while removing
-    removePhotoError: string; // shown when removing a photo fails
-    confirmRemovePhoto: string; // confirm prompt before an admin removes a photo
     deliveredNote: string; // note on a delivered card (awaiting confirmation)
     confirmReceived: string; // requester's "confirm received" button
     confirming: string; // busy label while confirming receipt
@@ -127,7 +121,6 @@ export type Dictionary = {
     bakers: string; // admin's baker-verification screen
     attention: string; // admin's needs-attention screen
     dashboard: string; // admin's stats dashboard
-    gallery: string; // the public inspiration gallery
     notifications: string; // baker's notification settings
     signInPrompt: string; // gentle nudge shown to signed-out browsers
     requestCake: string; // requester's own "post a new request" tab
@@ -172,22 +165,6 @@ export type Dictionary = {
       denied: string; // the browser blocked notifications
       error: string; // generic failure enabling/disabling
     };
-  };
-  gallery: {
-    heading: string;
-    intro: string; // short line under the gallery heading
-    loading: string;
-    loadError: string;
-    empty: string; // no cakes shared yet
-    shareInvite: string; // card: prompt to share your finished cake
-    inGallery: string; // card: both agreed, it's live
-    waitingOther: string; // card: you agreed, waiting for the other person
-    captionLabel: string; // card: label for the caption input
-    captionPlaceholder: string; // card: caption placeholder
-    share: string; // card: add to gallery button
-    unshare: string; // card: remove from gallery button
-    saveMessage: string; // card: save an edited caption
-    shareError: string; // card: shown when sharing fails
   };
   dashboard: {
     heading: string;

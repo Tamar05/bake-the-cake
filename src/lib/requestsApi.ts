@@ -91,62 +91,13 @@ export async function resendDetails(id: string, token: string, lang: Language): 
   if (!res.ok) throw new Error(`Could not re-send the details (HTTP ${res.status})`);
 }
 
-// The baker who committed marks the cake delivered (committed → delivered),
-// optionally attaching one finished-cake photo. With a photo we send multipart
-// form-data (the browser sets the Content-Type + boundary itself); without one,
-// a plain POST.
-export async function deliverRequest(
-  id: string,
-  token: string,
-  photo?: File | null,
-): Promise<CakeRequest> {
-  const init: RequestInit = { method: 'POST', headers: { Authorization: `Bearer ${token}` } };
-  if (photo) {
-    const form = new FormData();
-    form.append('photo', photo);
-    init.body = form;
-  }
-  const res = await fetch(`${apiBase()}/api/requests/${id}/deliver`, init);
-  if (!res.ok) throw new Error(`Could not mark delivered (HTTP ${res.status})`);
-  return (await res.json()) as CakeRequest;
-}
-
-// Fetches a short-lived signed URL for a request's finished-cake photo. The
-// server only returns one to a viewer allowed to see it (owner / baker / admin).
-export async function getPhotoUrl(id: string, token: string): Promise<string> {
-  const res = await fetch(`${apiBase()}/api/requests/${id}/photo`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`Could not load photo (HTTP ${res.status})`);
-  const data = (await res.json()) as { url: string };
-  return data.url;
-}
-
-// The requester or baker toggles their agreement to show a received cake in the
-// public gallery, optionally setting the caption. Returns the updated request.
-export async function setGalleryShare(
-  id: string,
-  share: boolean,
-  token: string,
-  caption?: string,
-): Promise<CakeRequest> {
-  const res = await fetch(`${apiBase()}/api/requests/${id}/gallery`, {
+// The baker who committed marks the cake delivered (committed → delivered).
+export async function deliverRequest(id: string, token: string): Promise<CakeRequest> {
+  const res = await fetch(`${apiBase()}/api/requests/${id}/deliver`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(caption === undefined ? { share } : { share, caption }),
-  });
-  if (!res.ok) throw new Error(`Could not update sharing (HTTP ${res.status})`);
-  return (await res.json()) as CakeRequest;
-}
-
-// Admin moderation: remove a request's finished-cake photo. Returns the updated
-// request (now with no photo).
-export async function removePhoto(id: string, token: string): Promise<CakeRequest> {
-  const res = await fetch(`${apiBase()}/api/requests/${id}/photo`, {
-    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`Could not remove photo (HTTP ${res.status})`);
+  if (!res.ok) throw new Error(`Could not mark delivered (HTTP ${res.status})`);
   return (await res.json()) as CakeRequest;
 }
 

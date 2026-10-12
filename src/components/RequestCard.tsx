@@ -11,10 +11,7 @@ import {
   receiveRequest,
   deleteRequest,
   updateRequest,
-  getPhotoUrl,
   resendDetails,
-  removePhoto,
-  setGalleryShare,
 } from '../lib/requestsApi';
 import { fieldNeedsTranslation } from '../lib/detectLanguage';
 import { parseList } from '../lib/options';
@@ -63,11 +60,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   const [deliverStatus, setDeliverStatus] = useState<ActionStatus>('idle');
   const [receiveStatus, setReceiveStatus] = useState<ActionStatus>('idle');
   const [deleteStatus, setDeleteStatus] = useState<ActionStatus>('idle');
-  const [photoFile, setPhotoFile] = useState<File | null>(null); // chosen at delivery
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null); // signed URL for viewing
-  const [removePhotoStatus, setRemovePhotoStatus] = useState<ActionStatus>('idle');
-  const [caption, setCaption] = useState(request.galleryCaption); // gallery message
-  const [galleryStatus, setGalleryStatus] = useState<ActionStatus>('idle');
   const [editing, setEditing] = useState(false); // owner is editing this request
   const [editError, setEditError] = useState(false);
 
@@ -127,37 +119,12 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
   // is still open — once a baker has taken it, it's locked (the server agrees).
   const canEdit = (isRequesterOwner || isAdmin) && request.status === 'open';
 
-  // The finished-cake photo is private: only the owner, the baker who made it, or
-  // an admin may see it. If allowed, we fetch a short-lived signed URL below.
-  const canSeePhoto = request.hasPhoto && (isOwner || isHolder);
-  // Admins can moderate (take down) a photo.
-  const canModeratePhoto = isAdmin && request.hasPhoto;
-
-  // Public gallery: a finished cake with a photo can be shared, but only once
-  // BOTH the requester and the baker agree. Each toggles their own consent.
-  const isBaker = profile != null && request.reservedByUserId === profile.id;
-  const canShareGallery = received && request.hasPhoto && (isOwner || isBaker);
-  const myShared = isOwner ? request.sharedByOwner : isBaker ? request.sharedByBaker : false;
-  const bothShared = request.sharedByOwner && request.sharedByBaker;
-
   // Switching the language selector makes any earlier translation stale.
   useEffect(() => {
     setMode('original');
     setTranslateStatus('idle');
     setTranslated(null);
   }, [language]);
-
-  // Once we know a photo exists and the viewer is allowed, fetch its signed URL.
-  useEffect(() => {
-    if (!canSeePhoto || !token || photoUrl) return;
-    let cancelled = false;
-    getPhotoUrl(request.id, token)
-      .then((url) => !cancelled && setPhotoUrl(url))
-      .catch(() => {}); // if it fails we simply don't show the photo
-    return () => {
-      cancelled = true;
-    };
-  }, [canSeePhoto, token, request.id, photoUrl]);
 
   const needsTranslation = TEXT_FIELDS.some((field) =>
     fieldNeedsTranslation(request[field], language),
@@ -243,8 +210,7 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
     if (!token) return;
     setDeliverStatus('saving');
     try {
-      onUpdated(await deliverRequest(request.id, token, photoFile));
-      setPhotoFile(null);
+      onUpdated(await deliverRequest(request.id, token));
       setDeliverStatus('idle');
     } catch {
       setDeliverStatus('error');
@@ -259,31 +225,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
       setReceiveStatus('idle');
     } catch {
       setReceiveStatus('error');
-    }
-  }
-
-  async function handleRemovePhoto() {
-    if (!token) return;
-    if (!window.confirm(t.list.confirmRemovePhoto)) return;
-    setRemovePhotoStatus('saving');
-    try {
-      const updated = await removePhoto(request.id, token);
-      setPhotoUrl(null); // drop the now-stale signed URL
-      onUpdated(updated); // hasPhoto is now false
-      setRemovePhotoStatus('idle');
-    } catch {
-      setRemovePhotoStatus('error');
-    }
-  }
-
-  async function saveGalleryShare(share: boolean) {
-    if (!token) return;
-    setGalleryStatus('saving');
-    try {
-      onUpdated(await setGalleryShare(request.id, share, token, caption));
-      setGalleryStatus('idle');
-    } catch {
-      setGalleryStatus('error');
     }
   }
 
@@ -455,61 +396,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
           )}
           {delivered && <p className="baking-note">{t.list.deliveredNote}</p>}
           {received && <p className="baking-note received-note">{t.list.receivedNote}</p>}
-          {photoUrl && <img className="cake-photo" src={photoUrl} alt={t.list.photoAlt} />}
-          {canModeratePhoto && (
-            <>
-              <button
-                type="button"
-                className="delete-button"
-                onClick={handleRemovePhoto}
-                disabled={removePhotoStatus === 'saving'}
-              >
-                {removePhotoStatus === 'saving' ? t.list.removingPhoto : t.list.removePhoto}
-              </button>
-              {removePhotoStatus === 'error' && (
-                <p className="reserve-error">{t.list.removePhotoError}</p>
-              )}
-            </>
-          )}
-          {canShareGallery && (
-            <div className="gallery-share">
-              <p className="gallery-share-status">
-                {bothShared
-                  ? t.gallery.inGallery
-                  : myShared
-                    ? t.gallery.waitingOther
-                    : t.gallery.shareInvite}
-              </p>
-              <label className="gallery-caption-label">
-                {t.gallery.captionLabel}
-                <input
-                  value={caption}
-                  maxLength={200}
-                  placeholder={t.gallery.captionPlaceholder}
-                  onChange={(e) => setCaption(e.target.value)}
-                />
-              </label>
-              <div className="gallery-share-actions">
-                <button
-                  type="button"
-                  onClick={() => saveGalleryShare(!myShared)}
-                  disabled={galleryStatus === 'saving'}
-                >
-                  {myShared ? t.gallery.unshare : t.gallery.share}
-                </button>
-                {myShared && (
-                  <button
-                    type="button"
-                    onClick={() => saveGalleryShare(true)}
-                    disabled={galleryStatus === 'saving'}
-                  >
-                    {t.gallery.saveMessage}
-                  </button>
-                )}
-              </div>
-              {galleryStatus === 'error' && <p className="reserve-error">{t.gallery.shareError}</p>}
-            </div>
-          )}
           {canDeliver && (
             <>
               <button type="button" onClick={handleResend} disabled={resendStatus === 'sending'}>
@@ -517,14 +403,6 @@ export default function RequestCard({ t, language, request, onUpdated, onDeleted
               </button>
               {resendStatus === 'done' && <p>{t.list.resendDone}</p>}
               {resendStatus === 'error' && <p className="reserve-error">{t.list.resendError}</p>}
-              <label className="photo-input">
-                {t.list.addPhoto}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
               <button
                 type="button"
                 className="reserve-button"

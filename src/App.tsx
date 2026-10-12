@@ -19,7 +19,6 @@ import AdminBakersPage from "./pages/AdminBakersPage";
 import AdminAttentionPage from "./pages/AdminAttentionPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminInviteCodesPage from "./pages/AdminInviteCodesPage";
-import GalleryPage from "./pages/GalleryPage";
 import JoinPage from "./pages/JoinPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import {
@@ -159,7 +158,6 @@ export default function App() {
                 </HideFromRequester>
               }
             />
-            <Route path="/gallery" element={<GalleryPage t={t} />} />
             <Route path="/join" element={<JoinPage t={t} onCheckEmail={() => setAwaitingJoinEmail(true)} />} />
             <Route
               path="/reset-password"

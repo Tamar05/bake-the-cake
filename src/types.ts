@@ -27,8 +27,4 @@ export type CakeRequest = RequestDraft & {
   committedAt: number | null; // ms-since-1970 the baker committed to bake, else null
   deliveredAt: number | null; // ms-since-1970 the baker marked it delivered, else null
   receivedAt: number | null; // ms-since-1970 the requester confirmed receipt, else null
-  hasPhoto: boolean; // whether a finished-cake photo exists (fetched separately, privately)
-  sharedByOwner: boolean; // the requester agreed to show this cake in the public gallery
-  sharedByBaker: boolean; // the baker agreed to show this cake in the public gallery
-  galleryCaption: string; // optional gallery message ('' if none)
 };

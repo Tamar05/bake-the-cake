@@ -47,10 +47,6 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
         committedAt: null,
         deliveredAt: null,
         receivedAt: null,
-        hasPhoto: false,
-        sharedByOwner: false,
-        sharedByBaker: false,
-        galleryCaption: '',
         organizationName: '',
       };
       items.push(saved);
@@ -111,7 +107,7 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       });
       return item;
     },
-    async deliverRequest(id, userId, isAdmin, photo) {
+    async deliverRequest(id, userId, isAdmin) {
       const item = find(id);
       if (!item) throw new Error(NOT_FOUND);
       if (item.status !== 'committed') throw new Error(INVALID_TRANSITION);
@@ -119,7 +115,6 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       Object.assign(item, {
         status: 'delivered',
         deliveredAt: Date.now(),
-        hasPhoto: item.hasPhoto || photo != null,
       });
       return item;
     },
@@ -130,51 +125,6 @@ function makeFakeStore(seed: CakeRequest[] = []): RequestsStore {
       if (!isAdmin && item.ownerId !== userId) throw new Error(NOT_OWNER);
       Object.assign(item, { status: 'received', receivedAt: Date.now() });
       return item;
-    },
-    async createPhotoUrl(id, viewerId, isAdmin) {
-      const item = find(id);
-      if (!item) throw new Error(NOT_FOUND);
-      const maySee = isAdmin || item.ownerId === viewerId || item.reservedByUserId === viewerId;
-      if (!maySee) throw new Error(NOT_OWNER);
-      if (!item.hasPhoto) throw new Error(NOT_FOUND);
-      return `https://fake.storage/${id}.jpg`;
-    },
-    async removePhoto(id) {
-      const item = find(id);
-      if (!item) throw new Error(NOT_FOUND);
-      item.hasPhoto = false;
-      return item;
-    },
-    async setGalleryShare(id, userId, isAdmin, share, caption) {
-      const item = find(id);
-      if (!item) throw new Error(NOT_FOUND);
-      if (item.status !== 'received' || !item.hasPhoto) throw new Error(INVALID_TRANSITION);
-      if (caption !== undefined) item.galleryCaption = caption;
-      if (isAdmin && !share) {
-        item.sharedByOwner = false;
-        item.sharedByBaker = false;
-      } else {
-        let matched = false;
-        if (item.ownerId === userId) {
-          item.sharedByOwner = share;
-          matched = true;
-        }
-        if (item.reservedByUserId === userId) {
-          item.sharedByBaker = share;
-          matched = true;
-        }
-        if (!matched) throw new Error(NOT_OWNER);
-      }
-      return item;
-    },
-    async listGallery() {
-      return items
-        .filter((r) => r.sharedByOwner && r.sharedByBaker && r.hasPhoto && r.status === 'received')
-        .map((r) => ({
-          id: r.id,
-          photoUrl: `https://fake.storage/${r.id}.jpg`,
-          caption: r.galleryCaption,
-        }));
     },
     async deleteRequest(id, userId, isAdmin) {
       const item = find(id);
@@ -1113,10 +1063,6 @@ describe('deliver & receive API', () => {
       committedAt: Date.now(),
       deliveredAt: Date.now(),
       receivedAt: null,
-      hasPhoto: false,
-      sharedByOwner: false,
-      sharedByBaker: false,
-      galleryCaption: '',
       organizationName: '',
     };
     const app = createApp(
@@ -1158,10 +1104,6 @@ describe('deliver & receive API', () => {
       committedAt: Date.now(),
       deliveredAt: Date.now(),
       receivedAt: null,
-      hasPhoto: false,
-      sharedByOwner: false,
-      sharedByBaker: false,
-      galleryCaption: '',
       organizationName: '',
     };
     const makeSeeded = () =>
@@ -1171,18 +1113,7 @@ describe('deliver & receive API', () => {
   });
 });
 
-describe('photo API', () => {
-  // Real (if minimal) magic bytes — the deliver route now sniffs the actual
-  // file signature rather than trusting the client-declared Content-Type, so
-  // a fixture claiming to be an image must actually look like one.
-  const MINIMAL_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xdb]);
-  // A real (if tiny) 1x1 transparent PNG — file-type needs more than just the
-  // 8-byte signature to confirm a PNG, unlike JPEG.
-  const MINIMAL_PNG = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-    'base64',
-  );
-
+describe('removed photo and gallery routes', () => {
   const toCommitted = async (app: ReturnType<typeof createApp>) => {
     const created = await request(app)
       .post('/api/requests')
@@ -1193,108 +1124,35 @@ describe('photo API', () => {
     await request(app).post(`/api/requests/${id}/commit`).set('Authorization', 'Bearer bak').send();
     return id;
   };
-  const getPhoto = (app: ReturnType<typeof createApp>, id: string, token?: string) => {
-    const call = request(app).get(`/api/requests/${id}/photo`);
-    return token ? call.set('Authorization', `Bearer ${token}`) : call;
-  };
 
-  it('a photo attached at delivery is stored and visible to the owner', async () => {
+  it('the gallery and photo routes no longer exist (404)', async () => {
     const app = makeApp();
     const id = await toCommitted(app);
-    const delivered = await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .attach('photo', MINIMAL_JPEG, {
-        filename: 'cake.jpg',
-        contentType: 'image/jpeg',
-      });
-    expect(delivered.status).toBe(200);
-    expect(delivered.body.hasPhoto).toBe(true);
-    const photo = await getPhoto(app, id, 'req'); // the owner
-    expect(photo.status).toBe(200);
-    expect(photo.body.url).toContain('http');
-  });
-
-  it('delivering without a photo leaves hasPhoto false and the photo endpoint 404s', async () => {
-    const app = makeApp();
-    const id = await toCommitted(app);
-    const delivered = await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .send();
-    expect(delivered.body.hasPhoto).toBe(false);
-    expect((await getPhoto(app, id, 'req')).status).toBe(404);
-  });
-
-  it('the photo is private: no token 401, an unrelated baker 403, the baker and admin allowed', async () => {
-    const app = makeApp();
-    const id = await toCommitted(app);
-    await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .attach('photo', MINIMAL_PNG, { filename: 'c.png', contentType: 'image/png' });
-    expect((await getPhoto(app, id)).status).toBe(401);
-    expect((await getPhoto(app, id, 'bak2')).status).toBe(403);
-    expect((await getPhoto(app, id, 'bak')).status).toBe(200);
-    expect((await getPhoto(app, id, 'adm')).status).toBe(200);
-  });
-
-  it('rejects a non-image upload with 400', async () => {
-    const app = makeApp();
-    const id = await toCommitted(app);
-    const res = await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .attach('photo', Buffer.from('not an image'), {
-        filename: 'notes.txt',
-        contentType: 'text/plain',
-      });
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects a file whose real bytes are not an image, even if it claims to be one', async () => {
-    const app = makeApp();
-    const id = await toCommitted(app);
-    const res = await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .attach('photo', Buffer.from('not actually a jpeg'), {
-        filename: 'cake.jpg',
-        contentType: 'image/jpeg', // spoofed — multer's fileFilter alone would accept this
-      });
-    expect(res.status).toBe(400);
-  });
-
-  it('an admin can remove a photo; a baker cannot; no token 401', async () => {
-    const app = makeApp();
-    const id = await toCommitted(app);
-    await request(app)
-      .post(`/api/requests/${id}/deliver`)
-      .set('Authorization', 'Bearer bak')
-      .attach('photo', MINIMAL_PNG, { filename: 'c.png', contentType: 'image/png' });
-    // a baker cannot moderate
+    expect((await request(app).get('/api/gallery')).status).toBe(404);
     expect(
-      (await request(app).delete(`/api/requests/${id}/photo`).set('Authorization', 'Bearer bak'))
-        .status,
-    ).toBe(403);
-    // no token
-    expect((await request(app).delete(`/api/requests/${id}/photo`)).status).toBe(401);
-    // admin removes it
-    const removed = await request(app)
-      .delete(`/api/requests/${id}/photo`)
-      .set('Authorization', 'Bearer adm');
-    expect(removed.status).toBe(200);
-    expect(removed.body.hasPhoto).toBe(false);
-    // and the photo is now gone
-    expect((await getPhoto(app, id, 'req')).status).toBe(404);
+      (await request(app).get(`/api/requests/${id}/photo`).set('Authorization', 'Bearer req')).status,
+    ).toBe(404);
+    expect(
+      (await request(app).delete(`/api/requests/${id}/photo`).set('Authorization', 'Bearer adm')).status,
+    ).toBe(404);
+    expect(
+      (
+        await request(app)
+          .post(`/api/requests/${id}/gallery`)
+          .set('Authorization', 'Bearer req')
+          .send({ share: true })
+      ).status,
+    ).toBe(404);
   });
 
-  it('removing a photo from a missing request returns 404', async () => {
+  it('deliver works with no body at all', async () => {
     const app = makeApp();
-    const res = await request(app)
-      .delete('/api/requests/nope/photo')
-      .set('Authorization', 'Bearer adm');
-    expect(res.status).toBe(404);
+    const id = await toCommitted(app);
+    const delivered = await request(app)
+      .post(`/api/requests/${id}/deliver`)
+      .set('Authorization', 'Bearer bak');
+    expect(delivered.status).toBe(200);
+    expect(delivered.body.status).toBe('delivered');
   });
 });
 
@@ -1386,10 +1244,6 @@ describe('delete API', () => {
       committedAt: null,
       deliveredAt: null,
       receivedAt: null,
-      hasPhoto: false,
-      sharedByOwner: false,
-      sharedByBaker: false,
-      galleryCaption: '',
       organizationName: '',
     };
     const makeSeeded = () =>
@@ -1634,10 +1488,6 @@ describe('attention API', () => {
     committedAt: null,
     deliveredAt: null,
     receivedAt: null,
-    hasPhoto: false,
-    sharedByOwner: false,
-    sharedByBaker: false,
-    galleryCaption: '',
     organizationName: '',
     ...over,
   });
@@ -1669,114 +1519,6 @@ describe('attention API', () => {
     )!;
     expect(item.reason).toBe('overdue');
     expect(item.ownerContact).toBe('rae@example.com');
-  });
-});
-
-describe('gallery API', () => {
-  // A completed cake with a photo, owned by user-req and baked by user-bak.
-  const receivedCake = (over: Partial<CakeRequest> = {}): CakeRequest => ({
-    id: 'g1',
-    recipient: 'Maya',
-    occasion: 'birthday',
-    neededBy: '2026-09-01',
-    dietary: '',
-    location: 'Rama A',
-    kashrut: 'Rabbanut',
-    aboutRecipient: '',
-    contactPhone: '555-0100',
-    createdAt: Date.now(),
-    ownerId: 'user-req',
-    status: 'received',
-    reservedBy: 'Baz',
-    reservedContact: 'baz@example.com',
-    reservedByUserId: 'user-bak',
-    reservedUntil: null,
-    reservedAt: Date.now(),
-    committedAt: Date.now(),
-    deliveredAt: Date.now(),
-    receivedAt: Date.now(),
-    hasPhoto: true,
-    sharedByOwner: false,
-    sharedByBaker: false,
-    galleryCaption: '',
-    organizationName: '',
-    ...over,
-  });
-  const appWith = (seed: CakeRequest[]) =>
-    createApp(makeFakeStore(seed), makeFakeTranslator(), makeFakeAuthenticator(), makeFakeProfilesStore());
-  const share = (
-    app: ReturnType<typeof createApp>,
-    id: string,
-    token: string,
-    body: object,
-  ) => request(app).post(`/api/requests/${id}/gallery`).set('Authorization', `Bearer ${token}`).send(body);
-  const gallery = (app: ReturnType<typeof createApp>) => request(app).get('/api/gallery');
-
-  it('never returns the recipient name or phone to the baker who shares', async () => {
-    const app = appWith([receivedCake()]);
-    const res = await share(app, 'g1', 'bak', { share: true });
-    expect(res.status).toBe(200);
-    expect(res.body.recipient).toBe('');
-    expect(res.body.contactPhone).toBe('');
-  });
-
-  it('appears in the public gallery only after BOTH the requester and baker agree', async () => {
-    const app = appWith([receivedCake()]);
-    await share(app, 'g1', 'req', { share: true }); // requester agrees
-    expect((await gallery(app)).body).toHaveLength(0); // baker hasn't yet
-    await share(app, 'g1', 'bak', { share: true }); // baker agrees
-    const res = await gallery(app);
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].photoUrl).toContain('http');
-  });
-
-  it('the gallery is public (no login) and never leaks names/location/contact', async () => {
-    const app = appWith([receivedCake({ sharedByOwner: true, sharedByBaker: true, galleryCaption: 'Made with love' })]);
-    const res = await gallery(app); // no Authorization header
-    expect(res.status).toBe(200);
-    expect(res.body[0].caption).toBe('Made with love');
-    expect(res.body[0]).not.toHaveProperty('recipient');
-    expect(res.body[0]).not.toHaveProperty('location');
-    expect(res.body[0]).not.toHaveProperty('contactPhone');
-  });
-
-  it('only the requester or baker may share; a stranger is refused (403)', async () => {
-    const app = appWith([receivedCake()]);
-    expect((await share(app, 'g1', 'req2', { share: true })).status).toBe(403);
-  });
-
-  it('a cake that is not received (with a photo) cannot be shared (409)', async () => {
-    const app = appWith([receivedCake({ id: 'g2', status: 'open', hasPhoto: false })]);
-    expect((await share(app, 'g2', 'req', { share: true })).status).toBe(409);
-  });
-
-  it('a caption can be added and shows in the gallery', async () => {
-    const app = appWith([receivedCake({ sharedByBaker: true })]); // baker already agreed
-    await share(app, 'g1', 'req', { share: true, caption: 'A rainbow cake 🌈' });
-    const res = await gallery(app);
-    expect(res.body[0].caption).toBe('A rainbow cake 🌈');
-  });
-
-  it('when one account is BOTH the owner and the baker, its agreement counts for both', async () => {
-    // e.g. an admin who posted a request and baked it themselves.
-    const app = appWith([receivedCake({ ownerId: 'user-adm', reservedByUserId: 'user-adm' })]);
-    await share(app, 'g1', 'adm', { share: true });
-    const res = await gallery(app);
-    expect(res.body).toHaveLength(1); // both flags set by the single action
-  });
-
-  it('an admin can pull a cake from the gallery (moderation)', async () => {
-    const app = appWith([receivedCake({ sharedByOwner: true, sharedByBaker: true })]);
-    expect((await gallery(app)).body).toHaveLength(1);
-    await share(app, 'g1', 'adm', { share: false });
-    expect((await gallery(app)).body).toHaveLength(0);
-  });
-
-  it('sharing needs a valid flag (400) and a real request (404)', async () => {
-    const app = appWith([receivedCake()]);
-    expect((await share(app, 'g1', 'req', {})).status).toBe(400); // no share flag
-    expect((await share(app, 'nope', 'req', { share: true })).status).toBe(404);
   });
 });
 

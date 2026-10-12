@@ -26,10 +26,6 @@ function makeRequest(over: Partial<CakeRequest> = {}): CakeRequest {
     committedAt: null,
     deliveredAt: null,
     receivedAt: null,
-    hasPhoto: false,
-    sharedByOwner: false,
-    sharedByBaker: false,
-    galleryCaption: '',
     organizationName: '',
     ...over,
   };

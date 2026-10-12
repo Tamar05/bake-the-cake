@@ -32,9 +32,6 @@ export default function AppNav({ t }: { t: Dictionary }) {
           {t.nav.myRequests}
         </NavLink>
       )}
-      <NavLink to="/gallery" className={linkClass}>
-        {t.nav.gallery}
-      </NavLink>
       {role === 'baker' && (
         <NavLink to="/reservations" className={linkClass}>
           {t.nav.myReservations}

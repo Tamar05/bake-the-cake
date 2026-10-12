@@ -1,8 +1,6 @@
-import express, { type RequestHandler } from 'express';
+import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
 import rateLimit from 'express-rate-limit';
-import { fileTypeFromBuffer } from 'file-type';
 import {
   ALREADY_RESERVED,
   NOT_RESERVER,
@@ -175,9 +173,9 @@ function buildRequestDraft(body: Partial<RequestDraft>): { draft: RequestDraft }
 // Trims private details a viewer isn't allowed to see. The recipient's name and
 // phone are NEVER sent to a baker - not while browsing, not during the hold, not
 // after committing; a baker gets them only in the email sent on commit. Only the
-// owner (the requester who posted it) and admins see them. Who is baking it, the
-// private photo and the gallery caption stay hidden from everyone except the
-// owner, an admin and the baker holding the request.
+// owner (the requester who posted it) and admins see them. Who is baking it
+// stays hidden from everyone except the owner, an admin and the baker holding
+// the request.
 function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined): CakeRequest {
   const isAdmin = viewer?.role === 'admin';
   const isOwner = viewer != null && viewer.id === request.ownerId;
@@ -192,47 +190,17 @@ function redactReserver(request: CakeRequest, viewer: AuthedProfile | undefined)
     }
   }
   if (!isAdmin && !isOwner && !isHolder) {
-    result = { ...result, galleryCaption: '' };
     if (request.reservedByUserId != null || request.reservedBy != null) {
       result = {
         ...result,
         reservedBy: null,
         reservedContact: null,
         reservedByUserId: null,
-        hasPhoto: false,
       };
     }
   }
   return result;
 }
-
-// Accepts an optional finished-cake photo on the deliver request. Held in memory
-// (never written to disk here), capped at 5 MB, and limited to common image
-// types. Multer's own errors (too big / wrong type) become a clean 400.
-const photoUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('INVALID_TYPE'));
-  },
-});
-const acceptPhoto: RequestHandler = (req, res, next) => {
-  photoUpload.single('photo')(req, res, (err) => {
-    if (err) {
-      res.status(400).json({ error: 'Invalid photo (JPEG, PNG or WebP, up to 5 MB)' });
-      return;
-    }
-    next();
-  });
-};
-
-// The set of image types this app actually accepts — checked against the
-// file's real signature (magic bytes), not the client-declared Content-Type,
-// so a mislabeled or non-image file can't slip through multer's fileFilter
-// (which only ever sees what the uploader claims).
-const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 // Modest, per-IP throttles on the two endpoints an anonymous or low-privilege
 // caller could otherwise hammer for free: the public translation proxy (a
@@ -315,16 +283,6 @@ export function createApp(
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
-  });
-
-  // The public inspiration gallery — no login. Only cakes both the requester and
-  // the baker agreed to show; each item is just a photo + optional caption.
-  app.get('/api/gallery', async (_req, res) => {
-    try {
-      res.json(await store.listGallery());
-    } catch {
-      res.status(500).json({ error: 'Could not load the gallery' });
-    }
   });
 
   // Who am I? Returns the signed-in person's profile (verified server-side).
@@ -686,30 +644,11 @@ export function createApp(
     },
   );
 
-  // The baker who committed marks the cake delivered (committed → delivered),
-  // optionally attaching one finished-cake photo (multipart field `photo`).
-  app.post(
-    '/api/requests/:id/deliver',
-    auth,
-    requireRole('baker', 'admin'),
-    acceptPhoto,
-    async (req, res) => {
+  // The baker who committed marks the cake delivered (committed → delivered).
+  app.post('/api/requests/:id/deliver', auth, requireRole('baker', 'admin'), async (req, res) => {
     const me = (req as AuthedRequest).auth;
-    const file = (req as AuthedRequest & { file?: Express.Multer.File }).file;
-    // Trust the file's actual signature, not the client-declared Content-Type —
-    // multer's fileFilter only ever sees what the uploader claims (finding from
-    // the pre-production security audit).
-    let photo: { buffer: Buffer; contentType: string } | undefined;
-    if (file) {
-      const detected = await fileTypeFromBuffer(file.buffer);
-      if (!detected || !ALLOWED_PHOTO_TYPES.has(detected.mime)) {
-        res.status(400).json({ error: 'Invalid photo (JPEG, PNG or WebP, up to 5 MB)' });
-        return;
-      }
-      photo = { buffer: file.buffer, contentType: detected.mime };
-    }
     try {
-      const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin', photo);
+      const updated = await store.deliverRequest(req.params.id, me.id, me.role === 'admin');
       res.status(200).json(await presentOne(updated, me));
     } catch (err) {
       if (err instanceof Error && err.message === NOT_FOUND) {
@@ -750,83 +689,6 @@ export function createApp(
         return;
       }
       res.status(500).json({ error: 'Could not confirm this request' });
-    }
-  });
-
-  // Hands an authorized viewer (owner / baker / admin) a short-lived signed URL
-  // for the finished-cake photo. The bucket is private, so this is the only way
-  // to see it; everyone else is refused.
-  app.get('/api/requests/:id/photo', auth, async (req, res) => {
-    const me = (req as AuthedRequest).auth;
-    try {
-      const url = await store.createPhotoUrl(req.params.id, me.id, me.role === 'admin');
-      res.status(200).json({ url });
-    } catch (err) {
-      if (err instanceof Error && err.message === NOT_OWNER) {
-        res.status(403).json({ error: 'You are not allowed to see this photo' });
-        return;
-      }
-      if (err instanceof Error && err.message === NOT_FOUND) {
-        res.status(404).json({ error: 'No photo for this request' });
-        return;
-      }
-      res.status(500).json({ error: 'Could not load the photo' });
-    }
-  });
-
-  // The requester or the baker toggles their agreement to show a received cake
-  // in the public gallery (both must agree), and may set the caption. An admin
-  // sending { share: false } pulls it from the gallery (moderation).
-  app.post('/api/requests/:id/gallery', auth, async (req, res) => {
-    const me = (req as AuthedRequest).auth;
-    const body = (req.body ?? {}) as { share?: unknown; caption?: unknown };
-    if (typeof body.share !== 'boolean') {
-      res.status(400).json({ error: 'Missing or invalid "share" flag' });
-      return;
-    }
-    if (body.caption !== undefined && typeof body.caption !== 'string') {
-      res.status(400).json({ error: 'Invalid caption' });
-      return;
-    }
-    const caption =
-      typeof body.caption === 'string' ? body.caption.slice(0, 200).trim() : undefined;
-    try {
-      const updated = await store.setGalleryShare(
-        req.params.id,
-        me.id,
-        me.role === 'admin',
-        body.share,
-        caption,
-      );
-      res.status(200).json(await presentOne(updated, me));
-    } catch (err) {
-      if (err instanceof Error && err.message === NOT_FOUND) {
-        res.status(404).json({ error: 'Request not found' });
-        return;
-      }
-      if (err instanceof Error && err.message === NOT_OWNER) {
-        res.status(403).json({ error: 'Only the requester or the baker can share this cake' });
-        return;
-      }
-      if (err instanceof Error && err.message === INVALID_TRANSITION) {
-        res.status(409).json({ error: 'Only a received cake with a photo can be shared' });
-        return;
-      }
-      res.status(500).json({ error: 'Could not update gallery sharing' });
-    }
-  });
-
-  // Admin moderation: remove a request's finished-cake photo.
-  app.delete('/api/requests/:id/photo', auth, requireRole('admin'), async (req, res) => {
-    try {
-      const updated = await store.removePhoto(req.params.id);
-      res.status(200).json(updated);
-    } catch (err) {
-      if (err instanceof Error && err.message === NOT_FOUND) {
-        res.status(404).json({ error: 'Request not found' });
-        return;
-      }
-      res.status(500).json({ error: 'Could not remove the photo' });
     }
   });
 
