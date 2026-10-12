@@ -123,6 +123,7 @@ export default function HoldBox({ t, language, request, token, onUpdated, onClos
             )}
             {resend === 'done' && <p>{t.list.resendDone}</p>}
             {resend === 'error' && <p className="reserve-error">{t.list.resendError}</p>}
+            {(emailSent || resend === 'done') && <p>{t.list.thanksCheckEmail}</p>}
             <button type="button" className="reserve-button" onClick={finish}>
               {t.list.closeBox}
             </button>

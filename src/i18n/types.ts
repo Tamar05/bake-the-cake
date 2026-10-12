@@ -102,6 +102,7 @@ export type Dictionary = {
     holdTaken: string; // shown when the hold is no longer the baker's
     thanksTitle: string; // thank-you box heading
     thanksBody: string; // thank-you box message; {org} is replaced by the organization name
+    thanksCheckEmail: string; // thank-you box, last line: check your email for the recipient's details
     thanksOrgFallback: string; // used for {org} when the request has no organization name
     thanksEmailFailed: string; // thank-you box: the email did not go out
     resendDetails: string; // button: send the details email again
