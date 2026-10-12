@@ -101,7 +101,8 @@ export type Dictionary = {
     holdExpired: string; // shown when the hour runs out
     holdTaken: string; // shown when the hold is no longer the baker's
     thanksTitle: string; // thank-you box heading
-    thanksBody: string; // thank-you box: check your email
+    thanksBody: string; // thank-you box message; {org} is replaced by the organization name
+    thanksOrgFallback: string; // used for {org} when the request has no organization name
     thanksEmailFailed: string; // thank-you box: the email did not go out
     resendDetails: string; // button: send the details email again
     resendSending: string; // busy label for re-sending
@@ -268,6 +269,7 @@ export type Dictionary = {
     haveAccount: string; // switch to the sign-in form
     signOut: string;
     signedInAs: string; // precedes the name + role
+    roles: { baker: string; requester: string; admin: string }; // shown after the name
     working: string; // busy label while signing in/up
     notConfigured: string; // shown when Supabase keys are missing
     genericError: string; // fallback when sign-in/up fails

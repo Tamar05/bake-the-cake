@@ -72,7 +72,7 @@ export default function AuthPanel({ t }: Props) {
     return (
       <div className="auth-panel signed-in">
         <span>
-          {t.auth.signedInAs} <strong>{profile.displayName}</strong> · {profile.role}
+          {t.auth.signedInAs} <strong>{profile.displayName}</strong> · {t.auth.roles[profile.role]}
         </span>
         <button type="button" onClick={() => signOut()}>
           {t.auth.signOut}

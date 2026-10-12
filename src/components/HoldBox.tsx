@@ -114,7 +114,8 @@ export default function HoldBox({ t, language, request, token, onUpdated, onClos
         ) : (
           <>
             <h2>{t.list.thanksTitle}</h2>
-            <p>{emailSent || resend === 'done' ? t.list.thanksBody : t.list.thanksEmailFailed}</p>
+            <p>{t.list.thanksBody.replace('{org}', request.organizationName || t.list.thanksOrgFallback)}</p>
+            {!emailSent && resend !== 'done' && <p>{t.list.thanksEmailFailed}</p>}
             {!emailSent && resend !== 'done' && (
               <button type="button" onClick={sendAgain} disabled={resend === 'sending'}>
                 {resend === 'sending' ? t.list.resendSending : t.list.resendDetails}

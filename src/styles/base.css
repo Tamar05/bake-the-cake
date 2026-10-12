@@ -1282,7 +1282,9 @@ body {
 .hold-box {
   background: #fff;
   border-radius: 20px;
-  padding: 24px;
+  padding: 32px 28px;
+  min-height: 320px;
+  justify-content: center;
   width: min(440px, 100%);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
   display: flex;
