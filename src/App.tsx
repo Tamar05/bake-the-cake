@@ -110,6 +110,12 @@ export default function App() {
   // sign-in box or footer around it.
   const onResetPage = currentPath.startsWith("/reset-password");
 
+  // An organization has just signed up on /join and must confirm its email: show
+  // only the "check your email" note, not the sign-in box above it.
+  const [awaitingJoinEmail, setAwaitingJoinEmail] = useState(false);
+  const hideAuthPanel =
+    onResetPage || (awaitingJoinEmail && currentPath.startsWith("/join"));
+
   const listProps = {
     t,
     language,
@@ -132,7 +138,7 @@ export default function App() {
         <h1>{t.appTitle}</h1>
         {/* Not on the reset page: its own form is the only thing there. While the
             server wakes up, this box would otherwise show a sign-in form above it. */}
-        {!onResetPage && <AuthPanel t={t} language={language} />}
+        {!hideAuthPanel && <AuthPanel t={t} language={language} />}
       </header>
 
       {!onResetPage && <AppNav t={t} />}
@@ -154,7 +160,7 @@ export default function App() {
               }
             />
             <Route path="/gallery" element={<GalleryPage t={t} />} />
-            <Route path="/join" element={<JoinPage t={t} />} />
+            <Route path="/join" element={<JoinPage t={t} onCheckEmail={() => setAwaitingJoinEmail(true)} />} />
             <Route
               path="/reset-password"
               element={<ResetPasswordPage t={t} />}

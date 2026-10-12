@@ -16,7 +16,7 @@ export const en: Dictionary = {
     aboutRecipientHint:
       'A little about who the cake is for, so the baker can make it special — e.g. their favourite colour, character, or hobby.',
     contactPhoneLabel: 'Recipient’s phone',
-    contactPhoneHint: 'The baker will use this number to arrange delivery.',
+    contactPhoneHint: 'Shared with the baker who takes your request, so they can arrange delivery.',
     submit: 'Submit request',
     saveChanges: 'Save changes',
     cancelEdit: 'Cancel',
@@ -51,7 +51,7 @@ export const en: Dictionary = {
     delivering: 'Saving…',
     deliverError: 'Could not mark delivered. Please try again.',
     addPhoto: 'Add a photo of the cake (optional)',
-    deliveryPhonePrefix: 'Phone number to contact the organization:',
+    deliveryPhonePrefix: 'Phone number for delivery:',
     photoAlt: 'The finished cake',
     removePhoto: 'Remove photo',
     removingPhoto: 'Removing…',
@@ -300,7 +300,7 @@ export const en: Dictionary = {
     intro:
       'If you’re signing up on behalf of an organization, enter your invite code below. You’ll create an account (or sign in) like anyone else, then redeem the code to unlock organization features.',
     orgNameLabel: 'Organization name',
-    contactHint: 'Shown to a baker once they take on your request.',
+    contactHint: 'Only our admins see this, so we can reach you if there’s a problem with a request.',
     codeLabel: 'Invite code',
     codeHint: 'An admin gives you this code.',
     submit: 'Join',

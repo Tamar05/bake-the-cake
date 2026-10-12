@@ -16,7 +16,7 @@ export const he: Dictionary = {
     aboutRecipientHint:
       'קצת על מי שהעוגה מיועדת עבורו, כדי שהאופה יוכל להכין אותה במיוחד — למשל הצבע האהוב, דמות אהובה או תחביב.',
     contactPhoneLabel: 'טלפון של מקבל/ת העוגה',
-    contactPhoneHint: 'האופה ישתמש במספר הזה כדי לתאם את המסירה.',
+    contactPhoneHint: 'יועבר לאופה שייקח את הבקשה שלכם, כדי שיוכל לתאם את המסירה.',
     submit: 'שליחת בקשה',
     saveChanges: 'שמירת השינויים',
     cancelEdit: 'ביטול',
@@ -51,7 +51,7 @@ export const he: Dictionary = {
     delivering: 'שומרים…',
     deliverError: 'לא ניתן לסמן כנמסרה. נסו שוב.',
     addPhoto: 'הוסיפו תמונה של העוגה (רשות)',
-    deliveryPhonePrefix: 'טלפון ליצירת קשר עם הארגון:',
+    deliveryPhonePrefix: 'טלפון למסירה:',
     photoAlt: 'העוגה המוכנה',
     removePhoto: 'הסירו תמונה',
     removingPhoto: 'מסירים…',
@@ -297,7 +297,7 @@ export const he: Dictionary = {
     intro:
       'אם אתם נרשמים בשם ארגון, הזינו למטה את קוד ההזמנה שלכם. תיצרו חשבון (או תתחברו) כמו כל אחד אחר, ואז תממשו את הקוד כדי לפתוח את תכונות הארגון.',
     orgNameLabel: 'שם הארגון',
-    contactHint: 'יוצג לאופה ברגע שייקח על עצמו את הבקשה שלכם.',
+    contactHint: 'רק המנהלים שלנו רואים את המספר הזה, כדי שנוכל לפנות אליכם אם יש בעיה בבקשה.',
     codeLabel: 'קוד הזמנה',
     codeHint: 'מנהל/ת נותן/ת לכם את הקוד הזה.',
     submit: 'הצטרפות',

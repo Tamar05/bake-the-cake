@@ -8,7 +8,7 @@ import PasswordField from '../components/PasswordField';
 import { useAuth, EmailAlreadyRegisteredError } from '../auth/AuthProvider';
 import { emailProblem } from '../lib/authErrors';
 
-type Props = { t: Dictionary };
+type Props = { t: Dictionary; onCheckEmail: () => void };
 
 const ORG_NAME_MAX = 80;
 
@@ -18,7 +18,7 @@ const ORG_NAME_MAX = 80;
 //    fields too), then immediately redeem the code with the new session.
 //  - already signed in as a baker: skip straight to the code/org-name step.
 // Someone already a requester or admin has nothing to do here.
-export default function JoinPage({ t }: Props) {
+export default function JoinPage({ t, onCheckEmail }: Props) {
   const { configured, loading, profileLoading, profile, session, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,6 +72,7 @@ export default function JoinPage({ t }: Props) {
         const { emailConfirmationRequired } = await signUp(email, password, name, contact, '/join');
         if (emailConfirmationRequired) {
           setCheckEmail(true);
+          onCheckEmail();
           return;
         }
         // AuthProvider's signUp doesn't return the new session (it lands in
