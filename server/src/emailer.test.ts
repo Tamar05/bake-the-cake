@@ -54,6 +54,26 @@ describe('buildCommitEmail', () => {
   });
 });
 
+describe('buildCommitEmail HTML copy', () => {
+  it('is right-to-left in Hebrew and left-to-right in English', () => {
+    expect(buildCommitEmail(request, 'he').html).toContain('dir="rtl"');
+    expect(buildCommitEmail(request, 'en').html).toContain('dir="ltr"');
+  });
+
+  it('escapes user-written text so it cannot inject markup', () => {
+    const { html } = buildCommitEmail({ ...request, aboutRecipient: '<b>hi</b> & bye' }, 'en');
+    expect(html).toContain('&lt;b&gt;hi&lt;/b&gt; &amp; bye');
+    expect(html).not.toContain('<b>hi</b>');
+  });
+
+  it('uses the same button names the baker sees in the app', () => {
+    expect(buildCommitEmail(request, 'en').text).toContain('"My reservations"');
+    expect(buildCommitEmail(request, 'en').text).toContain('"Mark delivered"');
+    expect(buildCommitEmail(request, 'he').text).toContain('"השמירות שלי"');
+    expect(buildCommitEmail(request, 'he').text).toContain('"סמנו כנמסרה"');
+  });
+});
+
 describe('parseEmailLang', () => {
   it('accepts he, and falls back to en for anything else', () => {
     expect(parseEmailLang('he')).toBe('he');
@@ -91,6 +111,7 @@ describe('createResendEmailer', () => {
     expect(body.from).toBe('Bake the Cake <orders@bakethecake.org>');
     expect(body.to).toEqual(['baz@example.com']);
     expect(body.text).toContain('+972501234567');
+    expect(body.html).toContain('+972501234567');
   });
 
   it('throws when Resend answers with an error status', async () => {
